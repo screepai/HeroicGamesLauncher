@@ -30,6 +30,8 @@ const initialContext: LibraryContextType = {
   setSortDescending: () => null,
   sortInstalled: true,
   setSortInstalled: () => null,
+  showCategorySections: false,
+  setShowCategorySections: () => null,
   showSupportOfflineOnly: false,
   setShowSupportOfflineOnly: () => null,
   showThirdPartyManagedOnly: false,

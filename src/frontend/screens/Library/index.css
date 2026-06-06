@@ -93,3 +93,8 @@
   flex-direction: column;
   flex-grow: 1;
 }
+
+.libraryCategorySection {
+  display: flex;
+  flex-direction: column;
+}

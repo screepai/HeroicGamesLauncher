@@ -1,4 +1,11 @@
 import { useContext, useState } from 'react'
+import {
+  DragDropContext,
+  Draggable,
+  DraggableProvidedDragHandleProps,
+  Droppable,
+  DropResult
+} from '@hello-pangea/dnd'
 import { useTranslation } from 'react-i18next'
 import LibraryContext from '../../LibraryContext'
 import ContextProvider from 'frontend/state/ContextProvider'
@@ -11,6 +18,7 @@ import {
   faAdd,
   faCancel,
   faCheck,
+  faGripVertical,
   faPencil,
   faTrash
 } from '@fortawesome/free-solid-svg-icons'
@@ -19,12 +27,16 @@ interface CategoryItemProps {
   name: string
   removeFunction: (name: string) => void
   renameFunction: (oldName: string, newName: string) => void
+  dragHandleProps: DraggableProvidedDragHandleProps | null
+  isDragging: boolean
 }
 
 function CategoryItem({
   name,
   removeFunction,
-  renameFunction
+  renameFunction,
+  dragHandleProps,
+  isDragging
 }: CategoryItemProps) {
   const { t } = useTranslation()
   const [renameMode, setRenameMode] = useState(false)
@@ -134,7 +146,15 @@ function CategoryItem({
   }
 
   return (
-    <div className="Category">
+    <div className={`Category${isDragging ? ' isDragging' : ''}`}>
+      <button
+        type="button"
+        className="button is-secondary Category__dragHandle"
+        title={t('categories-manager.reorder', 'Reorder "{{name}}"', { name })}
+        {...dragHandleProps}
+      >
+        <FontAwesomeIcon icon={faGripVertical} />
+      </button>
       {!renameMode && <span>{name}</span>}
 
       {renameMode && (
@@ -150,6 +170,17 @@ function CategoryItem({
       {rightButton()}
     </div>
   )
+}
+
+const reorderCategories = (
+  categories: string[],
+  sourceIndex: number,
+  destinationIndex: number
+) => {
+  const reordered = [...categories]
+  const [movedCategory] = reordered.splice(sourceIndex, 1)
+  reordered.splice(destinationIndex, 0, movedCategory)
+  return reordered
 }
 
 function CategoriesManager() {
@@ -177,6 +208,16 @@ function CategoriesManager() {
 
   const categories = customCategories.listCategories()
 
+  const handleDragEnd = ({ source, destination }: DropResult) => {
+    if (!destination || destination.index === source.index) {
+      return
+    }
+
+    customCategories.setCategoryOrder(
+      reorderCategories(categories, source.index, destination.index)
+    )
+  }
+
   return (
     <Dialog
       showCloseButton
@@ -187,14 +228,37 @@ function CategoriesManager() {
         <div>{t('categories-manager.title', 'Manage Categories')}</div>
       </DialogHeader>
       <DialogContent>
-        {categories.map((cat) => (
-          <CategoryItem
-            key={cat}
-            name={cat}
-            removeFunction={removeCategory}
-            renameFunction={renameCategory}
-          />
-        ))}
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="categories-manager-list">
+            {(provided) => (
+              <div
+                className="CategoriesManager__List"
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+              >
+                {categories.map((cat, index) => (
+                  <Draggable draggableId={cat} index={index} key={cat}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                      >
+                        <CategoryItem
+                          name={cat}
+                          removeFunction={removeCategory}
+                          renameFunction={renameCategory}
+                          dragHandleProps={provided.dragHandleProps}
+                          isDragging={snapshot.isDragging}
+                        />
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
         {categories.length === 0 &&
           t('categories-manager.no-categories', 'No categories yet.')}
         <hr />

@@ -6,10 +6,21 @@
     flex-direction: column;
     gap: 0.5rem;
 
+    .CategoriesManager__List {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
     .Category {
       display: flex;
+      align-items: center;
       gap: 0.5rem;
       padding: 0.1rem;
+
+      &.isDragging {
+        background-color: rgba(255, 255, 255, 0.08);
+      }
 
       & label {
         display: none;
@@ -27,6 +38,14 @@
 
       & button {
         opacity: 0.5;
+      }
+
+      & .Category__dragHandle {
+        cursor: grab;
+      }
+
+      & .Category__dragHandle:active {
+        cursor: grabbing;
       }
 
       &:hover,

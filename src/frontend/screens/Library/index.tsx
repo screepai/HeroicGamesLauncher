@@ -46,6 +46,11 @@ type SearchableGame = {
   normalizedTitle: string
 }
 
+type CategorySection = {
+  name: string
+  games: GameInfo[]
+}
+
 export default React.memo(function Library(): JSX.Element {
   const { t } = useTranslation()
 
@@ -219,6 +224,14 @@ export default React.memo(function Library(): JSX.Element {
   function handleSortInstalled(value: boolean) {
     storage.setItem('sortInstalled', JSON.stringify(value))
     setSortInstalled(value)
+  }
+
+  const [showCategorySections, setShowCategorySections] = useState(
+    JSON.parse(storage.getItem('showCategorySections') || 'false')
+  )
+  function handleShowCategorySections(value: boolean) {
+    storage.setItem('showCategorySections', JSON.stringify(value))
+    setShowCategorySections(value)
   }
 
   const backToTopElement = useRef(null)
@@ -638,6 +651,40 @@ export default React.memo(function Library(): JSX.Element {
     installing
   ])
 
+  const categorySections = useMemo<CategorySection[]>(() => {
+    if (!showCategorySections) {
+      return []
+    }
+
+    const getGameId = (game: GameInfo) => `${game.app_name}_${game.runner}`
+    const categories = customCategories.listCategories()
+    const sections = categories
+      .map((category) => {
+        const gamesInCategory = new Set(customCategories.list[category] || [])
+        return {
+          name: category,
+          games: libraryToShow.filter((game) =>
+            gamesInCategory.has(getGameId(game))
+          )
+        }
+      })
+      .filter((section) => section.games.length > 0)
+
+    const categorizedGames = new Set(Object.values(customCategories.list).flat())
+    const uncategorizedGames = libraryToShow.filter(
+      (game) => !categorizedGames.has(getGameId(game))
+    )
+
+    if (uncategorizedGames.length > 0) {
+      sections.push({
+        name: t('header.uncategorized', 'Uncategorized'),
+        games: uncategorizedGames
+      })
+    }
+
+    return sections
+  }, [showCategorySections, customCategories, libraryToShow, t])
+
   // we need this to do proper `position: sticky` of the Add Game area
   // the height of the Header can change at runtime with different font families
   // and when resizing the window
@@ -704,6 +751,8 @@ export default React.memo(function Library(): JSX.Element {
         setShowNonAvailable: handleShowNonAvailable,
         setSortDescending: handleSortDescending,
         setSortInstalled: handleSortInstalled,
+        showCategorySections,
+        setShowCategorySections: handleShowCategorySections,
         showSupportOfflineOnly,
         setShowSupportOfflineOnly: handleShowSupportOfflineOnly,
         showThirdPartyManagedOnly,
@@ -757,13 +806,36 @@ export default React.memo(function Library(): JSX.Element {
         {libraryToShow.length === 0 && <EmptyLibraryMessage />}
 
         {libraryToShow.length > 0 &&
-          (!refreshing || refreshingInTheBackground) && (
+          (!refreshing || refreshingInTheBackground) &&
+          !showCategorySections && (
             <GamesList
               library={libraryToShow}
               layout={layout}
               handleGameCardClick={handleModal}
             />
           )}
+
+        {libraryToShow.length > 0 &&
+          (!refreshing || refreshingInTheBackground) &&
+          showCategorySections &&
+          categorySections.map((section) => (
+            <section className="libraryCategorySection" key={section.name}>
+              <div
+                className="library-section-header"
+                data-tour="library-header"
+              >
+                <h3 className="libraryHeader">
+                  {section.name}
+                  <span className="numberOfgames">{section.games.length}</span>
+                </h3>
+              </div>
+              <GamesList
+                library={section.games}
+                layout={layout}
+                handleGameCardClick={handleModal}
+              />
+            </section>
+          ))}
       </div>
 
       <button id="backToTopBtn" onClick={backToTop} ref={backToTopElement}>

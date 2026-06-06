@@ -29,6 +29,7 @@ export interface StoreStructure {
       hidden: HiddenGame[]
       favourites: FavouriteGame[]
       customCategories: Record<string, string[]>
+      customCategoriesOrder: string[]
     }
     theme: string
     zoomPercent: number

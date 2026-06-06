@@ -6,7 +6,8 @@ import {
   faArrowDownZA,
   faHardDrive as hardDriveSolid,
   faFilter,
-  faFilterCircleXmark
+  faFilterCircleXmark,
+  faLayerGroup
 } from '@fortawesome/free-solid-svg-icons'
 import { faHardDrive as hardDriveLight } from '@fortawesome/free-regular-svg-icons'
 
@@ -38,6 +39,8 @@ export default React.memo(function ActionIcons({
     setSortDescending,
     sortInstalled,
     setSortInstalled,
+    showCategorySections,
+    setShowCategorySections,
     showAlphabetFilter,
     onToggleAlphabetFilter
   } = useContext(LibraryContext)
@@ -94,6 +97,23 @@ export default React.memo(function ActionIcons({
             className="FormControl__segmentedFaIcon"
             icon={sortInstalled ? hardDriveSolid : hardDriveLight}
             data-tour="library-sort-installed"
+          />
+        </button>
+        <button
+          className={classNames('FormControl__button', {
+            active: showCategorySections
+          })}
+          title={
+            showCategorySections
+              ? t('library.hideCategorySections', 'Show one game list')
+              : t('library.showCategorySections', 'Group by categories')
+          }
+          onClick={() => setShowCategorySections(!showCategorySections)}
+        >
+          <FontAwesomeIcon
+            className="FormControl__segmentedFaIcon"
+            icon={faLayerGroup}
+            data-tour="library-sort-categories"
           />
         </button>
         <button

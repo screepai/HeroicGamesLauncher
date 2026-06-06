@@ -87,6 +87,7 @@ interface StateProps {
   hiddenGames: HiddenGame[]
   favouriteGames: FavouriteGame[]
   customCategories: Record<string, string[]>
+  customCategoriesOrder: string[]
   currentCustomCategories: string[]
   theme: string
   isFullscreen: boolean
@@ -228,6 +229,7 @@ class GlobalState extends PureComponent<Props> {
     ),
     favouriteGames: configStore.get('games.favourites', []),
     customCategories: configStore.get('games.customCategories', {}),
+    customCategoriesOrder: configStore.get('games.customCategoriesOrder', []),
     theme: configStore.get('theme', 'midnightMirage'),
     isFullscreen: false,
     isFrameless: false,
@@ -398,15 +400,30 @@ class GlobalState extends PureComponent<Props> {
     configStore.set('games.favourites', newFavouriteGames)
   }
 
-  getCustomCategories = () =>
-    Array.from(new Set(Object.keys(this.state.customCategories))).sort()
+  getCustomCategories = () => {
+    const categories = Array.from(
+      new Set(Object.keys(this.state.customCategories))
+    ).sort()
+    const orderedCategories = this.state.customCategoriesOrder.filter((cat) =>
+      categories.includes(cat)
+    )
+    const unorderedCategories = categories.filter(
+      (cat) => !orderedCategories.includes(cat)
+    )
+
+    return [...orderedCategories, ...unorderedCategories]
+  }
 
   getCurrentCustomCategories = () =>
     Array.from(new Set(this.state.currentCustomCategories)).sort()
 
   setCustomCategory = (newCategory: string) => {
+    const currentCategories = this.getCustomCategories()
     const newCustomCategories = this.state.customCategories
     newCustomCategories[newCategory] = []
+    const newCustomCategoriesOrder = currentCategories.includes(newCategory)
+      ? this.state.customCategoriesOrder
+      : [...currentCategories, newCategory]
 
     // when adding a new category, if there are categories selected, select the new
     // one too so the game doesn't disappear form the library
@@ -417,9 +434,11 @@ class GlobalState extends PureComponent<Props> {
 
     this.setState({
       customCategories: newCustomCategories,
+      customCategoriesOrder: newCustomCategoriesOrder,
       currentCustomCategories: newCurrentCustomCategories
     })
     configStore.set('games.customCategories', newCustomCategories)
+    configStore.set('games.customCategoriesOrder', newCustomCategoriesOrder)
   }
 
   removeCustomCategory = (category: string) => {
@@ -427,7 +446,13 @@ class GlobalState extends PureComponent<Props> {
 
     const newCustomCategories = this.state.customCategories
     delete newCustomCategories[category]
-    this.setState({ customCategories: { ...newCustomCategories } })
+    const newCustomCategoriesOrder = this.state.customCategoriesOrder.filter(
+      (cat) => cat !== category
+    )
+    this.setState({
+      customCategories: { ...newCustomCategories },
+      customCategoriesOrder: newCustomCategoriesOrder
+    })
 
     const updatedCategories = this.getCurrentCustomCategories().filter(
       (cat) => cat !== category
@@ -439,22 +464,44 @@ class GlobalState extends PureComponent<Props> {
       this.setCurrentCustomCategories(['preset_uncategorized'])
     }
     configStore.set('games.customCategories', newCustomCategories)
+    configStore.set('games.customCategoriesOrder', newCustomCategoriesOrder)
   }
 
   renameCustomCategory = (oldName: string, newName: string) => {
     if (!this.state.customCategories[oldName]) return
 
+    const currentCategories = this.getCustomCategories()
     const newCustomCategories = this.state.customCategories
     newCustomCategories[newName] = newCustomCategories[oldName]
     delete newCustomCategories[oldName]
+    const newCustomCategoriesOrder = currentCategories.map((cat) =>
+      cat === oldName ? newName : cat
+    )
 
-    this.setState({ customCategories: { ...newCustomCategories } })
+    this.setState({
+      customCategories: { ...newCustomCategories },
+      customCategoriesOrder: newCustomCategoriesOrder
+    })
     configStore.set('games.customCategories', newCustomCategories)
+    configStore.set('games.customCategoriesOrder', newCustomCategoriesOrder)
 
     const newCurrentCustomCategories = this.state.currentCustomCategories.map(
       (cat) => (cat === oldName ? newName : cat)
     )
     this.setCurrentCustomCategories(newCurrentCustomCategories)
+  }
+
+  setCustomCategoriesOrder = (categories: string[]) => {
+    const newCustomCategoriesOrder = categories.filter(
+      (cat, index) =>
+        this.state.customCategories[cat] &&
+        categories.indexOf(cat) === index
+    )
+
+    this.setState({
+      customCategoriesOrder: newCustomCategoriesOrder
+    })
+    configStore.set('games.customCategoriesOrder', newCustomCategoriesOrder)
   }
 
   addGameToCustomCategory = (category: string, appName: string) => {
@@ -1171,7 +1218,8 @@ class GlobalState extends PureComponent<Props> {
             removeFromGame: this.removeGameFromCustomCategory,
             addCategory: this.setCustomCategory,
             removeCategory: this.removeCustomCategory,
-            renameCategory: this.renameCustomCategory
+            renameCategory: this.renameCustomCategory,
+            setCategoryOrder: this.setCustomCategoriesOrder
           },
           handleLibraryTopSection: this.handleLibraryTopSection,
           handleExperimentalFeatures: this.handleExperimentalFeatures,

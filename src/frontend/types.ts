@@ -61,6 +61,7 @@ export interface ContextType {
     addCategory: (newCategory: string) => void
     removeCategory: (category: string) => void
     renameCategory: (oldName: string, newName: string) => void
+    setCategoryOrder: (categories: string[]) => void
   }
   currentCustomCategories: string[]
   setCurrentCustomCategories: (newCustomCategories: string[]) => void
@@ -242,6 +243,8 @@ export interface LibraryContextType {
   setSortDescending: (value: boolean) => void
   sortInstalled: boolean
   setSortInstalled: (value: boolean) => void
+  showCategorySections: boolean
+  setShowCategorySections: (value: boolean) => void
   showSupportOfflineOnly: boolean
   setShowSupportOfflineOnly: (value: boolean) => void
   showThirdPartyManagedOnly: boolean
