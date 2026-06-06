@@ -521,18 +521,18 @@ export function createNecessaryFolders() {
   })
 }
 
-function getFormattedOsName(): string {
-  switch (process.platform) {
-    case 'linux':
-      return 'Linux'
-    case 'win32':
-      return 'Windows'
-    case 'darwin':
-      return 'macOS'
-    default:
-      return 'Unknown OS'
-  }
-}
+// function getFormattedOsName(): string {
+//   switch (process.platform) {
+//     case 'linux':
+//       return 'Linux'
+//     case 'win32':
+//       return 'Windows'
+//     case 'darwin':
+//       return 'macOS'
+//     default:
+//       return 'Unknown OS'
+//   }
+// }
 
 export async function getSteamLibraries(): Promise<string[]> {
   const { defaultSteamPath } = GlobalConfig.get().getSettings()
