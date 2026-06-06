@@ -210,6 +210,7 @@
         "no-categories": "No categories yet.",
         "remove": "Remove \"{{name}}\"",
         "rename": "Rename \"{{name}}\"",
+        "reorder": "Reorder \"{{name}}\"",
         "title": "Manage Categories"
     },
     "category-settings": {
@@ -571,7 +572,9 @@
     },
     "library": {
         "hideAlphabetFilter": "Hide Alphabet Filter",
+        "hideCategorySections": "Show one game list",
         "showAlphabetFilter": "Show Alphabet Filter",
+        "showCategorySections": "Group by categories",
         "sortAscending": "Sort Ascending",
         "sortByStatus": "Sort by Status",
         "sortDescending": "Sort Descending",
