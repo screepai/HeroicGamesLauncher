@@ -28,7 +28,10 @@ export default React.memo(function LibraryHeader({ list }: Props) {
   }, [list])
 
   return (
-    <h5 className="libraryHeader" data-tour="library-header">
+    <h5
+      className="libraryHeader libraryHeader--main"
+      data-tour="library-header"
+    >
       <div className="libraryHeaderWrapper">
         <span className="libraryTitle">
           {showFavourites

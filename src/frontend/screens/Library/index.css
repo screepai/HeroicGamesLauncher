@@ -46,6 +46,10 @@
   background: var(--gradient-body-background, var(--body-background));
   position: sticky;
   top: var(--header-height, 82px);
+  z-index: 8;
+}
+
+.libraryHeader--main {
   z-index: 9;
 }
 
