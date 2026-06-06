@@ -611,7 +611,7 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
     clientId: '852942976564723722'
   })
 
-  const versionText = `Heroic ${app.getVersion()}`
+  // const versionText = `Heroic ${app.getVersion()}`
 
   const image = gameInfo.art_icon || gameInfo.art_square
   const title = gameInfo.title
@@ -619,13 +619,13 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
   const overrides = image.startsWith('http')
     ? {
         largeImageKey: image,
-        smallImageKey: 'icon_new',
+        // smallImageKey: 'icon_new',
         largeImageText: title,
-        smallImageText: versionText
+        // smallImageText: versionText
       }
     : {
         largeImageKey: 'icon_new',
-        largeImageText: versionText
+        largeImageText: "no image damn"
       }
 
   client.on('ready', async () => {
@@ -633,7 +633,7 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
       name: title,
       type: 0,
       startTimestamp: Date.now(),
-      state: 'via Heroic on ' + getFormattedOsName(),
+      // state: 'via Heroic on ' + getFormattedOsName(),
       statusDisplayType: 0, // Use game title for name plate
       ...overrides
     })

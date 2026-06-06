@@ -37,3 +37,5 @@ flatpak-build
 .env
 
 playwright-report
+.codegraph
+.cursor
