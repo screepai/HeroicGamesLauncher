@@ -627,7 +627,8 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
         // smallImageText: versionText
       }
     : {
-        largeImageKey: 'https://github.com/screepai/HeroicGamesLauncher/blob/main/public/imagekey.png?raw=true',
+        largeImageKey:
+          'https://github.com/screepai/HeroicGamesLauncher/blob/main/public/imagekey.png?raw=true',
         largeImageText: 'no image damn'
       }
 
