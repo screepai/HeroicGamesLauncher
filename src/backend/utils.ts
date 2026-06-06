@@ -69,7 +69,7 @@ import {
 import type { AppSettings, WineManagerStatus } from 'common/types'
 import { isUmuSupported } from './utils/compatibility_layers'
 import { getSystemInfo } from './utils/systeminfo'
-import { configStore } from './constants/key_value_stores'
+import { configStore, tsStore } from './constants/key_value_stores'
 import { GITHUB_API } from './constants/urls'
 import { isLinux, isMac, isIntelMac, isWindows } from './constants/environment'
 import {
@@ -615,6 +615,9 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
 
   const image = gameInfo.art_icon || gameInfo.art_square
   const title = gameInfo.title
+  const totalPlayed = formatTotalPlayedForRPC(
+    tsStore.get(`${gameInfo.app_name}.totalPlayed`, 0)
+  )
 
   const overrides = image.startsWith('http')
     ? {
@@ -624,7 +627,7 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
         // smallImageText: versionText
       }
     : {
-        largeImageKey: 'icon_new',
+        largeImageKey: 'https://github.com/screepai/HeroicGamesLauncher/blob/main/public/imagekey.png?raw=true',
         largeImageText: 'no image damn'
       }
 
@@ -633,7 +636,7 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
       name: title,
       type: 0,
       startTimestamp: Date.now(),
-      // state: 'via Heroic on ' + getFormattedOsName(),
+      state: `Total time played: ${totalPlayed}`,
       statusDisplayType: 0, // Use game title for name plate
       ...overrides
     })
@@ -642,6 +645,14 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
   client.login()
   logInfo('Started Discord Rich Presence', LogPrefix.Backend)
   return client
+}
+
+const formatTotalPlayedForRPC = (mins: number) => {
+  let h: string | number = Math.floor(mins / 60)
+  let m: string | number = mins % 60
+  h = h < 10 ? '0' + h : h
+  m = m < 10 ? '0' + m : m
+  return `${h}:${m}`
 }
 
 const specialCharactersRegex =
