@@ -612,12 +612,12 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
   })
 
   // const versionText = `Heroic ${app.getVersion()}`
+  const startedAt = Date.now()
+  const storedTotalPlayed = tsStore.get(`${gameInfo.app_name}.totalPlayed`, 0)
+  let updateInterval: ReturnType<typeof setInterval> | undefined
 
   const image = gameInfo.art_icon || gameInfo.art_square
   const title = gameInfo.title
-  const totalPlayed = formatTotalPlayedForRPC(
-    tsStore.get(`${gameInfo.app_name}.totalPlayed`, 0)
-  )
 
   const overrides = image.startsWith('http')
     ? {
@@ -632,20 +632,42 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
         largeImageText: 'no image damn'
       }
 
-  client.on('ready', async () => {
+  const getCurrentTotalPlayed = () => {
+    const currentSessionMinutes = Math.floor(
+      (Date.now() - startedAt) / 1000 / 60
+    )
+    return storedTotalPlayed + currentSessionMinutes
+  }
+
+  const updateActivity = async () => {
     await client.user?.setActivity({
       name: title,
       type: 0,
-      startTimestamp: Date.now(),
-      state: `Total time played: ${totalPlayed}`,
+      startTimestamp: startedAt,
+      state: `Total time played: ${formatTotalPlayedForRPC(getCurrentTotalPlayed())}`,
       statusDisplayType: 0, // Use game title for name plate
       ...overrides
     })
+  }
+
+  client.on('ready', async () => {
+    await updateActivity()
+    if (updateInterval) {
+      clearInterval(updateInterval)
+    }
+    updateInterval = setInterval(() => void updateActivity(), 5 * 60 * 1000)
   })
 
   client.login()
   logInfo('Started Discord Rich Presence', LogPrefix.Backend)
-  return client
+  return {
+    destroy() {
+      if (updateInterval) {
+        clearInterval(updateInterval)
+      }
+      client.destroy()
+    }
+  }
 }
 
 const formatTotalPlayedForRPC = (mins: number) => {
