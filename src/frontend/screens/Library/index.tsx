@@ -670,7 +670,9 @@ export default React.memo(function Library(): JSX.Element {
       })
       .filter((section) => section.games.length > 0)
 
-    const categorizedGames = new Set(Object.values(customCategories.list).flat())
+    const categorizedGames = new Set(
+      Object.values(customCategories.list).flat()
+    )
     const uncategorizedGames = libraryToShow.filter(
       (game) => !categorizedGames.has(getGameId(game))
     )

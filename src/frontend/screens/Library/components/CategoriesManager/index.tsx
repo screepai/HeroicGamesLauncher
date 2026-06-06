@@ -239,10 +239,7 @@ function CategoriesManager() {
                 {categories.map((cat, index) => (
                   <Draggable draggableId={cat} index={index} key={cat}>
                     {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                      >
+                      <div ref={provided.innerRef} {...provided.draggableProps}>
                         <CategoryItem
                           name={cat}
                           removeFunction={removeCategory}

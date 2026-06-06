@@ -494,8 +494,7 @@ class GlobalState extends PureComponent<Props> {
   setCustomCategoriesOrder = (categories: string[]) => {
     const newCustomCategoriesOrder = categories.filter(
       (cat, index) =>
-        this.state.customCategories[cat] &&
-        categories.indexOf(cat) === index
+        this.state.customCategories[cat] && categories.indexOf(cat) === index
     )
 
     this.setState({
