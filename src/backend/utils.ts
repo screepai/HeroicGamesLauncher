@@ -620,12 +620,12 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
     ? {
         largeImageKey: image,
         // smallImageKey: 'icon_new',
-        largeImageText: title,
+        largeImageText: title
         // smallImageText: versionText
       }
     : {
         largeImageKey: 'icon_new',
-        largeImageText: "no image damn"
+        largeImageText: 'no image damn'
       }
 
   client.on('ready', async () => {
