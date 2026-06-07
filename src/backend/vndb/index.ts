@@ -502,6 +502,7 @@ export function syncVndbGameMatches(
       vndbTitle: update.vndbTitle ?? update.title,
       source: update.source,
       imageUrl: update.imageUrl,
+      released: update.released,
       languages: update.languages,
       mainVndbId: update.mainRelation?.id,
       mainVndbTitle: update.mainRelation?.title,

@@ -7,7 +7,8 @@ import {
   Info,
   Star,
   Monitor,
-  EmojiEvents
+  EmojiEvents,
+  MenuBook
 } from '@mui/icons-material'
 
 import { Tab, Tabs } from '@mui/material'
@@ -34,6 +35,7 @@ import {
   InstallInfo,
   GameAchievement
 } from 'common/types'
+import type { VndbGameMatch } from 'common/types/vndb'
 
 import GamePicture from '../GamePicture'
 import TimeContainer from '../TimeContainer'
@@ -62,7 +64,8 @@ import {
   ReportIssue,
   Requirements,
   Scores,
-  SettingsButton
+  SettingsButton,
+  VndbInfo
 } from './components'
 import { hasAnticheatInfo } from 'frontend/hooks/hasAnticheatInfo'
 import { hasHelp } from 'frontend/hooks/hasHelp'
@@ -88,6 +91,7 @@ export default React.memo(function GamePage(): JSX.Element | null {
 
   const [showUninstallModal, setShowUninstallModal] = useState(false)
   const [wikiInfo, setWikiInfo] = useState<WikiInfo | null>(null)
+  const [vndbMatch, setVndbMatch] = useState<VndbGameMatch | null>(null)
 
   const { epic, gog, gameUpdates, platform, showDialogModal, connectivity } =
     useContext(ContextProvider)
@@ -173,7 +177,7 @@ export default React.memo(function GamePage(): JSX.Element | null {
   const storage: Storage = window.localStorage
 
   const [currentTab, setCurrentTab] = useState<
-    'info' | 'achievements' | 'extra' | 'requirements'
+    'info' | 'achievements' | 'extra' | 'requirements' | 'vndb'
   >('info')
 
   const previousIsPlaying = useRef<boolean>(isPlaying)
@@ -271,6 +275,34 @@ export default React.memo(function GamePage(): JSX.Element | null {
       }
     })
   }, [appName])
+
+  useEffect(() => {
+    let isMounted = true
+
+    window.api.vndb
+      .getGameMatch({ appName, runner })
+      .then((match) => {
+        if (isMounted) {
+          setVndbMatch(match)
+        }
+      })
+      .catch((error) => {
+        console.error(error)
+        if (isMounted) {
+          setVndbMatch(null)
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [appName, runner])
+
+  useEffect(() => {
+    if (currentTab === 'vndb' && !vndbMatch) {
+      setCurrentTab('info')
+    }
+  }, [currentTab, vndbMatch])
 
   useEffect(() => {
     // when the user clicks the Play button, we disable it so the user can't click it again
@@ -518,6 +550,15 @@ export default React.memo(function GamePage(): JSX.Element | null {
                               icon={<Star className="gameInfoTabsIcon" />}
                             />
                           )}
+                          {vndbMatch && (
+                            <Tab
+                              className="tabButton"
+                              value={'vndb'}
+                              label={t('game.vndb', 'VNDB')}
+                              iconPosition="start"
+                              icon={<MenuBook className="gameInfoTabsIcon" />}
+                            />
+                          )}
                           {hasRequirements && (
                             <Tab
                               className="tabButton"
@@ -557,6 +598,14 @@ export default React.memo(function GamePage(): JSX.Element | null {
                           <HLTB />
                           <CompatibilityInfo gameInfo={gameInfo} />
                           <AppleWikiInfo gameInfo={gameInfo} />
+                        </TabPanel>
+
+                        <TabPanel
+                          value={currentTab}
+                          index="vndb"
+                          className="vndbTab"
+                        >
+                          <VndbInfo match={vndbMatch} />
                         </TabPanel>
 
                         <TabPanel

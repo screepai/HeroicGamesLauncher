@@ -146,7 +146,8 @@
         "neverPlayed": "Never",
         "platform": "Select Platform Version to Install",
         "requirements": "System Requirements",
-        "totalPlayed": "Time Played"
+        "totalPlayed": "Time Played",
+        "vndb": "VNDB"
     },
     "gamecard": {
         "moving": "Moving",
@@ -342,6 +343,26 @@
         "header": "This game is managed by a third-party application",
         "notice1": "This game is managed by a third-party application: \"{{application_name}}\"",
         "notice2": "After clicking Install, Heroic will run the application in order to complete the installation process"
+    },
+    "vndb": {
+        "freeware": "Freeware",
+        "included-vns": "Included visual novels",
+        "main-story": "Main story",
+        "main-version": "Main version",
+        "official": "Official",
+        "patch": "Patch",
+        "platforms": "Platforms",
+        "relations": "Relations",
+        "release-date": "Release date",
+        "release-flags": "Release flags",
+        "release-id": "Release ID",
+        "release-info": "Release info",
+        "release-languages": "Release languages",
+        "released": "Released",
+        "selected-release": "Selected release",
+        "synced-at": "Synced",
+        "visual-novel": "Visual novel",
+        "vn-languages": "VN languages"
     },
     "wikiLink": "Important information about this game, read this:&nbsp;<1>Open page</1>"
 }
