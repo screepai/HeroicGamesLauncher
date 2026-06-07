@@ -84,6 +84,7 @@ export interface VndbGameMatch {
   source?: VndbSearchResultSource
   imageUrl?: string
   released?: string | null
+  developers?: string[]
   languages?: string[]
   mainVndbId?: string
   mainVndbTitle?: string
@@ -104,6 +105,7 @@ export interface VndbGameMatchUpdate {
   source?: VndbSearchResultSource
   imageUrl?: string
   released?: string | null
+  developers?: string[]
   languages?: string[]
   mainRelation?: VndbRelation
   relations?: VndbRelation[]

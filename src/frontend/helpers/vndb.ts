@@ -190,7 +190,7 @@ export function normalizeVndbSelectedMatch(
     source: 'visualNovel',
     imageUrl: mainVisualNovel.imageUrl ?? result.imageUrl,
     released: mainVisualNovel.released,
-    developers: [],
+    developers: result.developers,
     languages: [],
     platforms: [],
     relations: mainVisualNovel.relations ?? result.relations,

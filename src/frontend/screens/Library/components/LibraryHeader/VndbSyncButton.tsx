@@ -8,6 +8,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { GameInfo } from 'common/types'
 import type {
   VndbGameMatch,
+  VndbGameMatchUpdate,
   VndbGameMatchSuggestion,
   VndbRelease,
   VndbSearchResult
@@ -26,6 +27,7 @@ import {
 } from 'frontend/components/UI/Dialog'
 import fallbackImage from 'frontend/assets/heroic_card.jpg'
 import {
+  getVndbReleasesWithSelectedRelease,
   getVndbReleaseMainVisualNovelId,
   getUniqueSortedVndbPlatforms,
   getVndbPlatformsLabel,
@@ -73,7 +75,7 @@ function storedMatchToResult(match: VndbGameMatch): VndbSearchResult {
     source: match.source ?? 'visualNovel',
     imageUrl: match.imageUrl,
     released: match.released,
-    developers: [],
+    developers: match.developers ?? [],
     languages: match.languages ?? [],
     platforms: getStoredMatchPlatforms(match),
     relations: match.relations ?? [],
@@ -147,7 +149,7 @@ function releaseToSearchResult(
     source: 'release',
     imageUrl: release.imageUrl ?? parentResult.imageUrl,
     released: release.released,
-    developers: [],
+    developers: parentResult.developers,
     languages: release.languages ?? [],
     platforms: release.platforms,
     relations: release.vns.flatMap((vn) => vn.relations),
@@ -197,6 +199,68 @@ function getStoredMatchPlatforms(match: VndbGameMatch): string[] {
     ...(match.latestRelease?.platforms ?? []),
     ...(match.releases?.flatMap((release) => release.platforms ?? []) ?? [])
   ])
+}
+
+function getStoredMatchMainVisualNovelId(
+  match: VndbGameMatch
+): string | undefined {
+  return (
+    match.mainVndbId ??
+    match.mainRelation?.id ??
+    match.latestRelease?.vns[0]?.id ??
+    match.releaseVns?.[0]?.id ??
+    (match.vndbId.startsWith('v') ? match.vndbId : undefined)
+  )
+}
+
+function getStoredMatchSelectedRelease(
+  match: VndbGameMatch
+): VndbRelease | undefined {
+  if (match.latestRelease) {
+    return match.latestRelease
+  }
+
+  if (match.source !== 'release') {
+    return undefined
+  }
+
+  return {
+    id: match.vndbId,
+    title: match.vndbTitle,
+    imageUrl: match.imageUrl,
+    released: match.released,
+    languages: match.languages ?? [],
+    platforms: getStoredMatchPlatforms(match),
+    vns: match.releaseVns ?? []
+  }
+}
+
+function getHydratedMatchUpdate(
+  match: VndbGameMatch,
+  result: VndbSearchResult
+): VndbGameMatchUpdate {
+  const selectedRelease = getStoredMatchSelectedRelease(match)
+  const releases = selectedRelease
+    ? getVndbReleasesWithSelectedRelease(result.releases, selectedRelease)
+    : result.releases
+
+  return {
+    appName: match.appName,
+    runner: match.runner,
+    title: match.title,
+    vndbId: result.id,
+    vndbTitle: result.title,
+    source: result.source,
+    imageUrl: result.imageUrl,
+    released: result.released,
+    developers: result.developers,
+    languages: result.languages,
+    mainRelation: result.mainRelation,
+    relations: result.relations,
+    latestRelease: selectedRelease ?? result.latestRelease,
+    releases,
+    releaseVns: selectedRelease?.vns ?? match.releaseVns ?? result.releaseVns
+  }
 }
 
 function getPickerResultSections(
@@ -462,6 +526,7 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
   const [open, setOpen] = useState(false)
   const [loadingMatches, setLoadingMatches] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [refreshingMatches, setRefreshingMatches] = useState(false)
   const [suggestions, setSuggestions] = useState<VndbGameMatchSuggestion[]>([])
   const [selectedMatches, setSelectedMatches] = useState<MatchState>({})
   const [pickerGameKey, setPickerGameKey] = useState<string | null>(null)
@@ -603,6 +668,7 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
             source: normalizedMatch?.source,
             imageUrl: normalizedMatch?.imageUrl,
             released: normalizedMatch?.released,
+            developers: normalizedMatch?.developers,
             languages: normalizedMatch?.languages,
             mainRelation: normalizedMatch?.mainRelation,
             relations: normalizedMatch?.relations,
@@ -618,6 +684,65 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
       setError(t('vndb.sync.error.save', 'Unable to sync VNDB matches.'))
     } finally {
       setSyncing(false)
+    }
+  }
+
+  async function refreshStoredMatches() {
+    setRefreshingMatches(true)
+    setError(null)
+
+    try {
+      const storedMatches = await window.api.vndb.getAllGameMatches()
+      const updates: VndbGameMatchUpdate[] = []
+
+      for (const match of Object.values(storedMatches)) {
+        const visualNovelId = getStoredMatchMainVisualNovelId(match)
+
+        if (!visualNovelId) {
+          continue
+        }
+
+        try {
+          const [result] = await window.api.vndb.searchVisualNovels({
+            query: visualNovelId,
+            limit: 1
+          })
+
+          if (result?.source === 'visualNovel' && result.id === visualNovelId) {
+            updates.push(getHydratedMatchUpdate(match, result))
+          }
+        } catch (err) {
+          console.error(err)
+        }
+      }
+
+      if (!updates.length) {
+        setError(
+          t(
+            'vndb.sync.error.refresh-empty',
+            'No existing VNDB matches could be refreshed.'
+          )
+        )
+        return
+      }
+
+      const updatedMatches = await window.api.vndb.syncGameMatches(updates)
+      setSelectedMatches((current) => {
+        const nextMatches = { ...current }
+
+        for (const match of Object.values(updatedMatches)) {
+          nextMatches[getMatchKey(match)] = storedMatchToResult(match)
+        }
+
+        return nextMatches
+      })
+    } catch (err) {
+      console.error(err)
+      setError(
+        t('vndb.sync.error.refresh', 'Unable to refresh existing VNDB matches.')
+      )
+    } finally {
+      setRefreshingMatches(false)
     }
   }
 
@@ -871,15 +996,32 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
           <DialogFooter>
             <button
               className="button is-secondary"
+              onClick={() => void refreshStoredMatches()}
+              disabled={loadingMatches || syncing || refreshingMatches}
+            >
+              {refreshingMatches ? (
+                <FontAwesomeIcon icon={faSpinner} spin />
+              ) : (
+                <FontAwesomeIcon icon={faSyncAlt} />
+              )}
+              {t('vndb.sync.refresh-existing', 'Refresh existing matches')}
+            </button>
+            <button
+              className="button is-secondary"
               onClick={() => setOpen(false)}
-              disabled={syncing}
+              disabled={syncing || refreshingMatches}
             >
               {t('button.cancel', 'Cancel')}
             </button>
             <button
               className="button is-success"
               onClick={() => void syncMatches()}
-              disabled={loadingMatches || syncing || !suggestions.length}
+              disabled={
+                loadingMatches ||
+                syncing ||
+                refreshingMatches ||
+                !suggestions.length
+              }
             >
               {syncing ? (
                 <FontAwesomeIcon icon={faSpinner} spin />

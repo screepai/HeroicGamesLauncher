@@ -71,6 +71,7 @@ import { getSystemInfo } from './utils/systeminfo'
 import { configStore, tsStore } from './constants/key_value_stores'
 import { GITHUB_API } from './constants/urls'
 import { isLinux, isMac, isIntelMac, isWindows } from './constants/environment'
+import { getVndbGameMatch } from './vndb'
 import {
   configPath,
   fixAsarPath,
@@ -637,14 +638,36 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
   }
 
   const updateActivity = async () => {
-    await client.user?.setActivity({
-      name: title,
+    const vndbMatch = getVndbGameMatch(gameInfo.app_name, gameInfo.runner)
+    const activityTitle = vndbMatch?.vndbTitle ?? title
+    const activityDetails = getVndbRichPresenceDetails(vndbMatch)
+    const vndbButtons = getVndbRichPresenceButtons(vndbMatch)
+
+    const activity = {
+      name: activityTitle,
       type: 0,
       startTimestamp: startedAt,
+      details: activityDetails,
       state: `Total time played: ${formatTotalPlayedForRPC(getCurrentTotalPlayed())}`,
       statusDisplayType: 0, // Use game title for name plate
+      ...vndbButtons,
       ...overrides
-    })
+    }
+    const activityResponse = await client.user?.setActivity(activity)
+
+    if (vndbButtons.buttons?.length) {
+      logDebug(
+        [
+          'Updated Discord Rich Presence with VNDB button:',
+          {
+            requestedButtons: vndbButtons.buttons,
+            responseButtons: activityResponse?.buttons,
+            responseButtonUrls: activityResponse?.metadata?.button_urls
+          }
+        ],
+        LogPrefix.Backend
+      )
+    }
   }
 
   client.on('ready', async () => {
@@ -664,6 +687,47 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
       }
       client.destroy()
     }
+  }
+}
+
+function getVndbRichPresenceDetails(
+  match: ReturnType<typeof getVndbGameMatch>
+) {
+  const developers = match?.developers?.filter(Boolean) ?? []
+
+  if (!developers.length) {
+    return undefined
+  }
+
+  const visibleDevelopers = developers.slice(0, 2).join(', ')
+
+  if (developers.length <= 2) {
+    return visibleDevelopers
+  }
+
+  return `${visibleDevelopers} +${developers.length - 2}`
+}
+
+function getVndbRichPresenceButtons(
+  match: ReturnType<typeof getVndbGameMatch>
+) {
+  const vndbId =
+    match?.mainVndbId ??
+    match?.mainRelation?.id ??
+    match?.releaseVns?.[0]?.id ??
+    match?.vndbId
+
+  if (!vndbId) {
+    return {}
+  }
+
+  return {
+    buttons: [
+      {
+        label: 'View on VNDB',
+        url: `https://vndb.org/${vndbId}`
+      }
+    ]
   }
 }
 

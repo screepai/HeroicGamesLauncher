@@ -1177,6 +1177,8 @@
             "error": {
                 "match": "Unable to search VNDB for the current library.",
                 "no-results": "No VNDB results found.",
+                "refresh": "Unable to refresh existing VNDB matches.",
+                "refresh-empty": "No existing VNDB matches could be refreshed.",
                 "save": "Unable to sync VNDB matches.",
                 "search": "VNDB search failed."
             },
@@ -1184,6 +1186,7 @@
             "loading": "Searching VNDB...",
             "no-match": "No VNDB match",
             "platforms": "Platforms: {{platforms}}",
+            "refresh-existing": "Refresh existing matches",
             "search-label": "Search VNDB",
             "search-manual": "Search VNDB",
             "section-language": "{{language}} releases",

@@ -510,6 +510,7 @@ export function syncVndbGameMatches(
       source: update.source,
       imageUrl: update.imageUrl,
       released: update.released,
+      developers: update.developers,
       languages: update.languages,
       mainVndbId: update.mainRelation?.id,
       mainVndbTitle: update.mainRelation?.title,
