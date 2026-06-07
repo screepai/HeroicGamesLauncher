@@ -140,15 +140,15 @@
   background: var(--icons-background);
   justify-content: space-around;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-areas: 'update settings play';
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-areas: 'update vndb settings play';
   padding: var(--space-xs-fixed);
 }
 
 .gameCard.justPlayed > .icons {
   justify-content: right;
-  grid-template-columns: 0.3fr 1fr 0.4fr 0.5fr;
-  grid-template-areas: 'update gap settings play';
+  grid-template-columns: 0.3fr 1fr 0.4fr 0.4fr 0.5fr;
+  grid-template-areas: 'update gap vndb settings play';
 }
 
 .gameCard.justPlayed.hidden .justPlayedImg {
@@ -273,8 +273,8 @@
   height: 100%;
   width: 100%;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-areas: 'update settings play';
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-areas: 'update vndb settings play';
 }
 
 .gameListItem > .gameCardStatus {

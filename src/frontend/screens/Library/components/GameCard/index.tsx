@@ -55,6 +55,7 @@ import {
 } from '@mui/icons-material'
 import EditGameDialog from 'frontend/components/UI/EditGameDialog'
 import { openInstallGameModal } from 'frontend/state/InstallGameModal'
+import VndbSyncButton from '../LibraryHeader/VndbSyncButton'
 
 interface Card {
   buttonClick: () => void
@@ -458,6 +459,7 @@ const GameCard = ({
   const showSettingsButton = isInstalled && !isUninstalling && !isBrowserGame
   const showUpdateBadge =
     hasUpdate && !isUpdating && !isQueued && activeController
+  const showVndbSyncButton = !gameInfo.install.is_dlc
 
   return (
     <div>
@@ -557,6 +559,9 @@ const GameCard = ({
                     <SettingsIcon />
                   </SvgButton>
                 </>
+              )}
+              {showVndbSyncButton && (
+                <VndbSyncButton list={[gameInfo]} variant="icon" />
               )}
               {renderIcon()}
             </span>

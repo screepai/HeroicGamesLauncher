@@ -19,6 +19,7 @@ import {
 import { UserData } from 'common/types/gog'
 import { NileUserData } from './nile'
 import { ZoomCredentials } from './zoom'
+import type { VndbGameMatch } from './vndb'
 
 export interface StoreStructure {
   configStore: {
@@ -122,6 +123,9 @@ export interface StoreStructure {
         art_square?: string
       }
     >
+  }
+  vndbMatchesStore: {
+    matches: Record<string, VndbGameMatch>
   }
 }
 

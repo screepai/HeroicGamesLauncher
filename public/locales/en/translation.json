@@ -196,9 +196,11 @@
     },
     "button": {
         "cancel": "Cancel",
+        "confirm": "Confirm",
         "continue": "Continue",
         "go_to_library": "Go to Library",
-        "login": "Log in"
+        "login": "Log in",
+        "search": "Search"
     },
     "categories-manager": {
         "add": "Add",
@@ -1167,6 +1169,22 @@
         "manageaccounts": "Manage Accounts",
         "quit": "Quit",
         "quitMessage": "Are you sure you want to quit?"
+    },
+    "vndb": {
+        "sync": {
+            "button": "VNDB",
+            "error": {
+                "match": "Unable to search VNDB for the current library.",
+                "no-results": "No VNDB results found.",
+                "save": "Unable to sync VNDB matches.",
+                "search": "VNDB search failed."
+            },
+            "loading": "Searching VNDB...",
+            "no-match": "No VNDB match",
+            "search-label": "Search VNDB",
+            "search-manual": "Search VNDB",
+            "title": "Sync VNDB Titles"
+        }
     },
     "webview": {
         "controls": {

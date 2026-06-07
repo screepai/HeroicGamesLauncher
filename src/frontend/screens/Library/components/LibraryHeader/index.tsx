@@ -1,16 +1,17 @@
-import React, { useContext, useMemo } from 'react'
+import { memo, useContext, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import ActionIcons from 'frontend/components/UI/ActionIcons'
 import { GameInfo } from 'common/types'
 import LibraryContext from '../../LibraryContext'
 import './index.css'
 import AddGameButton from '../AddGameButton'
+import VndbSyncButton from './VndbSyncButton'
 
 type Props = {
   list: GameInfo[]
 }
 
-export default React.memo(function LibraryHeader({ list }: Props) {
+export default memo(function LibraryHeader({ list }: Props) {
   const { t } = useTranslation()
   const { showFavourites } = useContext(LibraryContext)
 
@@ -39,6 +40,7 @@ export default React.memo(function LibraryHeader({ list }: Props) {
             : t('title.allGames', 'All Games')}
           <span className="numberOfgames">{numberOfGames}</span>
           <AddGameButton data-tour="library-add-game" />
+          <VndbSyncButton list={list} />
         </span>
         <ActionIcons />
       </div>

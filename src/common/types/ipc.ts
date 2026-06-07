@@ -49,6 +49,13 @@ import type { CatalogLocaleSettings, CatalogProduct } from './discounts'
 import type { GOGCloudSavesLocation, UserData } from './gog'
 import type { NileLoginData, NileRegisterData, NileUserData } from './nile'
 import type { GameOverride, SelectiveDownload } from './legendary'
+import type {
+  VndbGameMatch,
+  VndbGameMatchSuggestion,
+  VndbGameMatchTarget,
+  VndbGameMatchUpdate,
+  VndbSearchResult
+} from './vndb'
 import type { GetLogFileArgs } from 'backend/logger/paths'
 
 // ts-prune-ignore-next
@@ -364,6 +371,21 @@ interface AsyncIPCFunctions {
     styles?: string[]
     dimensions?: string[]
   }) => Promise<Array<{ id: number; url: string; thumb: string }>>
+  'vndb.searchVisualNovels': (args: {
+    query: string
+    limit?: number
+  }) => Promise<VndbSearchResult[]>
+  'vndb.matchGames': (
+    games: VndbGameMatchTarget[]
+  ) => Promise<VndbGameMatchSuggestion[]>
+  'vndb.syncGameMatches': (
+    updates: VndbGameMatchUpdate[]
+  ) => Promise<Record<string, VndbGameMatch>>
+  'vndb.getGameMatch': (args: {
+    appName: string
+    runner: Runner
+  }) => Promise<VndbGameMatch | null>
+  'vndb.getAllGameMatches': () => Promise<Record<string, VndbGameMatch>>
 }
 
 interface FrontendMessages {
