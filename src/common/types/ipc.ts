@@ -371,6 +371,8 @@ interface AsyncIPCFunctions {
     styles?: string[]
     dimensions?: string[]
   }) => Promise<Array<{ id: number; url: string; thumb: string }>>
+  'vndb.hasApiToken': () => Promise<boolean>
+  'vndb.setApiToken': (token: string) => Promise<void>
   'vndb.searchVisualNovels': (args: {
     query: string
     limit?: number

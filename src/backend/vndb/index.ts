@@ -13,7 +13,7 @@ import type {
   VndbSearchResult
 } from 'common/types/vndb'
 
-import { vndbClient } from './client'
+import { refreshVndbClientApiToken, vndbClient } from './client'
 import { vndbMatchesStore } from './electronStore'
 
 type PartialVisualNovel = Partial<
@@ -411,6 +411,8 @@ export async function searchVndbVisualNovels(
   query: string,
   limit?: number
 ): Promise<VndbSearchResult[]> {
+  refreshVndbClientApiToken()
+
   const normalizedQuery = normalizeSearchQuery(query)
   if (!normalizedQuery) {
     return []

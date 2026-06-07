@@ -1,4 +1,5 @@
 import { addHandler } from 'backend/ipc'
+import { hasStoredApiToken, setStoredApiToken } from './client'
 import {
   getAllVndbGameMatches,
   getVndbGameMatch,
@@ -6,6 +7,12 @@ import {
   searchVndbVisualNovels,
   syncVndbGameMatches
 } from '.'
+
+addHandler('vndb.hasApiToken', () => hasStoredApiToken())
+
+addHandler('vndb.setApiToken', (_event, token) => {
+  setStoredApiToken(token)
+})
 
 addHandler('vndb.searchVisualNovels', async (_event, args) =>
   searchVndbVisualNovels(args.query, args.limit)

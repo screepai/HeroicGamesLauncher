@@ -1064,6 +1064,16 @@
             "steamDeck": "Steam Deck {{model}}",
             "systemModel": "System Model:",
             "systemSpecifications": "System Specifications:"
+        },
+        "vndb": {
+            "apitoken": {
+                "placeholder": "Enter your VNDB API Token here",
+                "placeholder_saved": "Token saved - type to replace, clear to remove",
+                "title": "VNDB API Token"
+            },
+            "help": {
+                "description": "Provide your VNDB API token for authenticated VNDB actions such as list management. The token is stored encrypted when your system supports it. You can get one at {{url}}"
+            }
         }
     },
     "Settings": "Settings",
