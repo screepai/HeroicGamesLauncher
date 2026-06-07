@@ -75,12 +75,12 @@ Heroic is built with Web Technologies:
 
 - Sync game library with VNDB library
 - Library layout grouped by categories that follow your custom drag-and-drop order
-- Enhanced Discord Rich Presence including session time and total playtime tracking
-- Sync from local storage with exclusion to what shouldn't be tracked (planned)
-- Automatically sync with VNDB on newly added VN from local storage (planned)
-- VNDB tab to view VN info and modify labels and vote easily (planned)
-- Search cover image from VNDB alongside with SteamGridDB (planned)
-- Automatically setup locale emalutor for the VN with a checkbox (planned)
+- Enhanced Discord Rich Presence including session time, total playtime tracking and buttons
+- Local storage sync with customizable exclusion rules (planned)
+- Automatic VNDB synchronization for newly added visual novels from local storage (planned)
+- Dedicated VNDB tab to seamlessly view information, modify labels, and cast votes (planned)
+- Cover image search integration supporting both VNDB and SteamGridDB (planned)
+- One-click Locale Emulator (or just locale flags for Linux) setup for visual novels (planned)
 
 ## Planned features
 

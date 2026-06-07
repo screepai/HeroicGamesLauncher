@@ -104,7 +104,7 @@ const releaseSearchFields = [
   'official',
   'patch',
   'freeware',
-  'languages{lang}',
+  'languages{lang,title,latin,main,mtl}',
   'platforms',
   'vns{id,title,rtype,released,image{url},relations{id,title,relation,relation_official,released,image{url}}}'
 ].join(',')
@@ -262,6 +262,13 @@ function mapReleaseSummary(release: PartialVndbRelease): VndbRelease {
     patch: release.patch,
     freeware: release.freeware,
     languages: release.languages?.map((language) => language.lang) ?? [],
+    languageTitles: release.languages?.map((language) => ({
+      lang: language.lang,
+      title: language.title,
+      latin: language.latin,
+      main: language.main,
+      mtl: language.mtl
+    })),
     platforms: release.platforms ?? [],
     vns: releaseVns
   }

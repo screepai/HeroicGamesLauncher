@@ -25,6 +25,14 @@ import {
   DialogHeader
 } from 'frontend/components/UI/Dialog'
 import fallbackImage from 'frontend/assets/heroic_card.jpg'
+import {
+  getVndbReleaseMainVisualNovelId,
+  getUniqueSortedVndbPlatforms,
+  getVndbPlatformsLabel,
+  normalizeVndbSelectedMatch,
+  sortVndbItemsByDate,
+  sortVndbReleasesByDate
+} from 'frontend/helpers/vndb'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -67,7 +75,7 @@ function storedMatchToResult(match: VndbGameMatch): VndbSearchResult {
     released: match.released,
     developers: [],
     languages: match.languages ?? [],
-    platforms: [],
+    platforms: getStoredMatchPlatforms(match),
     relations: match.relations ?? [],
     mainRelation: match.mainRelation,
     latestRelease: match.latestRelease,
@@ -125,26 +133,8 @@ function isMatchableGame(game: GameInfo): boolean {
   return Boolean(getDisplayTitle(game).trim()) && !game.install.is_dlc
 }
 
-function getReleaseDateSortValue(released: string | null | undefined): number {
-  if (!released || !/^\d{4}-\d{2}-\d{2}$/.test(released)) {
-    return Number.NEGATIVE_INFINITY
-  }
-
-  return Date.parse(released)
-}
-
 function getSortedReleases(result: VndbSearchResult) {
-  return [...(result.releases ?? [])].sort((left, right) => {
-    const dateDifference =
-      getReleaseDateSortValue(right.released) -
-      getReleaseDateSortValue(left.released)
-
-    if (dateDifference !== 0) {
-      return dateDifference
-    }
-
-    return left.title.localeCompare(right.title)
-  })
+  return sortVndbReleasesByDate(result.releases ?? [])
 }
 
 function releaseToSearchResult(
@@ -163,8 +153,36 @@ function releaseToSearchResult(
     relations: release.vns.flatMap((vn) => vn.relations),
     mainRelation: parentResult.mainRelation,
     latestRelease: release,
-    releases: [release],
+    releases: parentResult.releases ?? [release],
     releaseVns: release.vns
+  }
+}
+
+async function hydrateSelectedMatch(
+  result: VndbSearchResult | null
+): Promise<VndbSearchResult | null> {
+  if (!result || result.source !== 'release') {
+    return result
+  }
+
+  const mainVisualNovelId = getVndbReleaseMainVisualNovelId(result)
+  if (!mainVisualNovelId) {
+    return normalizeVndbSelectedMatch(result)
+  }
+
+  try {
+    const [mainResult] = await window.api.vndb.searchVisualNovels({
+      query: mainVisualNovelId,
+      limit: 1
+    })
+
+    return normalizeVndbSelectedMatch(
+      result,
+      mainResult?.id === mainVisualNovelId ? mainResult : undefined
+    )
+  } catch (error) {
+    console.error(error)
+    return normalizeVndbSelectedMatch(result)
   }
 }
 
@@ -172,6 +190,13 @@ function getUniqueSortedLanguages(languages: string[]): string[] {
   return [...new Set(languages.filter(Boolean))].sort((left, right) =>
     left.localeCompare(right)
   )
+}
+
+function getStoredMatchPlatforms(match: VndbGameMatch): string[] {
+  return getUniqueSortedVndbPlatforms([
+    ...(match.latestRelease?.platforms ?? []),
+    ...(match.releases?.flatMap((release) => release.platforms ?? []) ?? [])
+  ])
 }
 
 function getPickerResultSections(
@@ -192,18 +217,9 @@ function getPickerResultSections(
     }
   }
 
-  const sortedReleases = [...releases.values()].sort((left, right) => {
-    const dateDifference =
-      getReleaseDateSortValue(right.released) -
-      getReleaseDateSortValue(left.released)
+  const sortedReleases = sortVndbItemsByDate([...releases.values()])
 
-    if (dateDifference !== 0) {
-      return dateDifference
-    }
-
-    return left.title.localeCompare(right.title)
-  })
-
+  const releaseSections = new Map<string, PickerResultSection>()
   const sections: PickerResultSection[] = []
   const mainItems = mainResults.map((result) => ({
     result,
@@ -228,7 +244,7 @@ function getPickerResultSections(
     }
 
     for (const language of languages.length ? languages : ['unknown']) {
-      let section = sections.find((current) => current.id === language)
+      let section = releaseSections.get(language)
       if (!section) {
         section = {
           id: language,
@@ -236,13 +252,13 @@ function getPickerResultSections(
           isMainSection: false,
           items: []
         }
-        sections.push(section)
+        releaseSections.set(language, section)
       }
       section.items.push(releaseItem)
     }
   })
 
-  return sections.sort((left, right) => {
+  return [...sections, ...releaseSections.values()].sort((left, right) => {
     if (left.isMainSection !== right.isMainSection) {
       return left.isMainSection ? -1 : 1
     }
@@ -347,6 +363,52 @@ function VndbLanguages({
   )
 }
 
+function VndbPlatforms({ platforms }: { platforms: string[] }) {
+  const { t } = useTranslation()
+  const label = getVndbPlatformsLabel(platforms)
+
+  if (!label) {
+    return null
+  }
+
+  return (
+    <Tooltip title={label} arrow placement="bottom-start">
+      <span className="vndbSyncRelation">
+        {t('vndb.sync.platforms', 'Platforms: {{platforms}}', {
+          platforms: label
+        })}
+      </span>
+    </Tooltip>
+  )
+}
+
+function VndbDownloadedRelease({ release }: { release?: VndbRelease }) {
+  const { t } = useTranslation()
+
+  if (!release) {
+    return null
+  }
+
+  const releaseLabel = [
+    release.title,
+    release.released ? `(${release.released})` : ''
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const platforms = getVndbPlatformsLabel(release.platforms)
+  const label = platforms ? `${releaseLabel} - ${platforms}` : releaseLabel
+
+  return (
+    <Tooltip title={label} arrow placement="bottom-start">
+      <span className="vndbSyncRelation">
+        {t('vndb.sync.downloaded-release', 'Downloaded: {{release}}', {
+          release: label
+        })}
+      </span>
+    </Tooltip>
+  )
+}
+
 function VndbResultCard({
   result,
   onClick,
@@ -385,7 +447,11 @@ function VndbResultCard({
         </span>
         <VndbMainRelation relation={result.mainRelation} />
         <VndbReleaseVns result={result} />
+        <VndbDownloadedRelease release={result.latestRelease} />
         <VndbLanguages languages={result.languages} locale={locale} />
+        {result.source === 'release' && (
+          <VndbPlatforms platforms={result.platforms} />
+        )}
       </span>
     </button>
   )
@@ -495,17 +561,23 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
     void searchPicker(query)
   }
 
-  function selectPickerResult(result: VndbSearchResult | null) {
+  async function selectPickerResult(result: VndbSearchResult | null) {
     if (!pickerGameKey) {
       return
     }
 
-    setSelectedMatches((current) => ({
-      ...current,
-      [pickerGameKey]: result
-    }))
-    setPickerGameKey(null)
-    setPickerResults([])
+    setPickerLoading(true)
+    try {
+      const selectedMatch = await hydrateSelectedMatch(result)
+      setSelectedMatches((current) => ({
+        ...current,
+        [pickerGameKey]: selectedMatch
+      }))
+      setPickerGameKey(null)
+      setPickerResults([])
+    } finally {
+      setPickerLoading(false)
+    }
   }
 
   async function syncMatches() {
@@ -520,22 +592,23 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
             runner: suggestion.game.runner
           })
           const selectedMatch = selectedMatches[key]
+          const normalizedMatch = normalizeVndbSelectedMatch(selectedMatch)
 
           return {
             appName: suggestion.game.appName,
             runner: suggestion.game.runner,
             title: suggestion.game.title,
-            vndbId: selectedMatch?.id ?? null,
-            vndbTitle: selectedMatch?.title,
-            source: selectedMatch?.source,
-            imageUrl: selectedMatch?.imageUrl,
-            released: selectedMatch?.released,
-            languages: selectedMatch?.languages,
-            mainRelation: selectedMatch?.mainRelation,
-            relations: selectedMatch?.relations,
-            latestRelease: selectedMatch?.latestRelease,
-            releases: selectedMatch?.releases,
-            releaseVns: selectedMatch?.releaseVns
+            vndbId: normalizedMatch?.id ?? null,
+            vndbTitle: normalizedMatch?.title,
+            source: normalizedMatch?.source,
+            imageUrl: normalizedMatch?.imageUrl,
+            released: normalizedMatch?.released,
+            languages: normalizedMatch?.languages,
+            mainRelation: normalizedMatch?.mainRelation,
+            relations: normalizedMatch?.relations,
+            latestRelease: normalizedMatch?.latestRelease,
+            releases: normalizedMatch?.releases,
+            releaseVns: normalizedMatch?.releaseVns
           }
         })
       )
@@ -636,7 +709,7 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
                       {pickerResults.length === 0 && (
                         <button
                           className="vndbSyncPickerResult vndbSyncPickerResult--none"
-                          onClick={() => selectPickerResult(null)}
+                          onClick={() => void selectPickerResult(null)}
                         >
                           {t('vndb.sync.no-match', 'No VNDB match')}
                         </button>
@@ -676,7 +749,9 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
                                     .filter(Boolean)
                                     .join(' ')}
                                   key={`${section.id}:${result.source}:${result.id}`}
-                                  onClick={() => selectPickerResult(result)}
+                                  onClick={() =>
+                                    void selectPickerResult(result)
+                                  }
                                 >
                                   <CachedImage
                                     src={result.imageUrl || fallbackImage}
@@ -715,10 +790,18 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
                                       relation={result.mainRelation}
                                     />
                                     <VndbReleaseVns result={result} />
+                                    <VndbDownloadedRelease
+                                      release={result.latestRelease}
+                                    />
                                     <VndbLanguages
                                       languages={result.languages}
                                       locale={i18n.language}
                                     />
+                                    {result.source === 'release' && (
+                                      <VndbPlatforms
+                                        platforms={result.platforms}
+                                      />
+                                    )}
                                   </span>
                                 </button>
                               )

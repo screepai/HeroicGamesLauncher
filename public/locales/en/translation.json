@@ -1173,6 +1173,7 @@
     "vndb": {
         "sync": {
             "button": "VNDB",
+            "downloaded-release": "Downloaded: {{release}}",
             "error": {
                 "match": "Unable to search VNDB for the current library.",
                 "no-results": "No VNDB results found.",
@@ -1182,6 +1183,7 @@
             "languages": "Languages: {{languages}}",
             "loading": "Searching VNDB...",
             "no-match": "No VNDB match",
+            "platforms": "Platforms: {{platforms}}",
             "search-label": "Search VNDB",
             "search-manual": "Search VNDB",
             "section-language": "{{language}} releases",

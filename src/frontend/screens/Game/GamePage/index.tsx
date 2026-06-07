@@ -49,24 +49,22 @@ import StoreLogos from 'frontend/components/UI/StoreLogos'
 import { hasStatus } from 'frontend/hooks/hasStatus'
 import GameContext from '../GameContext'
 import { GameContextType } from 'frontend/types'
-import {
-  AppleWikiInfo,
-  CloudSavesSync,
-  CompatibilityInfo,
-  Description,
-  Developer,
-  DotsMenu,
-  DownloadSizeInfo,
-  GameStatus,
-  HLTB,
-  InstalledInfo,
-  MainButton,
-  ReportIssue,
-  Requirements,
-  Scores,
-  SettingsButton,
-  VndbInfo
-} from './components'
+import AppleWikiInfo from './components/AppleWikiInfo'
+import CloudSavesSync from './components/CloudSavesSync'
+import CompatibilityInfo from './components/CompatibilityInfo'
+import Description from './components/Description'
+import Developer from './components/Developer'
+import DotsMenu from './components/DotsMenu'
+import DownloadSizeInfo from './components/DownloadSizeInfo'
+import GameStatus from './components/GameStatus'
+import HLTB from './components/HLTB'
+import InstalledInfo from './components/InstalledInfo'
+import MainButton from './components/MainButton'
+import ReportIssue from './components/ReportIssue'
+import Requirements from './components/Requirements'
+import Scores from './components/Scores'
+import SettingsButton from './components/SettingsButton'
+import VndbInfo from './components/VndbInfo'
 import { hasAnticheatInfo } from 'frontend/hooks/hasAnticheatInfo'
 import { hasHelp } from 'frontend/hooks/hasHelp'
 import Genres from './components/Genres'
@@ -605,7 +603,10 @@ export default React.memo(function GamePage(): JSX.Element | null {
                           index="vndb"
                           className="vndbTab"
                         >
-                          <VndbInfo match={vndbMatch} />
+                          <VndbInfo
+                            match={vndbMatch}
+                            onMatchChange={setVndbMatch}
+                          />
                         </TabPanel>
 
                         <TabPanel

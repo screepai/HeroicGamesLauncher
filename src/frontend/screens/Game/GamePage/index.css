@@ -644,6 +644,139 @@
             }
           }
         }
+
+        .vndbInfoReleaseSections {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-xs);
+          max-height: 360px;
+          overflow: auto;
+          padding-inline-end: var(--space-3xs);
+        }
+
+        .vndbInfoReleaseSection {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-3xs);
+          min-width: 0;
+
+          h4 {
+            color: var(--text-secondary);
+            font-size: var(--text-sm);
+            font-weight: var(--bold);
+            margin: 0;
+            text-transform: uppercase;
+          }
+        }
+
+        .vndbInfoReleaseList {
+          display: grid;
+          gap: var(--space-xs);
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        }
+
+        .vndbInfoReleaseOption {
+          align-items: flex-start;
+          background: var(--input-background);
+          border: 1px solid var(--neutral-04);
+          border-radius: var(--space-xs);
+          color: var(--text-default);
+          cursor: pointer;
+          display: flex;
+          gap: var(--space-sm);
+          min-width: 0;
+          padding: var(--space-sm);
+          text-align: start;
+        }
+
+        .vndbInfoReleaseOption:hover,
+        .vndbInfoReleaseOption:focus-visible {
+          border-color: var(--accent);
+          outline: none;
+        }
+
+        .vndbInfoReleaseOption:disabled {
+          cursor: default;
+        }
+
+        .vndbInfoReleaseOption--selected {
+          background: color-mix(
+            in srgb,
+            var(--accent) 16%,
+            var(--input-background)
+          );
+          border-color: var(--accent);
+        }
+
+        .vndbInfoReleaseOption--newest:not(.vndbInfoReleaseOption--selected) {
+          background: color-mix(
+            in srgb,
+            var(--success, #4caf50) 12%,
+            var(--input-background)
+          );
+          border-color: var(--success, #4caf50);
+        }
+
+        .vndbInfoReleaseOptionImage {
+          aspect-ratio: 2 / 3;
+          border-radius: var(--space-3xs);
+          flex: 0 0 44px;
+          height: 66px;
+          object-fit: cover;
+        }
+
+        .vndbInfoReleaseOptionBody {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-3xs);
+          min-width: 0;
+
+          & > span:not(.vndbInfoReleaseBadges) {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          & > span:not(.vndbInfoReleaseBadges, .vndbInfoReleaseOptionTitle) {
+            color: var(--text-secondary);
+            font-size: var(--text-sm);
+          }
+        }
+
+        .vndbInfoReleaseOptionTitle {
+          color: var(--text-default);
+          font-weight: var(--bold);
+        }
+
+        .vndbInfoReleaseOptionMeta {
+          color: var(--text-secondary);
+          font-size: var(--text-sm);
+        }
+
+        .vndbInfoReleaseBadges {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--space-3xs);
+        }
+
+        .vndbInfoReleaseBadge {
+          border-radius: var(--space-3xs);
+          color: #fff;
+          font-size: var(--text-sm);
+          font-weight: var(--bold);
+          line-height: 1;
+          padding: var(--space-3xs) var(--space-2xs);
+          text-shadow: 0 1px 1px rgb(0 0 0 / 35%);
+        }
+
+        .vndbInfoReleaseBadge--selected {
+          background: var(--accent);
+        }
+
+        .vndbInfoReleaseBadge--newest {
+          background: var(--success, #4caf50);
+        }
       }
     }
 

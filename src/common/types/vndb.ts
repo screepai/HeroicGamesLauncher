@@ -51,8 +51,17 @@ export interface VndbRelease {
   patch?: boolean
   freeware?: boolean
   languages: string[]
+  languageTitles?: VndbReleaseLanguageTitle[]
   platforms: string[]
   vns: VndbReleaseVisualNovel[]
+}
+
+export interface VndbReleaseLanguageTitle {
+  lang: string
+  title?: string | null
+  latin?: string | null
+  main?: boolean
+  mtl?: boolean
 }
 
 export interface VndbGameMatchTarget {
