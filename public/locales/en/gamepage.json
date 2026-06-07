@@ -345,6 +345,7 @@
         "notice2": "After clicking Install, Heroic will run the application in order to complete the installation process"
     },
     "vndb": {
+        "developers": "Developers",
         "downloaded-release": "Downloaded release",
         "downloaded-version": "Downloaded version",
         "entry-type": "VNDB entry type",

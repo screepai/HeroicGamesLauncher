@@ -323,6 +323,7 @@ function VndbMainDetails({
   visualNovelLanguages: string
 }) {
   const { t } = useTranslation('gamepage')
+  const developers = getUniqueSortedValues(match.developers ?? []).join(', ')
 
   return (
     <div className="vndbInfoGrid">
@@ -336,6 +337,12 @@ function VndbMainDetails({
         <div>
           <b>{t('vndb.released', 'Released')}</b>
           <span>{mainVersion.released}</span>
+        </div>
+      )}
+      {developers && (
+        <div>
+          <b>{t('vndb.developers', 'Developers')}</b>
+          <span>{developers}</span>
         </div>
       )}
       {visualNovelLanguages && (
