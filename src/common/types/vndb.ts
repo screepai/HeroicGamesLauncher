@@ -50,6 +50,7 @@ export interface VndbRelease {
   official?: boolean
   patch?: boolean
   freeware?: boolean
+  languages: string[]
   platforms: string[]
   vns: VndbReleaseVisualNovel[]
 }
@@ -73,6 +74,7 @@ export interface VndbGameMatch {
   vndbTitle: string
   source?: VndbSearchResultSource
   imageUrl?: string
+  languages?: string[]
   mainVndbId?: string
   mainVndbTitle?: string
   mainRelation?: VndbRelation
@@ -91,6 +93,7 @@ export interface VndbGameMatchUpdate {
   vndbTitle?: string
   source?: VndbSearchResultSource
   imageUrl?: string
+  languages?: string[]
   mainRelation?: VndbRelation
   relations?: VndbRelation[]
   latestRelease?: VndbRelease

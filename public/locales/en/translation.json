@@ -1179,10 +1179,13 @@
                 "save": "Unable to sync VNDB matches.",
                 "search": "VNDB search failed."
             },
+            "languages": "Languages: {{languages}}",
             "loading": "Searching VNDB...",
             "no-match": "No VNDB match",
             "search-label": "Search VNDB",
             "search-manual": "Search VNDB",
+            "section-language": "{{language}} releases",
+            "section-main": "Main titles",
             "title": "Sync VNDB Titles"
         }
     },

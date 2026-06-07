@@ -43,6 +43,13 @@ type PickerResultItem = {
   isNewestRelease: boolean
 }
 
+type PickerResultSection = {
+  id: string
+  language?: string
+  isMainSection: boolean
+  items: PickerResultItem[]
+}
+
 function getGameKey(game: Pick<GameInfo, 'runner' | 'app_name'>): string {
   return `${game.runner}:${game.app_name}`
 }
@@ -58,7 +65,7 @@ function storedMatchToResult(match: VndbGameMatch): VndbSearchResult {
     source: match.source ?? 'visualNovel',
     imageUrl: match.imageUrl,
     developers: [],
-    languages: [],
+    languages: match.languages ?? [],
     platforms: [],
     relations: match.relations ?? [],
     mainRelation: match.mainRelation,
@@ -150,7 +157,7 @@ function releaseToSearchResult(
     imageUrl: release.imageUrl ?? parentResult.imageUrl,
     released: release.released,
     developers: [],
-    languages: [],
+    languages: release.languages,
     platforms: release.platforms,
     relations: release.vns.flatMap((vn) => vn.relations),
     mainRelation: parentResult.mainRelation,
@@ -160,7 +167,15 @@ function releaseToSearchResult(
   }
 }
 
-function getPickerResultItems(results: VndbSearchResult[]): PickerResultItem[] {
+function getUniqueSortedLanguages(languages: string[]): string[] {
+  return [...new Set(languages.filter(Boolean))].sort((left, right) =>
+    left.localeCompare(right)
+  )
+}
+
+function getPickerResultSections(
+  results: VndbSearchResult[]
+): PickerResultSection[] {
   const mainResults = results.filter(
     (result) => result.source === 'visualNovel'
   )
@@ -188,18 +203,79 @@ function getPickerResultItems(results: VndbSearchResult[]): PickerResultItem[] {
     return left.title.localeCompare(right.title)
   })
 
-  return [
-    ...mainResults.map((result) => ({
-      result,
-      isPinnedMain: true,
-      isNewestRelease: false
-    })),
-    ...sortedReleases.map((result, index) => ({
+  const sections: PickerResultSection[] = []
+  const mainItems = mainResults.map((result) => ({
+    result,
+    isPinnedMain: true,
+    isNewestRelease: false
+  }))
+
+  if (mainItems.length) {
+    sections.push({
+      id: 'main',
+      isMainSection: true,
+      items: mainItems
+    })
+  }
+
+  sortedReleases.forEach((result, index) => {
+    const languages = getUniqueSortedLanguages(result.languages)
+    const releaseItem = {
       result,
       isPinnedMain: false,
       isNewestRelease: index === 0
-    }))
-  ]
+    }
+
+    for (const language of languages.length ? languages : ['unknown']) {
+      let section = sections.find((current) => current.id === language)
+      if (!section) {
+        section = {
+          id: language,
+          language,
+          isMainSection: false,
+          items: []
+        }
+        sections.push(section)
+      }
+      section.items.push(releaseItem)
+    }
+  })
+
+  return sections.sort((left, right) => {
+    if (left.isMainSection !== right.isMainSection) {
+      return left.isMainSection ? -1 : 1
+    }
+
+    if (left.id === 'unknown' || right.id === 'unknown') {
+      return left.id === 'unknown' ? 1 : -1
+    }
+
+    return left.id.localeCompare(right.id)
+  })
+}
+
+function getLanguageLabel(language: string, locale: string): string {
+  if (language === 'unknown') {
+    return 'Unknown language'
+  }
+
+  try {
+    const normalizedLocale = locale.replace('_', '-')
+
+    return (
+      new Intl.DisplayNames([normalizedLocale, 'en'], {
+        type: 'language'
+      }).of(language) ?? language
+    )
+  } catch {
+    return language
+  }
+}
+
+function getLanguagesLabel(languages: string[], locale: string): string {
+  return getUniqueSortedLanguages(languages)
+    .map((language) => getLanguageLabel(language, locale))
+    .join(', ')
 }
 
 function VndbMainRelation({
@@ -233,7 +309,7 @@ function VndbReleaseVns({ result }: { result: VndbSearchResult }) {
     otherReleaseVns.length ? `+${otherReleaseVns.length} more` : ''
   ]
     .filter(Boolean)
-    .join(' ')
+    .join(', ')
   const tooltipLabel = result.releaseVns
     .map((releaseVn) => releaseVn.title)
     .join('\n')
@@ -245,14 +321,41 @@ function VndbReleaseVns({ result }: { result: VndbSearchResult }) {
   )
 }
 
+function VndbLanguages({
+  languages,
+  locale
+}: {
+  languages: string[]
+  locale: string
+}) {
+  const { t } = useTranslation()
+  const label = getLanguagesLabel(languages, locale)
+
+  if (!label) {
+    return null
+  }
+
+  return (
+    <Tooltip title={label} arrow placement="bottom-start">
+      <span className="vndbSyncRelation">
+        {t('vndb.sync.languages', 'Languages: {{languages}}', {
+          languages: label
+        })}
+      </span>
+    </Tooltip>
+  )
+}
+
 function VndbResultCard({
   result,
   onClick,
-  emptyLabel
+  emptyLabel,
+  locale
 }: {
   result: VndbSearchResult | null
   onClick: () => void
   emptyLabel: string
+  locale: string
 }) {
   if (!result) {
     return (
@@ -281,13 +384,14 @@ function VndbResultCard({
         </span>
         <VndbMainRelation relation={result.mainRelation} />
         <VndbReleaseVns result={result} />
+        <VndbLanguages languages={result.languages} locale={locale} />
       </span>
     </button>
   )
 }
 
 export default function VndbSyncButton({ list, variant = 'header' }: Props) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [open, setOpen] = useState(false)
   const [loadingMatches, setLoadingMatches] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -424,6 +528,7 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
             vndbTitle: selectedMatch?.title,
             source: selectedMatch?.source,
             imageUrl: selectedMatch?.imageUrl,
+            languages: selectedMatch?.languages,
             mainRelation: selectedMatch?.mainRelation,
             relations: selectedMatch?.relations,
             latestRelease: selectedMatch?.latestRelease,
@@ -448,7 +553,7 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
         runner: suggestion.game.runner
       }) === pickerGameKey
   )
-  const pickerResultItems = getPickerResultItems(pickerResults)
+  const pickerResultSections = getPickerResultSections(pickerResults)
 
   return (
     <>
@@ -525,7 +630,7 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
                         </button>
                       }
                     />
-                    <div className="vndbSyncPickerResults">
+                    <div className="vndbSyncPickerSections">
                       {pickerResults.length === 0 && (
                         <button
                           className="vndbSyncPickerResult vndbSyncPickerResult--none"
@@ -534,60 +639,91 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
                           {t('vndb.sync.no-match', 'No VNDB match')}
                         </button>
                       )}
-                      {pickerResultItems.map(
-                        ({ result, isPinnedMain, isNewestRelease }) => (
-                          <button
-                            className={[
-                              'vndbSyncPickerResult',
-                              isPinnedMain ? 'vndbSyncPickerResult--main' : '',
-                              isNewestRelease
-                                ? 'vndbSyncPickerResult--newest'
-                                : ''
-                            ]
-                              .filter(Boolean)
-                              .join(' ')}
-                            key={`${result.source}:${result.id}`}
-                            onClick={() => selectPickerResult(result)}
-                          >
-                            <CachedImage
-                              src={result.imageUrl || fallbackImage}
-                              fallback={fallbackImage}
-                            />
-                            <span className="vndbSyncPickerResultBody">
-                              <Tooltip
-                                title={result.title}
-                                arrow
-                                placement="bottom-start"
-                              >
-                                <strong>{result.title}</strong>
-                              </Tooltip>
-                              <small>
-                                {result.id}
-                                {result.released ? ` - ${result.released}` : ''}
-                                {result.source === 'release'
-                                  ? ' - Release'
-                                  : ''}
-                              </small>
-                              <span className="vndbSyncResultBadges">
-                                {isPinnedMain && (
-                                  <span className="vndbSyncResultBadge vndbSyncResultBadge--main">
-                                    Main
-                                  </span>
+                      {pickerResultSections.map((section) => (
+                        <section
+                          className="vndbSyncPickerSection"
+                          key={section.id}
+                        >
+                          <h4>
+                            {section.isMainSection
+                              ? t('vndb.sync.section-main', 'Main titles')
+                              : t(
+                                  'vndb.sync.section-language',
+                                  '{{language}} releases',
+                                  {
+                                    language: getLanguageLabel(
+                                      section.language ?? 'unknown',
+                                      i18n.language
+                                    )
+                                  }
                                 )}
-                                {isNewestRelease && (
-                                  <span className="vndbSyncResultBadge vndbSyncResultBadge--newest">
-                                    Newest
+                          </h4>
+                          <div className="vndbSyncPickerResults">
+                            {section.items.map(
+                              ({ result, isPinnedMain, isNewestRelease }) => (
+                                <button
+                                  className={[
+                                    'vndbSyncPickerResult',
+                                    isPinnedMain
+                                      ? 'vndbSyncPickerResult--main'
+                                      : '',
+                                    isNewestRelease
+                                      ? 'vndbSyncPickerResult--newest'
+                                      : ''
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' ')}
+                                  key={`${section.id}:${result.source}:${result.id}`}
+                                  onClick={() => selectPickerResult(result)}
+                                >
+                                  <CachedImage
+                                    src={result.imageUrl || fallbackImage}
+                                    fallback={fallbackImage}
+                                  />
+                                  <span className="vndbSyncPickerResultBody">
+                                    <Tooltip
+                                      title={result.title}
+                                      arrow
+                                      placement="bottom-start"
+                                    >
+                                      <strong>{result.title}</strong>
+                                    </Tooltip>
+                                    <small>
+                                      {result.id}
+                                      {result.released
+                                        ? ` - ${result.released}`
+                                        : ''}
+                                      {result.source === 'release'
+                                        ? ' - Release'
+                                        : ''}
+                                    </small>
+                                    <span className="vndbSyncResultBadges">
+                                      {isPinnedMain && (
+                                        <span className="vndbSyncResultBadge vndbSyncResultBadge--main">
+                                          Main
+                                        </span>
+                                      )}
+                                      {isNewestRelease && (
+                                        <span className="vndbSyncResultBadge vndbSyncResultBadge--newest">
+                                          Newest
+                                        </span>
+                                      )}
+                                    </span>
+                                    <VndbMainRelation
+                                      relation={result.mainRelation}
+                                    />
+                                    <VndbReleaseVns result={result} />
+                                    <VndbLanguages
+                                      languages={result.languages}
+                                      locale={i18n.language}
+                                    />
                                   </span>
-                                )}
-                              </span>
-                              <VndbMainRelation
-                                relation={result.mainRelation}
-                              />
-                              <VndbReleaseVns result={result} />
-                            </span>
-                          </button>
-                        )
-                      )}
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </section>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -638,6 +774,7 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
                             'vndb.sync.search-manual',
                             'Search VNDB'
                           )}
+                          locale={i18n.language}
                         />
                       </div>
                     )

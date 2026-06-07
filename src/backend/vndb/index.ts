@@ -65,6 +65,7 @@ type PartialVndbRelease = Partial<
     | 'official'
     | 'patch'
     | 'freeware'
+    | 'languages'
     | 'platforms'
   >
 > & {
@@ -74,7 +75,7 @@ type PartialVndbRelease = Partial<
 }
 
 const vndbSearchCache = new CacheStore<VndbSearchResult[]>(
-  'vndb-search-v6',
+  'vndb-search-v7',
   60 * 24 * 7
 )
 
@@ -103,6 +104,7 @@ const releaseSearchFields = [
   'official',
   'patch',
   'freeware',
+  'languages{lang}',
   'platforms',
   'vns{id,title,rtype,released,image{url},relations{id,title,relation,relation_official,released,image{url}}}'
 ].join(',')
@@ -259,6 +261,7 @@ function mapReleaseSummary(release: PartialVndbRelease): VndbRelease {
     official: release.official,
     patch: release.patch,
     freeware: release.freeware,
+    languages: release.languages?.map((language) => language.lang) ?? [],
     platforms: release.platforms ?? [],
     vns: releaseVns
   }
@@ -499,6 +502,7 @@ export function syncVndbGameMatches(
       vndbTitle: update.vndbTitle ?? update.title,
       source: update.source,
       imageUrl: update.imageUrl,
+      languages: update.languages,
       mainVndbId: update.mainRelation?.id,
       mainVndbTitle: update.mainRelation?.title,
       mainRelation: update.mainRelation,
