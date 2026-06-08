@@ -96,6 +96,28 @@ export interface VndbGameMatch {
   syncedAt: string
 }
 
+export interface VndbUserLabel {
+  id: number
+  label: string
+  private?: boolean
+  count?: number
+}
+
+export interface VndbUserOptions {
+  hasToken: boolean
+  canRead: boolean
+  canWrite: boolean
+  username?: string
+  labels: VndbUserLabel[]
+  selectedLabelIds: number[]
+  vote: number | null
+}
+
+export interface VndbUserOptionsUpdate {
+  labels?: number[]
+  vote?: number | null
+}
+
 export interface VndbGameMatchUpdate {
   appName: string
   runner: Runner

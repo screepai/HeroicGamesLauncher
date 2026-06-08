@@ -645,6 +645,55 @@
           }
         }
 
+        .vndbInfoMuted {
+          color: var(--text-secondary);
+          font-size: var(--text-sm);
+        }
+
+        .vndbInfoUserOptionsControls {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-sm);
+          min-width: 0;
+        }
+
+        .vndbInfoVoteControl,
+        .vndbInfoLabelOptions {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-3xs);
+          min-width: 0;
+
+          & > span {
+            color: var(--text-secondary);
+            font-size: var(--text-sm);
+            font-weight: var(--bold);
+            text-transform: uppercase;
+          }
+        }
+
+        .vndbInfoVoteControl select,
+        .vndbInfoLabelOptions select {
+          background: var(--input-background);
+          border: 1px solid var(--neutral-04);
+          border-radius: var(--space-3xs);
+          color: var(--text-default);
+          max-width: 240px;
+          padding: var(--space-2xs) var(--space-xs);
+        }
+
+        .vndbInfoVoteControl select:focus-visible,
+        .vndbInfoLabelOptions select:focus-visible {
+          border-color: var(--accent);
+          outline: none;
+        }
+
+        .vndbInfoVoteControl select:disabled,
+        .vndbInfoLabelOptions select:disabled {
+          cursor: not-allowed;
+          opacity: 0.65;
+        }
+
         .vndbInfoReleaseSections {
           display: flex;
           flex-direction: column;

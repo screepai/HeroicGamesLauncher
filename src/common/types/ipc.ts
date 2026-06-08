@@ -54,7 +54,9 @@ import type {
   VndbGameMatchSuggestion,
   VndbGameMatchTarget,
   VndbGameMatchUpdate,
-  VndbSearchResult
+  VndbSearchResult,
+  VndbUserOptions,
+  VndbUserOptionsUpdate
 } from './vndb'
 import type { GetLogFileArgs } from 'backend/logger/paths'
 
@@ -388,6 +390,11 @@ interface AsyncIPCFunctions {
     runner: Runner
   }) => Promise<VndbGameMatch | null>
   'vndb.getAllGameMatches': () => Promise<Record<string, VndbGameMatch>>
+  'vndb.getUserOptions': (args: { vnId: string }) => Promise<VndbUserOptions>
+  'vndb.updateUserOptions': (args: {
+    vnId: string
+    update: VndbUserOptionsUpdate
+  }) => Promise<VndbUserOptions>
 }
 
 interface FrontendMessages {

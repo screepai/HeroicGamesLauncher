@@ -351,7 +351,11 @@
         "entry-type": "VNDB entry type",
         "freeware": "Freeware",
         "included-vns": "Included visual novels",
+        "labels": "Labels",
+        "my-list": "My VNDB list",
         "newest-release": "Newest",
+        "no-label": "No label",
+        "no-vote": "No vote",
         "official": "Official",
         "patch": "Patch",
         "platforms": "Platforms",
@@ -368,8 +372,14 @@
         "released": "Released",
         "selected-release": "Selected",
         "synced-at": "Synced",
+        "user-options-listread-missing": "Your VNDB API token needs the listread permission to load labels and votes.",
+        "user-options-listwrite-missing": "Your VNDB API token needs the listwrite permission to edit labels and votes.",
+        "user-options-load-error": "Unable to load VNDB user options.",
+        "user-options-loading": "Loading VNDB list options...",
+        "user-options-save-error": "Unable to save VNDB user options.",
         "visual-novel": "Visual novel",
-        "vn-languages": "VN languages"
+        "vn-languages": "VN languages",
+        "vote": "Vote"
     },
     "wikiLink": "Important information about this game, read this:&nbsp;<1>Open page</1>"
 }

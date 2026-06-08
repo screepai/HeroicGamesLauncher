@@ -2,10 +2,12 @@ import { addHandler } from 'backend/ipc'
 import { hasStoredApiToken, setStoredApiToken } from './client'
 import {
   getAllVndbGameMatches,
+  getVndbUserOptions,
   getVndbGameMatch,
   matchVndbGames,
   searchVndbVisualNovels,
-  syncVndbGameMatches
+  syncVndbGameMatches,
+  updateVndbUserOptions
 } from '.'
 
 addHandler('vndb.hasApiToken', () => hasStoredApiToken())
@@ -29,3 +31,11 @@ addHandler('vndb.getGameMatch', (_event, args) =>
 )
 
 addHandler('vndb.getAllGameMatches', () => getAllVndbGameMatches())
+
+addHandler('vndb.getUserOptions', (_event, args) =>
+  getVndbUserOptions(args.vnId)
+)
+
+addHandler('vndb.updateUserOptions', (_event, args) =>
+  updateVndbUserOptions(args.vnId, args.update)
+)

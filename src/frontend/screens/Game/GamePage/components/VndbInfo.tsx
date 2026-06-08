@@ -2,7 +2,9 @@ import type {
   VndbGameMatch,
   VndbRelation,
   VndbRelease,
-  VndbReleaseVisualNovel
+  VndbReleaseVisualNovel,
+  VndbUserOptions,
+  VndbUserOptionsUpdate
 } from 'common/types/vndb'
 import { Tooltip } from '@mui/material'
 import fallbackImage from 'frontend/assets/heroic_card.jpg'
@@ -40,11 +42,19 @@ type ReleaseOptionSection = {
   items: ReleaseOptionItem[]
 }
 
+type VndbUserOptionsState =
+  | { status: 'idle' | 'loading' }
+  | { status: 'ready'; options: VndbUserOptions }
+  | { status: 'error'; message: string }
+
 type Translate = (
   key: string,
   defaultValue: string,
   options?: Record<string, unknown>
 ) => string
+
+const editableLabelDenylist = new Set([0, 7])
+const voteOptions = Array.from({ length: 91 }, (_value, index) => 10 + index)
 
 function getVndbUrl(id: string): string {
   return `https://vndb.org/${id}`
@@ -218,6 +228,50 @@ function getBooleanLabel(value: boolean | undefined, t: Translate) {
   }
 
   return value ? t('box.yes', 'Yes') : t('box.no', 'No')
+}
+
+function getVoteSelectValue(vote: number | null): string {
+  if (vote === null) {
+    return ''
+  }
+
+  return String(vote)
+}
+
+function getVoteFromSelectValue(value: string): number | null {
+  if (!value.trim()) {
+    return null
+  }
+
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) {
+    return null
+  }
+
+  return Math.min(Math.max(Math.round(parsed), 10), 100)
+}
+
+function getEditableVndbLabels(options: VndbUserOptions) {
+  return options.labels.filter((label) => !editableLabelDenylist.has(label.id))
+}
+
+function getSelectedVndbLabelId(options: VndbUserOptions): string {
+  const editableLabelIds = new Set(
+    getEditableVndbLabels(options).map(({ id }) => id)
+  )
+  const selectedLabelId = options.selectedLabelIds.find((labelId) =>
+    editableLabelIds.has(labelId)
+  )
+
+  return selectedLabelId ? String(selectedLabelId) : ''
+}
+
+function getLabelsFromSelectValue(value: string): number[] {
+  if (!value) {
+    return []
+  }
+
+  return [Number(value)]
 }
 
 function getReleaseFlagsLabel(release: VndbRelease, t: Translate): string {
@@ -614,10 +668,137 @@ function VndbRelations({ relations }: { relations: VndbRelation[] }) {
   )
 }
 
+function VndbUserOptionsSection({
+  mainVersion,
+  onChange,
+  state
+}: {
+  mainVersion: MainVersionInfo
+  onChange: (update: VndbUserOptionsUpdate) => Promise<void>
+  state: VndbUserOptionsState
+}) {
+  const { t } = useTranslation('gamepage')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  if (!mainVersion.id.startsWith('v')) {
+    return null
+  }
+
+  if (state.status === 'ready' && !state.options.hasToken) {
+    return null
+  }
+
+  async function save(update: VndbUserOptionsUpdate) {
+    setSaving(true)
+    setSaveError(null)
+
+    try {
+      await onChange(update)
+    } catch (error) {
+      console.error(error)
+      setSaveError(
+        t('vndb.user-options-save-error', 'Unable to save VNDB user options.')
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className="vndbInfoSection vndbInfoUserOptions">
+      <h3>{t('vndb.my-list', 'My VNDB list')}</h3>
+
+      {state.status === 'loading' && (
+        <span className="vndbInfoMuted">
+          {t('vndb.user-options-loading', 'Loading VNDB list options...')}
+        </span>
+      )}
+
+      {state.status === 'error' && (
+        <WarningMessage>{state.message}</WarningMessage>
+      )}
+
+      {state.status === 'ready' &&
+        state.options.hasToken &&
+        !state.options.canRead && (
+          <WarningMessage>
+            {t(
+              'vndb.user-options-listread-missing',
+              'Your VNDB API token needs the listread permission to load labels and votes.'
+            )}
+          </WarningMessage>
+        )}
+
+      {state.status === 'ready' && state.options.canRead && (
+        <>
+          {saveError && <WarningMessage>{saveError}</WarningMessage>}
+
+          <div className="vndbInfoUserOptionsControls">
+            <label className="vndbInfoVoteControl">
+              <span>{t('vndb.vote', 'Vote')}</span>
+              <select
+                disabled={saving || !state.options.canWrite}
+                key={state.options.vote ?? 'empty'}
+                onChange={(event) => {
+                  const vote = getVoteFromSelectValue(event.currentTarget.value)
+                  if (vote !== state.options.vote) {
+                    void save({ vote })
+                  }
+                }}
+                value={getVoteSelectValue(state.options.vote)}
+              >
+                <option value="">{t('vndb.no-vote', 'No vote')}</option>
+                {voteOptions.map((vote) => (
+                  <option key={vote} value={vote}>
+                    {(vote / 10).toFixed(1)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="vndbInfoLabelOptions">
+              <span>{t('vndb.labels', 'Labels')}</span>
+              <select
+                disabled={saving || !state.options.canWrite}
+                onChange={(event) =>
+                  void save({
+                    labels: getLabelsFromSelectValue(event.currentTarget.value)
+                  })
+                }
+                value={getSelectedVndbLabelId(state.options)}
+              >
+                <option value="">{t('vndb.no-label', 'No label')}</option>
+                {getEditableVndbLabels(state.options).map((label) => (
+                  <option key={label.id} value={label.id}>
+                    {label.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {!state.options.canWrite && (
+            <WarningMessage>
+              {t(
+                'vndb.user-options-listwrite-missing',
+                'Your VNDB API token needs the listwrite permission to edit labels and votes.'
+              )}
+            </WarningMessage>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
 export default function VndbInfo({ match, onMatchChange }: Props) {
   const { t, i18n } = useTranslation('gamepage')
   const [savingRelease, setSavingRelease] = useState(false)
   const [releaseSaveError, setReleaseSaveError] = useState<string | null>(null)
+  const [userOptionsState, setUserOptionsState] =
+    useState<VndbUserOptionsState>({ status: 'idle' })
+  const userOptionsVnId = match ? getMainVersionInfo(match).id : ''
 
   useEffect(() => {
     const shouldHydrateReleases =
@@ -695,6 +876,40 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
     }
   }, [match, onMatchChange])
 
+  useEffect(() => {
+    if (!userOptionsVnId.startsWith('v')) {
+      setUserOptionsState({ status: 'idle' })
+      return
+    }
+
+    let isMounted = true
+    setUserOptionsState({ status: 'loading' })
+
+    window.api.vndb
+      .getUserOptions({ vnId: userOptionsVnId })
+      .then((options) => {
+        if (isMounted) {
+          setUserOptionsState({ status: 'ready', options })
+        }
+      })
+      .catch((error) => {
+        console.error(error)
+        if (isMounted) {
+          setUserOptionsState({
+            status: 'error',
+            message: t(
+              'vndb.user-options-load-error',
+              'Unable to load VNDB user options.'
+            )
+          })
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [userOptionsVnId, t])
+
   if (!match) {
     return null
   }
@@ -755,6 +970,18 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
     }
   }
 
+  async function handleUserOptionsChange(update: VndbUserOptionsUpdate) {
+    if (!mainVersion.id.startsWith('v')) {
+      return
+    }
+
+    const options = await window.api.vndb.updateUserOptions({
+      vnId: mainVersion.id,
+      update
+    })
+    setUserOptionsState({ status: 'ready', options })
+  }
+
   return (
     <div className="vndbInfo">
       {releaseSaveError && <WarningMessage>{releaseSaveError}</WarningMessage>}
@@ -773,6 +1000,12 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
         mainVersion={mainVersion}
         match={match}
         visualNovelLanguages={visualNovelLanguages}
+      />
+
+      <VndbUserOptionsSection
+        mainVersion={mainVersion}
+        onChange={handleUserOptionsChange}
+        state={userOptionsState}
       />
 
       {selectedRelease && (

@@ -1,7 +1,15 @@
 import CacheStore from 'backend/cache'
 import { logError, logInfo, LogPrefix } from 'backend/logger'
 import { isVndbError, parseVndbId } from 'vndb-kana-api'
-import type { Release, ReleaseVn, VisualNovel, VnRelation } from 'vndb-kana-api'
+import type {
+  AuthInfo,
+  Release,
+  ReleaseVn,
+  UserLabelInfo,
+  UserListEntry,
+  VisualNovel,
+  VnRelation
+} from 'vndb-kana-api'
 import type {
   VndbGameMatch,
   VndbGameMatchSuggestion,
@@ -10,10 +18,17 @@ import type {
   VndbRelease,
   VndbReleaseVisualNovel,
   VndbRelation,
-  VndbSearchResult
+  VndbSearchResult,
+  VndbUserLabel,
+  VndbUserOptions,
+  VndbUserOptionsUpdate
 } from 'common/types/vndb'
 
-import { refreshVndbClientApiToken, vndbClient } from './client'
+import {
+  hasStoredApiToken,
+  refreshVndbClientApiToken,
+  vndbClient
+} from './client'
 import { vndbMatchesStore } from './electronStore'
 
 type PartialVisualNovel = Partial<
@@ -73,6 +88,8 @@ type PartialVndbRelease = Partial<
   title: string
   vns?: PartialVndbReleaseVn[]
 }
+
+type PartialAuthInfo = Partial<AuthInfo> & Pick<AuthInfo, 'id' | 'username'>
 
 const vndbSearchCache = new CacheStore<VndbSearchResult[]>(
   'vndb-search-v7',
@@ -405,6 +422,118 @@ function sortSearchResults(
 
 function getAllStoredMatches(): Record<string, VndbGameMatch> {
   return vndbMatchesStore.get('matches', {})
+}
+
+function mapUserLabel(label: UserLabelInfo): VndbUserLabel {
+  return {
+    id: label.id,
+    label: label.label,
+    private: label.private,
+    count: label.count
+  }
+}
+
+function getEmptyUserOptions(hasToken: boolean): VndbUserOptions {
+  return {
+    hasToken,
+    canRead: false,
+    canWrite: false,
+    labels: [],
+    selectedLabelIds: [],
+    vote: null
+  }
+}
+
+function getPermissions(authInfo: PartialAuthInfo) {
+  const permissions = authInfo.permissions ?? []
+
+  return {
+    canRead: permissions.includes('listread'),
+    canWrite: permissions.includes('listwrite')
+  }
+}
+
+function getUserListEntry(
+  entries: UserListEntry[],
+  visualNovelId: string
+): UserListEntry | undefined {
+  return entries.find((entry) => entry.id === visualNovelId)
+}
+
+function normalizeUserOptionsUpdate(
+  update: VndbUserOptionsUpdate
+): VndbUserOptionsUpdate {
+  return {
+    ...update,
+    labels: update.labels
+      ?.filter((labelId) => labelId !== 0 && labelId !== 7)
+      .sort((left, right) => left - right)
+  }
+}
+
+export async function getVndbUserOptions(
+  visualNovelId: string
+): Promise<VndbUserOptions> {
+  refreshVndbClientApiToken()
+
+  if (!hasStoredApiToken()) {
+    return getEmptyUserOptions(false)
+  }
+
+  const authInfo = (await vndbClient.getAuthInfo()) as PartialAuthInfo
+  const { canRead, canWrite } = getPermissions(authInfo)
+
+  if (!canRead) {
+    return {
+      ...getEmptyUserOptions(true),
+      username: authInfo.username,
+      canWrite
+    }
+  }
+
+  const [labelResponse, userListResponse] = await Promise.all([
+    vndbClient.getUserLabels(undefined, ['count']),
+    vndbClient.getUserList({
+      user: authInfo.id,
+      filters: ['id', '=', visualNovelId],
+      fields: 'id,vote,labels{id,label}',
+      results: 1
+    })
+  ])
+  const userListEntry = getUserListEntry(
+    userListResponse.results,
+    visualNovelId
+  )
+
+  return {
+    hasToken: true,
+    username: authInfo.username,
+    canRead,
+    canWrite,
+    labels: labelResponse.labels.map(mapUserLabel),
+    selectedLabelIds:
+      userListEntry?.labels.map((label) => label.id).filter((id) => id !== 7) ??
+      [],
+    vote: userListEntry?.vote ?? null
+  }
+}
+
+export async function updateVndbUserOptions(
+  visualNovelId: string,
+  update: VndbUserOptionsUpdate
+): Promise<VndbUserOptions> {
+  refreshVndbClientApiToken()
+
+  if (!hasStoredApiToken()) {
+    return getEmptyUserOptions(false)
+  }
+
+  await vndbClient.updateUserListEntry(
+    visualNovelId,
+    normalizeUserOptionsUpdate(update)
+  )
+
+  return getVndbUserOptions(visualNovelId)
 }
 
 export async function searchVndbVisualNovels(

@@ -7,5 +7,7 @@ export const vndb = {
   matchGames: makeHandlerInvoker('vndb.matchGames'),
   syncGameMatches: makeHandlerInvoker('vndb.syncGameMatches'),
   getGameMatch: makeHandlerInvoker('vndb.getGameMatch'),
-  getAllGameMatches: makeHandlerInvoker('vndb.getAllGameMatches')
+  getAllGameMatches: makeHandlerInvoker('vndb.getAllGameMatches'),
+  getUserOptions: makeHandlerInvoker('vndb.getUserOptions'),
+  updateUserOptions: makeHandlerInvoker('vndb.updateUserOptions')
 }
