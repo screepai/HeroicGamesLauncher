@@ -82,6 +82,7 @@ Heroic is built with Web Technologies:
 - Cover image search integration supporting both VNDB and SteamGridDB (planned)
 - One-click Locale Emulator (or just locale flags for Linux) setup for visual novels (planned)
 - Bulk selection and batch categorization of game cards (planned)
+- Type-to-search functionality directly within the library list
 
 ## Planned features
 

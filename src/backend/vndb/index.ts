@@ -36,6 +36,9 @@ type PartialVisualNovel = Partial<
     VisualNovel,
     | 'id'
     | 'title'
+    | 'alttitle'
+    | 'titles'
+    | 'aliases'
     | 'image'
     | 'released'
     | 'rating'
@@ -64,7 +67,17 @@ type PartialVndbRelation = Partial<
 }
 
 type PartialVndbReleaseVn = Partial<
-  Pick<ReleaseVn, 'id' | 'title' | 'image' | 'released' | 'rtype'>
+  Pick<
+    ReleaseVn,
+    | 'id'
+    | 'title'
+    | 'alttitle'
+    | 'titles'
+    | 'aliases'
+    | 'image'
+    | 'released'
+    | 'rtype'
+  >
 > & {
   id: string
   title: string
@@ -76,6 +89,7 @@ type PartialVndbRelease = Partial<
     Release,
     | 'id'
     | 'title'
+    | 'alttitle'
     | 'released'
     | 'official'
     | 'patch'
@@ -102,6 +116,9 @@ const maxVisualNovelReleases = 50
 const searchFields = [
   'id',
   'title',
+  'alttitle',
+  'titles{title,latin}',
+  'aliases',
   'released',
   'rating',
   'votecount',
@@ -117,13 +134,14 @@ const searchFields = [
 const releaseSearchFields = [
   'id',
   'title',
+  'alttitle',
   'released',
   'official',
   'patch',
   'freeware',
   'languages{lang,title,latin,main,mtl}',
   'platforms',
-  'vns{id,title,rtype,released,image{url},relations{id,title,relation,relation_official,released,image{url}}}'
+  'vns{id,title,alttitle,titles{title,latin},aliases,rtype,released,image{url},relations{id,title,relation,relation_official,released,image{url}}}'
 ].join(',')
 
 const relationLabels: Record<string, string> = {
@@ -230,12 +248,33 @@ function getUniqueRelations(relations: VndbRelation[]): VndbRelation[] {
   return [...uniqueRelations.values()]
 }
 
+function getUniqueSearchAliases(values: Array<string | null | undefined>) {
+  return [
+    ...new Set(
+      values
+        .map((value) => value?.trim())
+        .filter((value): value is string => Boolean(value))
+    )
+  ]
+}
+
+function getVisualNovelAliases(
+  vn: Pick<PartialVisualNovel, 'alttitle' | 'titles' | 'aliases'>
+): string[] {
+  return getUniqueSearchAliases([
+    vn.alttitle,
+    ...(vn.aliases ?? []),
+    ...(vn.titles?.flatMap((title) => [title.title, title.latin]) ?? [])
+  ])
+}
+
 function mapVisualNovel(vn: PartialVisualNovel): VndbSearchResult {
   const relations = vn.relations?.map(mapRelation) ?? []
 
   return {
     id: vn.id,
     title: vn.title,
+    aliases: getVisualNovelAliases(vn),
     source: 'visualNovel',
     imageUrl: vn.image?.url,
     released: vn.released,
@@ -259,6 +298,7 @@ function mapReleaseVisualNovel(
   return {
     id: vn.id,
     title: vn.title,
+    aliases: getVisualNovelAliases(vn),
     rtype: vn.rtype,
     imageUrl: vn.image?.url,
     released: vn.released,
@@ -319,6 +359,10 @@ function mapRelease(release: PartialVndbRelease): VndbSearchResult {
   return {
     id: release.id,
     title: release.title,
+    aliases: getUniqueSearchAliases([
+      release.alttitle,
+      ...releaseVns.flatMap((vn) => [vn.title, ...(vn.aliases ?? [])])
+    ]),
     source: 'release',
     imageUrl: releaseSummary.imageUrl,
     released: release.released,
@@ -638,6 +682,7 @@ export function syncVndbGameMatches(
       title: update.title,
       vndbId: update.vndbId,
       vndbTitle: update.vndbTitle ?? update.title,
+      aliases: update.aliases,
       source: update.source,
       imageUrl: update.imageUrl,
       released: update.released,

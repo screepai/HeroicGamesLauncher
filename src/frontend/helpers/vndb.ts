@@ -118,7 +118,7 @@ export function getVndbReleasesWithSelectedRelease(
 
 type ReleaseMainVisualNovel = Pick<
   VndbReleaseVisualNovel,
-  'id' | 'title' | 'imageUrl' | 'released'
+  'id' | 'title' | 'aliases' | 'imageUrl' | 'released'
 > & {
   relations?: VndbReleaseVisualNovel['relations']
   mainRelation?: VndbReleaseVisualNovel['mainRelation']
@@ -187,6 +187,7 @@ export function normalizeVndbSelectedMatch(
   return {
     id: mainVisualNovel.id,
     title: mainVisualNovel.title,
+    aliases: mainVisualNovel.aliases ?? result.aliases,
     source: 'visualNovel',
     imageUrl: mainVisualNovel.imageUrl ?? result.imageUrl,
     released: mainVisualNovel.released,

@@ -6,6 +6,10 @@ import SearchBar from '../SearchBar'
 import { useTranslation } from 'react-i18next'
 import LibraryContext from 'frontend/screens/Library/LibraryContext'
 import { normalizeTitle } from 'frontend/helpers/library'
+import {
+  getGameVndbMatchKey,
+  getVndbSearchNames
+} from 'frontend/screens/Library/helpers/vndbSearchNames'
 
 function fixFilter(text: string) {
   const regex = new RegExp(/([?\\|*|+|(|)|[|]|])+/, 'g')
@@ -22,7 +26,7 @@ const RUNNER_TO_STORE: Partial<Record<Runner, string>> = {
 export default function LibrarySearchBar() {
   const { epic, gog, sideloadedLibrary, amazon, zoom } =
     useContext(ContextProvider)
-  const { handleSearch, filterText } = useContext(LibraryContext)
+  const { handleSearch, filterText, vndbMatches } = useContext(LibraryContext)
   const navigate = useNavigate()
   const { t } = useTranslation()
 
@@ -41,9 +45,15 @@ export default function LibrarySearchBar() {
     ]
       .filter(Boolean)
       .filter((el) => {
+        const title = el.overrides?.title || el.title
+        const vndbSearchNames = getVndbSearchNames(
+          vndbMatches[getGameVndbMatchKey(el)]
+        )
         return (
           !el.install.is_dlc &&
-          normalizeTitle(el.title).includes(normalizedFilterText)
+          [title, ...vndbSearchNames].some((title) =>
+            normalizeTitle(title).includes(normalizedFilterText)
+          )
         )
       })
       .sort((g1, g2) => (g1.title < g2.title ? -1 : 1))
@@ -52,6 +62,7 @@ export default function LibrarySearchBar() {
     epic.library,
     gog.library,
     sideloadedLibrary,
+    vndbMatches,
     zoom.library,
     normalizedFilterText
   ])

@@ -5,6 +5,7 @@ export type VndbSearchResultSource = 'visualNovel' | 'release'
 export interface VndbSearchResult {
   id: string
   title: string
+  aliases?: string[]
   source: VndbSearchResultSource
   imageUrl?: string
   released?: string | null
@@ -35,6 +36,7 @@ export interface VndbRelation {
 export interface VndbReleaseVisualNovel {
   id: string
   title: string
+  aliases?: string[]
   rtype?: string
   imageUrl?: string
   released?: string | null
@@ -81,6 +83,7 @@ export interface VndbGameMatch {
   title: string
   vndbId: string
   vndbTitle: string
+  aliases?: string[]
   source?: VndbSearchResultSource
   imageUrl?: string
   released?: string | null
@@ -124,6 +127,7 @@ export interface VndbGameMatchUpdate {
   title: string
   vndbId: string | null
   vndbTitle?: string
+  aliases?: string[]
   source?: VndbSearchResultSource
   imageUrl?: string
   released?: string | null

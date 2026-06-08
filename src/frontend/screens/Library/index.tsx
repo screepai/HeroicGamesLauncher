@@ -12,12 +12,12 @@ import React, {
 import ArrowDropUp from '@mui/icons-material/ArrowDropUp'
 import { Header, UpdateComponent } from 'frontend/components/UI'
 import { useTranslation } from 'react-i18next'
-import Fuse from 'fuse.js'
 
 import ContextProvider from 'frontend/state/ContextProvider'
 
 import GamesList from './components/GamesList'
 import { FavouriteGame, GameInfo, HiddenGame, Runner } from 'common/types'
+import type { VndbGameMatch } from 'common/types/vndb'
 import ErrorComponent from 'frontend/components/UI/ErrorComponent'
 import LibraryHeader from './components/LibraryHeader'
 import {
@@ -37,18 +37,31 @@ import CategoriesManager from './components/CategoriesManager'
 import LibraryTour from './components/LibraryTour'
 import AlphabetFilter from './components/AlphabetFilter'
 import { openInstallGameModal } from 'frontend/state/InstallGameModal'
+import {
+  getGameVndbMatchKey,
+  getVndbSearchNames
+} from './helpers/vndbSearchNames'
 
 const storage = window.localStorage
 
 type SearchableGame = {
   original: GameInfo
-  title: string
-  normalizedTitle: string
+  normalizedSearchNames: string[]
 }
 
 type CategorySection = {
   name: string
   games: GameInfo[]
+}
+
+function isEditableElement(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false
+  }
+
+  return Boolean(
+    target.closest('input, textarea, select, [contenteditable="true"]')
+  )
 }
 
 export default React.memo(function Library(): JSX.Element {
@@ -139,6 +152,9 @@ export default React.memo(function Library(): JSX.Element {
   }
 
   const [filterText, setFilterText] = useState('')
+  const [vndbMatches, setVndbMatches] = useState<Record<string, VndbGameMatch>>(
+    {}
+  )
 
   const [showHidden, setShowHidden] = useState(
     JSON.parse(storage.getItem('show_hidden') || 'false')
@@ -277,6 +293,70 @@ export default React.memo(function Library(): JSX.Element {
       anchor.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   }
+
+  useEffect(() => {
+    let isMounted = true
+
+    window.api.vndb
+      .getAllGameMatches()
+      .then((matches) => {
+        if (isMounted) {
+          setVndbMatches(matches)
+        }
+      })
+      .catch((error) => {
+        console.error(error)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    const focusSearchInput = () => {
+      document.getElementById('search')?.focus()
+    }
+
+    const handleDocumentKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        isEditableElement(event.target)
+      ) {
+        return
+      }
+
+      if (event.key === 'Escape' && filterText) {
+        event.preventDefault()
+        setFilterText('')
+        focusSearchInput()
+        return
+      }
+
+      if (event.key === 'Backspace' && filterText) {
+        event.preventDefault()
+        setFilterText((current) => current.slice(0, -1))
+        focusSearchInput()
+        return
+      }
+
+      if (event.key.length !== 1 || (event.key === ' ' && !filterText)) {
+        return
+      }
+
+      event.preventDefault()
+      setFilterText((current) => `${current}${event.key}`)
+      focusSearchInput()
+    }
+
+    document.addEventListener('keydown', handleDocumentKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleDocumentKeyDown)
+    }
+  }, [filterText])
 
   function handleModal(
     appName: string,
@@ -535,27 +615,29 @@ export default React.memo(function Library(): JSX.Element {
       const searchableLibrary: SearchableGame[] = filteredLibrary.map(
         (game) => {
           const title = game.overrides?.title || game.title
+          const vndbSearchNames = getVndbSearchNames(
+            vndbMatches[getGameVndbMatchKey(game)]
+          )
           return {
             original: game,
-            title,
-            normalizedTitle: normalizeTitle(title)
+            normalizedSearchNames: [title, ...vndbSearchNames].map(
+              normalizeTitle
+            )
           }
         }
       )
 
-      const options = {
-        minMatchCharLength: 1,
-        threshold: 0.4,
-        useExtendedSearch: true,
-        keys: ['title', 'normalizedTitle']
-      }
-      const fuse = new Fuse(searchableLibrary, options)
-
       if (filterText) {
-        const fuzzySearch = fuse
-          .search(filterText)
-          .map((result) => result.item.original)
-        library = fuzzySearch
+        const normalizedFilterText = normalizeTitle(filterText)
+        library = normalizedFilterText
+          ? searchableLibrary
+              .filter((game) =>
+                game.normalizedSearchNames.some((title) =>
+                  title.includes(normalizedFilterText)
+                )
+              )
+              .map((result) => result.original)
+          : filteredLibrary
       } else {
         library = filteredLibrary
       }
@@ -596,7 +678,8 @@ export default React.memo(function Library(): JSX.Element {
     showSupportOfflineOnly,
     showThirdPartyManagedOnly,
     showUpdatesOnly,
-    gameUpdates
+    gameUpdates,
+    vndbMatches
   ])
 
   // select library
@@ -743,6 +826,7 @@ export default React.memo(function Library(): JSX.Element {
         showInstalledOnly,
         showNonAvailable,
         filterText,
+        vndbMatches,
         setStoresFilters,
         handleLayout: handleLayout,
         setPlatformsFilters,
@@ -799,7 +883,10 @@ export default React.memo(function Library(): JSX.Element {
           </>
         )}
 
-        <LibraryHeader list={libraryToShow} />
+        <LibraryHeader
+          list={libraryToShow}
+          onVndbMatchesChange={setVndbMatches}
+        />
 
         {showAlphabetFilter && <AlphabetFilter />}
 

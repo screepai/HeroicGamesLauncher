@@ -2,6 +2,7 @@ import { memo, useContext, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import ActionIcons from 'frontend/components/UI/ActionIcons'
 import { GameInfo } from 'common/types'
+import type { VndbGameMatch } from 'common/types/vndb'
 import LibraryContext from '../../LibraryContext'
 import './index.css'
 import AddGameButton from '../AddGameButton'
@@ -9,9 +10,13 @@ import VndbSyncButton from './VndbSyncButton'
 
 type Props = {
   list: GameInfo[]
+  onVndbMatchesChange?: (matches: Record<string, VndbGameMatch>) => void
 }
 
-export default memo(function LibraryHeader({ list }: Props) {
+export default memo(function LibraryHeader({
+  list,
+  onVndbMatchesChange
+}: Props) {
   const { t } = useTranslation()
   const { showFavourites } = useContext(LibraryContext)
 
@@ -40,7 +45,7 @@ export default memo(function LibraryHeader({ list }: Props) {
             : t('title.allGames', 'All Games')}
           <span className="numberOfgames">{numberOfGames}</span>
           <AddGameButton data-tour="library-add-game" />
-          <VndbSyncButton list={list} />
+          <VndbSyncButton list={list} onMatchesChange={onVndbMatchesChange} />
         </span>
         <ActionIcons />
       </div>

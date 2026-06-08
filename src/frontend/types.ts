@@ -17,6 +17,7 @@ import {
   InstallInfo
 } from 'common/types'
 import { NileLoginData, NileRegisterData } from 'common/types/nile'
+import type { VndbGameMatch } from 'common/types/vndb'
 
 export type Category =
   | 'all'
@@ -226,6 +227,7 @@ export interface LibraryContextType {
   storesFilters: StoresFilters
   platformsFilters: PlatformsFilters
   filterText: string
+  vndbMatches: Record<string, VndbGameMatch>
   setStoresFilters: (filters: StoresFilters) => void
   setPlatformsFilters: (filters: PlatformsFilters) => void
   handleLayout: (value: string) => void

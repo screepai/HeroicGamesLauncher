@@ -41,6 +41,7 @@ import { useTranslation } from 'react-i18next'
 type Props = {
   list: GameInfo[]
   variant?: 'header' | 'icon'
+  onMatchesChange?: (matches: Record<string, VndbGameMatch>) => void
 }
 
 type MatchState = Record<string, VndbSearchResult | null>
@@ -72,6 +73,7 @@ function storedMatchToResult(match: VndbGameMatch): VndbSearchResult {
   return {
     id: match.vndbId,
     title: match.vndbTitle,
+    aliases: match.aliases,
     source: match.source ?? 'visualNovel',
     imageUrl: match.imageUrl,
     released: match.released,
@@ -250,6 +252,7 @@ function getHydratedMatchUpdate(
     title: match.title,
     vndbId: result.id,
     vndbTitle: result.title,
+    aliases: result.aliases,
     source: result.source,
     imageUrl: result.imageUrl,
     released: result.released,
@@ -521,7 +524,11 @@ function VndbResultCard({
   )
 }
 
-export default function VndbSyncButton({ list, variant = 'header' }: Props) {
+export default function VndbSyncButton({
+  list,
+  variant = 'header',
+  onMatchesChange
+}: Props) {
   const { t, i18n } = useTranslation()
   const [open, setOpen] = useState(false)
   const [loadingMatches, setLoadingMatches] = useState(false)
@@ -650,7 +657,7 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
     setError(null)
 
     try {
-      await window.api.vndb.syncGameMatches(
+      const updatedMatches = await window.api.vndb.syncGameMatches(
         suggestions.map((suggestion) => {
           const key = getMatchKey({
             appName: suggestion.game.appName,
@@ -665,6 +672,7 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
             title: suggestion.game.title,
             vndbId: normalizedMatch?.id ?? null,
             vndbTitle: normalizedMatch?.title,
+            aliases: normalizedMatch?.aliases,
             source: normalizedMatch?.source,
             imageUrl: normalizedMatch?.imageUrl,
             released: normalizedMatch?.released,
@@ -678,6 +686,7 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
           }
         })
       )
+      onMatchesChange?.(updatedMatches)
       setOpen(false)
     } catch (err) {
       console.error(err)
@@ -727,6 +736,7 @@ export default function VndbSyncButton({ list, variant = 'header' }: Props) {
       }
 
       const updatedMatches = await window.api.vndb.syncGameMatches(updates)
+      onMatchesChange?.(updatedMatches)
       setSelectedMatches((current) => {
         const nextMatches = { ...current }
 
