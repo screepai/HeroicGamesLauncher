@@ -109,14 +109,6 @@ export default function SidebarLinks() {
 
   return (
     <div className="SidebarLinks Sidebar__section" data-tour="sidebar-menu">
-      {!loggedIn && (
-        <SidebarItem
-          icon={faUser}
-          label={t('button.login', 'Login')}
-          url="/login"
-          dataTour="sidebar-login"
-        />
-      )}
       <SidebarItem
         isActiveFallback={location.pathname.includes('gamepage')}
         url="/"
@@ -125,6 +117,16 @@ export default function SidebarLinks() {
         onClick={async () => handleRefresh()}
         dataTour="sidebar-library"
       />
+
+      <div className="divider" />
+      {!loggedIn && (
+        <SidebarItem
+          icon={faUser}
+          label={t('button.login', 'Login')}
+          url="/login"
+          dataTour="sidebar-login"
+        />
+      )}
 
       <div className="SidebarItemWithSubmenu">
         <SidebarItem
