@@ -20,6 +20,10 @@ import {
   sendKill,
   updateGame
 } from 'frontend/helpers'
+import {
+  getSelectedVndbRelease,
+  getVndbReleasesWithSelectedRelease
+} from 'frontend/helpers/vndb'
 import { Link, NavLink, useLocation, useParams } from 'react-router-dom'
 import { Trans, useTranslation } from 'react-i18next'
 import ContextProvider from 'frontend/state/ContextProvider'
@@ -76,6 +80,51 @@ import SettingsContext from 'frontend/screens/Settings/SettingsContext'
 import useGlobalState from 'frontend/state/GlobalStateV2'
 import Achievements from './components/Achievements'
 import { LaunchOptionSelector } from 'frontend/screens/Settings/components'
+
+function getVndbMatchKey(match: Pick<VndbGameMatch, 'runner' | 'appName'>) {
+  return `${match.runner}:${match.appName}`
+}
+
+function getVndbMatchMainVisualNovelId(
+  match: VndbGameMatch
+): string | undefined {
+  if (match.source !== 'release') {
+    return match.vndbId
+  }
+
+  return (
+    match.mainRelation?.id ??
+    match.releaseVns?.[0]?.id ??
+    (match.vndbId.startsWith('v') ? match.vndbId : undefined)
+  )
+}
+
+function vndbMatchNeedsGamePageDetails(match: VndbGameMatch) {
+  return (
+    match.released === undefined ||
+    match.developers === undefined ||
+    match.rating === undefined ||
+    match.lengthMinutes === undefined ||
+    match.description === undefined ||
+    match.tags === undefined
+  )
+}
+
+const gamePageTabs = [
+  'info',
+  'achievements',
+  'extra',
+  'requirements',
+  'vndb'
+] as const
+
+type GamePageTab = (typeof gamePageTabs)[number]
+
+function isGamePageTab(value: unknown): value is GamePageTab {
+  return (
+    typeof value === 'string' && gamePageTabs.includes(value as GamePageTab)
+  )
+}
 
 export default React.memo(function GamePage(): JSX.Element | null {
   const { appName, runner } = useParams() as { appName: string; runner: Runner }
@@ -174,9 +223,7 @@ export default React.memo(function GamePage(): JSX.Element | null {
 
   const storage: Storage = window.localStorage
 
-  const [currentTab, setCurrentTab] = useState<
-    'info' | 'achievements' | 'extra' | 'requirements' | 'vndb'
-  >('info')
+  const [currentTab, setCurrentTab] = useState<GamePageTab>('info')
 
   const previousIsPlaying = useRef<boolean>(isPlaying)
   useEffect(() => {
@@ -297,6 +344,87 @@ export default React.memo(function GamePage(): JSX.Element | null {
   }, [appName, runner])
 
   useEffect(() => {
+    if (!vndbMatch || !vndbMatchNeedsGamePageDetails(vndbMatch)) {
+      return
+    }
+
+    const visualNovelId = getVndbMatchMainVisualNovelId(vndbMatch)
+    if (!visualNovelId?.startsWith('v')) {
+      return
+    }
+
+    let isMounted = true
+
+    window.api.vndb
+      .searchVisualNovels({
+        query: visualNovelId,
+        limit: 1
+      })
+      .then(async ([mainResult]) => {
+        if (
+          !isMounted ||
+          mainResult?.source !== 'visualNovel' ||
+          mainResult.id !== visualNovelId
+        ) {
+          return
+        }
+
+        const selectedRelease = getSelectedVndbRelease(vndbMatch)
+        const releases = selectedRelease
+          ? getVndbReleasesWithSelectedRelease(
+              mainResult.releases,
+              selectedRelease
+            )
+          : (mainResult.releases ?? vndbMatch.releases)
+        const updatedMatches = await window.api.vndb.syncGameMatches([
+          {
+            appName: vndbMatch.appName,
+            runner: vndbMatch.runner,
+            title: vndbMatch.title,
+            vndbId: mainResult.id,
+            vndbTitle: mainResult.title,
+            aliases: mainResult.aliases,
+            source: 'visualNovel',
+            imageUrl: mainResult.imageUrl,
+            released: mainResult.released,
+            average: mainResult.average,
+            rating: mainResult.rating,
+            votecount: mainResult.votecount,
+            length: mainResult.length,
+            lengthMinutes: mainResult.lengthMinutes,
+            lengthVotes: mainResult.lengthVotes,
+            description: mainResult.description,
+            tags: mainResult.tags,
+            developers: mainResult.developers,
+            languages: mainResult.languages,
+            mainRelation: mainResult.mainRelation,
+            relations: mainResult.relations,
+            latestRelease:
+              selectedRelease ??
+              vndbMatch.latestRelease ??
+              mainResult.latestRelease,
+            releases,
+            releaseVns:
+              selectedRelease?.vns ??
+              vndbMatch.releaseVns ??
+              mainResult.releaseVns
+          }
+        ])
+
+        if (isMounted) {
+          setVndbMatch(updatedMatches[getVndbMatchKey(vndbMatch)])
+        }
+      })
+      .catch((error) => {
+        console.error(error)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [vndbMatch])
+
+  useEffect(() => {
     if (currentTab === 'vndb' && !vndbMatch) {
       setCurrentTab('info')
     }
@@ -369,6 +497,7 @@ export default React.memo(function GamePage(): JSX.Element | null {
       gameSettings,
       gameInstallInfo,
       gameExtraInfo: extraInfo,
+      vndbMatch,
       is: {
         installing: isInstalling,
         importing: isImporting,
@@ -404,7 +533,11 @@ export default React.memo(function GamePage(): JSX.Element | null {
       wikiInfo?.howlongtobeat ||
       wikiInfo?.pcgamingwiki?.metacritic.score ||
       wikiInfo?.pcgamingwiki?.opencritic.score ||
-      wikiInfo?.steamInfo
+      wikiInfo?.steamInfo ||
+      vndbMatch?.rating != null ||
+      vndbMatch?.average != null ||
+      vndbMatch?.lengthMinutes != null ||
+      vndbMatch?.length != null
 
     const hasRequirements = extraInfo ? extraInfo.reqs.length > 0 : false
 
@@ -512,7 +645,11 @@ export default React.memo(function GamePage(): JSX.Element | null {
                         <Tabs
                           className="gameInfoTabs"
                           value={currentTab}
-                          onChange={(e, newVal) => setCurrentTab(newVal)}
+                          onChange={(_event, newVal: unknown) => {
+                            if (isGamePageTab(newVal)) {
+                              setCurrentTab(newVal)
+                            }
+                          }}
                           aria-label="gameinfo tabs"
                           selectionFollowsFocus
                           variant="scrollable"

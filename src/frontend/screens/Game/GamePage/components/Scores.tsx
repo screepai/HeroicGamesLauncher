@@ -1,10 +1,11 @@
 import { useContext } from 'react'
 import { useTranslation } from 'react-i18next'
 import GameContext from '../../GameContext'
-import { Star } from '@mui/icons-material'
-import PopoverComponent from 'frontend/components/UI/PopoverComponent'
 import GameScore from 'frontend/components/UI/WikiGameInfo/components/GameScore'
 import { GameInfo } from 'common/types'
+import classNames from 'classnames'
+import { createNewWindow } from 'frontend/helpers'
+import { getVndbScoreValue } from 'frontend/helpers/vndb'
 
 interface Props {
   gameInfo: GameInfo
@@ -12,47 +13,71 @@ interface Props {
 
 const Scores = ({ gameInfo }: Props) => {
   const { t } = useTranslation('gamepage')
-  const { wikiInfo } = useContext(GameContext)
+  const { wikiInfo, vndbMatch } = useContext(GameContext)
 
-  if (!wikiInfo) {
-    return null
-  }
-
-  const pcgamingwiki = wikiInfo.pcgamingwiki
-
-  if (!pcgamingwiki) {
-    return null
-  }
+  const pcgamingwiki = wikiInfo?.pcgamingwiki
 
   const hasScores =
     pcgamingwiki?.metacritic.score ||
     pcgamingwiki?.igdb.score ||
     pcgamingwiki?.opencritic.score
 
-  if (!hasScores) {
-    return null
-  }
-
-  if (hasScores) {
+  if (hasScores && pcgamingwiki) {
     return <GameScore info={pcgamingwiki} title={gameInfo.title} />
   }
 
+  const rating = getVndbScoreValue(vndbMatch?.rating)
+  const average = getVndbScoreValue(
+    vndbMatch?.average !== vndbMatch?.rating ? vndbMatch?.average : undefined
+  )
+
+  if (!rating && !average) {
+    return null
+  }
+
+  const getColorClass = (value: string) => {
+    const number = Number(value)
+
+    if (number > 66) {
+      return 'green'
+    }
+
+    if (number < 33) {
+      return 'red'
+    }
+
+    return 'yellow'
+  }
+
   return (
-    <PopoverComponent
-      item={
-        <div
-          className="iconWithText"
-          title={t('info.clickToOpen', 'Click to open')}
+    <div className="gamescore">
+      {rating && (
+        <button
+          className={classNames('circle', getColorClass(rating))}
+          onClick={() => {
+            if (vndbMatch) {
+              createNewWindow(`https://vndb.org/${vndbMatch.vndbId}`)
+            }
+          }}
         >
-          <Star />
-          {t('info.game-scores', 'Game Scores')}
-        </div>
-      }
-    >
-      <div className="poppedElement">
-        <GameScore info={pcgamingwiki} title={gameInfo.title} />
-      </div>
-    </PopoverComponent>
+          <div className="circle__title">{t('game.vndb', 'VNDB')}</div>
+          <div className="circle__value">{rating}</div>
+        </button>
+      )}
+      {average && (
+        <button
+          className={classNames('circle', getColorClass(average))}
+          onClick={() => {
+            if (vndbMatch) {
+              createNewWindow(`https://vndb.org/${vndbMatch.vndbId}`)
+            }
+          }}
+        >
+          <div className="circle__title">{t('vndb.average', 'Average')}</div>
+          <div className="circle__value">{average}</div>
+        </button>
+      )}
+    </div>
   )
 }
 

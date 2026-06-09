@@ -9,6 +9,7 @@ const initialContext: GameContextType = {
   gameExtraInfo: null,
   gameSettings: null,
   gameInstallInfo: null,
+  vndbMatch: null,
   is: {
     installing: false,
     importing: false,

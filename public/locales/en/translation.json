@@ -1181,6 +1181,8 @@
         "quitMessage": "Are you sure you want to quit?"
     },
     "vndb": {
+        "length-hours-minutes": "{{hours}}h {{minutes}}m",
+        "length-minutes": "{{minutes}}m",
         "sync": {
             "button": "VNDB",
             "downloaded-release": "Downloaded: {{release}}",

@@ -269,6 +269,7 @@ export interface GameContextType {
   gameExtraInfo: ExtraInfo | null
   gameSettings: GameSettings | null
   gameInstallInfo: InstallInfo | null
+  vndbMatch: VndbGameMatch | null
   is: {
     installing: boolean
     importing: boolean

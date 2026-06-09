@@ -1,8 +1,18 @@
 import type {
+  VndbGameMatch,
   VndbRelease,
   VndbReleaseVisualNovel,
-  VndbSearchResult
+  VndbSearchResult,
+  VndbTag
 } from 'common/types/vndb'
+
+const vndbLengthLabels: Record<number, string> = {
+  1: 'Very short',
+  2: 'Short',
+  3: 'Medium',
+  4: 'Long',
+  5: 'Very long'
+}
 
 const vndbPlatformLabels: Record<string, string> = {
   and: 'Android',
@@ -72,6 +82,83 @@ export function getVndbPlatformsLabel(platforms: string[]): string {
     .join(', ')
 }
 
+export function formatVndbScore(value: number | null | undefined): string {
+  if (typeof value !== 'number') {
+    return ''
+  }
+
+  return `${(value / 10).toFixed(1)}/10`
+}
+
+export function getVndbScoreValue(value: number | null | undefined): string {
+  if (typeof value !== 'number') {
+    return ''
+  }
+
+  return Math.round(value).toString()
+}
+
+export function formatVndbLength(
+  match: Pick<VndbGameMatch, 'length' | 'lengthMinutes'>,
+  t: (
+    key: string,
+    defaultValue: string,
+    options?: Record<string, unknown>
+  ) => string
+): string {
+  if (match.lengthMinutes) {
+    const hours = Math.floor(match.lengthMinutes / 60)
+    const minutes = match.lengthMinutes % 60
+
+    return hours > 0
+      ? t('vndb.length-hours-minutes', '{{hours}}h {{minutes}}m', {
+          hours,
+          minutes
+        })
+      : t('vndb.length-minutes', '{{minutes}}m', { minutes })
+  }
+
+  if (typeof match.length === 'number') {
+    return vndbLengthLabels[match.length] ?? String(match.length)
+  }
+
+  return ''
+}
+
+export function getCleanVndbDescription(
+  description: string | null | undefined
+) {
+  return (
+    description
+      ?.replace(/\[url=([^\]]+)\]([^[]+)\[\/url\]/gi, '$2')
+      .replace(/\[url\]([^[]+)\[\/url\]/gi, '$1')
+      .replace(/\[(\/)?[a-z0-9_=-]+\]/gi, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim() ?? ''
+  )
+}
+
+export function getTopVndbTags(
+  tags: VndbTag[] | undefined,
+  {
+    category,
+    limit
+  }: {
+    category?: string
+    limit: number
+  }
+): VndbTag[] {
+  return (tags ?? [])
+    .filter(
+      (tag) =>
+        !tag.lie &&
+        tag.spoiler === 0 &&
+        (!category || tag.category === category)
+    )
+    .toSorted((left, right) => right.rating - left.rating)
+    .slice(0, limit)
+}
+
 function getVndbReleaseDateSortValue(
   released: string | null | undefined
 ): number {
@@ -114,6 +201,28 @@ export function getVndbReleasesWithSelectedRelease(
   }
 
   return [...releaseMap.values()]
+}
+
+export function getSelectedVndbRelease(
+  match: VndbGameMatch
+): VndbRelease | undefined {
+  if (match.latestRelease) {
+    return match.latestRelease
+  }
+
+  if (match.source !== 'release') {
+    return undefined
+  }
+
+  return {
+    id: match.vndbId,
+    title: match.vndbTitle,
+    imageUrl: match.imageUrl,
+    released: match.released,
+    languages: match.languages ?? [],
+    platforms: [],
+    vns: match.releaseVns ?? []
+  }
 }
 
 type ReleaseMainVisualNovel = Pick<
@@ -191,6 +300,14 @@ export function normalizeVndbSelectedMatch(
     source: 'visualNovel',
     imageUrl: mainVisualNovel.imageUrl ?? result.imageUrl,
     released: mainVisualNovel.released,
+    average: result.average,
+    rating: result.rating,
+    votecount: result.votecount,
+    length: result.length,
+    lengthMinutes: result.lengthMinutes,
+    lengthVotes: result.lengthVotes,
+    description: result.description,
+    tags: result.tags,
     developers: result.developers,
     languages: [],
     platforms: [],

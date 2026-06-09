@@ -7,13 +7,20 @@ interface Props {
 }
 
 const Developer = ({ gameInfo }: Props) => {
-  const { runner } = useContext(GameContext)
+  const { runner, vndbMatch } = useContext(GameContext)
+  const vndbDevelopers = [
+    ...new Set((vndbMatch?.developers ?? []).filter(Boolean))
+  ].sort((left, right) => left.localeCompare(right))
+  const developer =
+    runner === 'sideload'
+      ? vndbDevelopers.join(', ')
+      : gameInfo.developer || vndbDevelopers.join(', ')
 
-  if (runner === 'sideload') {
+  if (!developer) {
     return null
   }
 
-  return <div className="developer">{gameInfo.developer}</div>
+  return <div className="developer">{developer}</div>
 }
 
 export default Developer

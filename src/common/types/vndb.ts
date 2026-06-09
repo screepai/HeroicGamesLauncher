@@ -9,10 +9,14 @@ export interface VndbSearchResult {
   source: VndbSearchResultSource
   imageUrl?: string
   released?: string | null
+  average?: number | null
   rating?: number | null
   votecount?: number
+  length?: number | null
   lengthMinutes?: number | null
+  lengthVotes?: number
   description?: string | null
+  tags?: VndbTag[]
   developers: string[]
   languages: string[]
   platforms: string[]
@@ -21,6 +25,15 @@ export interface VndbSearchResult {
   latestRelease?: VndbRelease
   releases?: VndbRelease[]
   releaseVns?: VndbReleaseVisualNovel[]
+}
+
+export interface VndbTag {
+  id: string
+  name: string
+  category: string
+  rating: number
+  spoiler: number
+  lie: boolean
 }
 
 export interface VndbRelation {
@@ -87,6 +100,14 @@ export interface VndbGameMatch {
   source?: VndbSearchResultSource
   imageUrl?: string
   released?: string | null
+  average?: number | null
+  rating?: number | null
+  votecount?: number
+  length?: number | null
+  lengthMinutes?: number | null
+  lengthVotes?: number
+  description?: string | null
+  tags?: VndbTag[]
   developers?: string[]
   languages?: string[]
   mainVndbId?: string
@@ -131,6 +152,14 @@ export interface VndbGameMatchUpdate {
   source?: VndbSearchResultSource
   imageUrl?: string
   released?: string | null
+  average?: number | null
+  rating?: number | null
+  votecount?: number
+  length?: number | null
+  lengthMinutes?: number | null
+  lengthVotes?: number
+  description?: string | null
+  tags?: VndbTag[]
   developers?: string[]
   languages?: string[]
   mainRelation?: VndbRelation

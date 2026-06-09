@@ -1,18 +1,24 @@
 import { useContext } from 'react'
 import GameContext from '../../GameContext'
 import { useTranslation } from 'react-i18next'
+import { getCleanVndbDescription } from 'frontend/helpers/vndb'
 
 const Description = () => {
   const { t } = useTranslation('gamepage')
-  const { gameExtraInfo, runner } = useContext(GameContext)
+  const { gameExtraInfo, runner, vndbMatch } = useContext(GameContext)
 
-  let description = ''
+  const vndbDescription = getCleanVndbDescription(vndbMatch?.description)
 
-  if (runner !== 'sideload') {
-    description =
-      gameExtraInfo?.about?.shortDescription ||
-      gameExtraInfo?.about?.description ||
-      t('generic.noDescription', 'No description available')
+  const description =
+    runner !== 'sideload'
+      ? gameExtraInfo?.about?.shortDescription ||
+        gameExtraInfo?.about?.description ||
+        vndbDescription ||
+        t('generic.noDescription', 'No description available')
+      : vndbDescription
+
+  if (!description) {
+    return null
   }
 
   return <div className="summary">{description}</div>

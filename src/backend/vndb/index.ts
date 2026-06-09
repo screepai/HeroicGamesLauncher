@@ -19,6 +19,7 @@ import type {
   VndbReleaseVisualNovel,
   VndbRelation,
   VndbSearchResult,
+  VndbTag,
   VndbUserLabel,
   VndbUserOptions,
   VndbUserOptionsUpdate
@@ -41,9 +42,12 @@ type PartialVisualNovel = Partial<
     | 'aliases'
     | 'image'
     | 'released'
+    | 'average'
     | 'rating'
     | 'votecount'
+    | 'length'
     | 'length_minutes'
+    | 'length_votes'
     | 'description'
     | 'developers'
     | 'languages'
@@ -53,6 +57,14 @@ type PartialVisualNovel = Partial<
   id: string
   title: string
   relations?: PartialVndbRelation[]
+  tags?: PartialVndbTag[]
+}
+
+type PartialVndbTag = Partial<
+  Pick<VndbTag, 'id' | 'name' | 'category' | 'rating' | 'spoiler' | 'lie'>
+> & {
+  id: string
+  name: string
 }
 
 type PartialVndbRelation = Partial<
@@ -106,7 +118,7 @@ type PartialVndbRelease = Partial<
 type PartialAuthInfo = Partial<AuthInfo> & Pick<AuthInfo, 'id' | 'username'>
 
 const vndbSearchCache = new CacheStore<VndbSearchResult[]>(
-  'vndb-search-v7',
+  'vndb-search-v8',
   60 * 24 * 7
 )
 
@@ -120,10 +132,14 @@ const searchFields = [
   'titles{title,latin}',
   'aliases',
   'released',
+  'average',
   'rating',
   'votecount',
+  'length',
   'length_minutes',
+  'length_votes',
   'description',
+  'tags{id,name,category,rating,spoiler,lie}',
   'image{url}',
   'developers{name}',
   'languages',
@@ -223,6 +239,17 @@ function mapRelation(relation: PartialVndbRelation): VndbRelation {
   }
 }
 
+function mapTag(tag: PartialVndbTag): VndbTag {
+  return {
+    id: tag.id,
+    name: tag.name,
+    category: tag.category ?? '',
+    rating: tag.rating ?? 0,
+    spoiler: tag.spoiler ?? 0,
+    lie: tag.lie ?? false
+  }
+}
+
 function getMainRelation(relations: VndbRelation[]) {
   return relations
     .filter((relation) => relation.relation in mainRelationPriority)
@@ -278,10 +305,14 @@ function mapVisualNovel(vn: PartialVisualNovel): VndbSearchResult {
     source: 'visualNovel',
     imageUrl: vn.image?.url,
     released: vn.released,
+    average: vn.average,
     rating: vn.rating,
     votecount: vn.votecount,
+    length: vn.length,
     lengthMinutes: vn.length_minutes,
+    lengthVotes: vn.length_votes,
     description: vn.description,
+    tags: vn.tags?.map(mapTag),
     developers: vn.developers?.map((developer) => developer.name) ?? [],
     languages: vn.languages ?? [],
     platforms: vn.platforms ?? [],
@@ -686,6 +717,14 @@ export function syncVndbGameMatches(
       source: update.source,
       imageUrl: update.imageUrl,
       released: update.released,
+      average: update.average,
+      rating: update.rating,
+      votecount: update.votecount,
+      length: update.length,
+      lengthMinutes: update.lengthMinutes,
+      lengthVotes: update.lengthVotes,
+      description: update.description,
+      tags: update.tags,
       developers: update.developers,
       languages: update.languages,
       mainVndbId: update.mainRelation?.id,

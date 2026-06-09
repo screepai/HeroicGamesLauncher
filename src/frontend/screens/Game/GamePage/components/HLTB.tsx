@@ -3,12 +3,12 @@ import { useTranslation } from 'react-i18next'
 import GameContext from '../../GameContext'
 import { Speed, ExpandMore } from '@mui/icons-material'
 import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material'
-import PopoverComponent from 'frontend/components/UI/PopoverComponent'
 import HowLongToBeat from 'frontend/components/UI/WikiGameInfo/components/HowLongToBeat'
+import { formatVndbLength } from 'frontend/helpers/vndb'
 
 const HLTB = () => {
   const { t } = useTranslation('gamepage')
-  const { wikiInfo } = useContext(GameContext)
+  const { wikiInfo, vndbMatch } = useContext(GameContext)
 
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -16,54 +16,42 @@ const HLTB = () => {
     setIsExpanded((prevExpanded) => !prevExpanded)
   }
 
-  if (!wikiInfo) {
-    return null
-  }
-
-  const howlongtobeat = wikiInfo.howlongtobeat
+  const howlongtobeat = wikiInfo?.howlongtobeat
 
   if (!howlongtobeat) {
-    return null
-  }
+    const vndbLength = vndbMatch ? formatVndbLength(vndbMatch, t) : ''
 
-  if (howlongtobeat) {
+    if (!vndbLength) {
+      return null
+    }
+
     return (
-      <div className="hltbWrapper">
-        <Accordion expanded={isExpanded} onChange={handleExpansionChange}>
-          <AccordionSummary
-            expandIcon={<ExpandMore />}
-            aria-controls="hltb-content"
-            id="hltb-header"
-            title={t('info.clickToOpen', 'Click to open')}
-          >
-            <Speed />
-            <b>{t('howLongToBeat', 'How Long To Beat')}</b>
-          </AccordionSummary>
-          <AccordionDetails>
-            <HowLongToBeat info={howlongtobeat} />
-          </AccordionDetails>
-        </Accordion>
+      <div>
+        <Speed />
+        <b>{t('vndb.length', 'Length')}</b>
+        <span>{vndbLength}</span>
       </div>
     )
-  } else {
-    return (
-      <PopoverComponent
-        item={
-          <div
-            className="iconWithText"
-            title={t('info.clickToOpen', 'Click to open')}
-          >
-            <Speed />
-            <b>{t('howLongToBeat', 'How Long To Beat')}</b>
-          </div>
-        }
-      >
-        <div className="poppedElement">
-          <HowLongToBeat info={howlongtobeat} />
-        </div>
-      </PopoverComponent>
-    )
   }
+
+  return (
+    <div className="hltbWrapper">
+      <Accordion expanded={isExpanded} onChange={handleExpansionChange}>
+        <AccordionSummary
+          expandIcon={<ExpandMore />}
+          aria-controls="hltb-content"
+          id="hltb-header"
+          title={t('info.clickToOpen', 'Click to open')}
+        >
+          <Speed />
+          <b>{t('howLongToBeat', 'How Long To Beat')}</b>
+        </AccordionSummary>
+        <AccordionDetails>
+          <HowLongToBeat info={howlongtobeat} />
+        </AccordionDetails>
+      </Accordion>
+    </div>
+  )
 }
 
 export default HLTB

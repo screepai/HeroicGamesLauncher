@@ -11,6 +11,7 @@ import fallbackImage from 'frontend/assets/heroic_card.jpg'
 import { CachedImage, WarningMessage } from 'frontend/components/UI'
 import { createNewWindow } from 'frontend/helpers'
 import {
+  getSelectedVndbRelease,
   getVndbPlatformsLabel,
   getVndbReleasesWithSelectedRelease,
   sortVndbReleasesByDate
@@ -27,7 +28,6 @@ type MainVersionInfo = {
   id: string
   title: string
   imageUrl?: string
-  released?: string | null
   detail?: string
 }
 
@@ -120,6 +120,17 @@ function releasesNeedLanguageTitles(releases: VndbRelease[] | undefined) {
   )
 }
 
+function matchNeedsVisualNovelDetails(match: VndbGameMatch) {
+  return (
+    match.released === undefined ||
+    match.developers === undefined ||
+    match.rating === undefined ||
+    match.lengthMinutes === undefined ||
+    match.description === undefined ||
+    match.tags === undefined
+  )
+}
+
 function getReleaseOptionSections(
   releases: VndbRelease[]
 ): ReleaseOptionSection[] {
@@ -168,8 +179,7 @@ function getMainVersionInfo(match: VndbGameMatch): MainVersionInfo {
     return {
       id: match.vndbId,
       title: match.vndbTitle,
-      imageUrl: match.imageUrl,
-      released: match.released
+      imageUrl: match.imageUrl
     }
   }
 
@@ -178,7 +188,6 @@ function getMainVersionInfo(match: VndbGameMatch): MainVersionInfo {
       id: match.mainRelation.id,
       title: match.mainRelation.title,
       imageUrl: match.mainRelation.imageUrl,
-      released: match.mainRelation.released,
       detail: match.mainRelation.relationLabel
     }
   }
@@ -189,7 +198,6 @@ function getMainVersionInfo(match: VndbGameMatch): MainVersionInfo {
       id: releaseVn.id,
       title: releaseVn.title,
       imageUrl: releaseVn.imageUrl,
-      released: releaseVn.released,
       detail: releaseVn.rtype
     }
   }
@@ -197,28 +205,7 @@ function getMainVersionInfo(match: VndbGameMatch): MainVersionInfo {
   return {
     id: match.vndbId,
     title: match.vndbTitle,
-    imageUrl: match.imageUrl,
-    released: match.released
-  }
-}
-
-function getSelectedRelease(match: VndbGameMatch): VndbRelease | undefined {
-  if (match.latestRelease) {
-    return match.latestRelease
-  }
-
-  if (match.source !== 'release') {
-    return undefined
-  }
-
-  return {
-    id: match.vndbId,
-    title: match.vndbTitle,
-    imageUrl: match.imageUrl,
-    released: match.released,
-    languages: match.languages ?? [],
-    platforms: [],
-    vns: match.releaseVns ?? []
+    imageUrl: match.imageUrl
   }
 }
 
@@ -377,7 +364,6 @@ function VndbMainDetails({
   visualNovelLanguages: string
 }) {
   const { t } = useTranslation('gamepage')
-  const developers = getUniqueSortedValues(match.developers ?? []).join(', ')
 
   return (
     <div className="vndbInfoGrid">
@@ -387,18 +373,6 @@ function VndbMainDetails({
           {mainVersion.detail ?? t('vndb.visual-novel', 'Visual novel')}
         </span>
       </div>
-      {mainVersion.released && (
-        <div>
-          <b>{t('vndb.released', 'Released')}</b>
-          <span>{mainVersion.released}</span>
-        </div>
-      )}
-      {developers && (
-        <div>
-          <b>{t('vndb.developers', 'Developers')}</b>
-          <span>{developers}</span>
-        </div>
-      )}
       {visualNovelLanguages && (
         <div>
           <b>{t('vndb.vn-languages', 'VN languages')}</b>
@@ -532,79 +506,41 @@ function VndbReleaseChooser({
   selectedRelease: VndbRelease
 }) {
   const { t, i18n } = useTranslation('gamepage')
-  const releaseLanguages = getLanguageList(
-    selectedRelease.languages,
-    i18n.language
-  )
-  const platforms = getVndbPlatformsLabel(selectedRelease.platforms)
-  const selectedReleaseFlags = getReleaseFlagsLabel(selectedRelease, t)
+
+  if (releaseOptions.length <= 1) {
+    return null
+  }
 
   return (
     <section className="vndbInfoSection">
-      <h3>{t('vndb.downloaded-release', 'Downloaded release')}</h3>
-      {releaseOptions.length > 1 && (
-        <div
-          className="vndbInfoReleaseSections"
-          aria-label={t('vndb.release-selector', 'Downloaded release selector')}
-        >
-          {releaseOptionSections.map((section) => (
-            <section className="vndbInfoReleaseSection" key={section.id}>
-              <h4>
-                {t('vndb.release-section-language', '{{language}} releases', {
-                  language: getLanguageLabel(section.language, i18n.language)
-                })}
-              </h4>
-              <div className="vndbInfoReleaseList">
-                {section.items.map(({ release, isNewestRelease }) => (
-                  <VndbReleaseCard
-                    isNewestRelease={isNewestRelease}
-                    isSelected={release.id === selectedRelease.id}
-                    key={`${section.id}:${release.id}`}
-                    language={section.language}
-                    mainVersion={mainVersion}
-                    onSelect={onSelect}
-                    release={release}
-                    savingRelease={savingRelease}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
-      <div className="vndbInfoGrid">
-        <div>
-          <b>{t('vndb.downloaded-version', 'Downloaded version')}</b>
-          <span>{selectedRelease.title}</span>
-        </div>
-        <div>
-          <b>{t('vndb.release-id', 'Release ID')}</b>
-          <span>{selectedRelease.id}</span>
-        </div>
-        {selectedRelease.released && (
-          <div>
-            <b>{t('vndb.release-date', 'Release date')}</b>
-            <span>{selectedRelease.released}</span>
-          </div>
-        )}
-        {releaseLanguages && (
-          <div>
-            <b>{t('vndb.release-languages', 'Release languages')}</b>
-            <span>{releaseLanguages}</span>
-          </div>
-        )}
-        {platforms && (
-          <div>
-            <b>{t('vndb.platforms', 'Platforms')}</b>
-            <span>{platforms}</span>
-          </div>
-        )}
-        {selectedReleaseFlags && (
-          <div>
-            <b>{t('vndb.release-flags', 'Release flags')}</b>
-            <span>{selectedReleaseFlags}</span>
-          </div>
-        )}
+      <h3>{t('vndb.release-selector', 'Downloaded release selector')}</h3>
+      <div
+        className="vndbInfoReleaseSections"
+        aria-label={t('vndb.release-selector', 'Downloaded release selector')}
+      >
+        {releaseOptionSections.map((section) => (
+          <section className="vndbInfoReleaseSection" key={section.id}>
+            <h4>
+              {t('vndb.release-section-language', '{{language}} releases', {
+                language: getLanguageLabel(section.language, i18n.language)
+              })}
+            </h4>
+            <div className="vndbInfoReleaseList">
+              {section.items.map(({ release, isNewestRelease }) => (
+                <VndbReleaseCard
+                  isNewestRelease={isNewestRelease}
+                  isSelected={release.id === selectedRelease.id}
+                  key={`${section.id}:${release.id}`}
+                  language={section.language}
+                  mainVersion={mainVersion}
+                  onSelect={onSelect}
+                  release={release}
+                  savingRelease={savingRelease}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
     </section>
   )
@@ -804,14 +740,17 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
     const shouldHydrateReleases =
       (match?.releases?.length ?? 0) <= 1 ||
       releasesNeedLanguageTitles(match?.releases)
+    const shouldHydrateDetails = match
+      ? matchNeedsVisualNovelDetails(match)
+      : false
 
-    if (!match || !shouldHydrateReleases) {
+    if (!match || (!shouldHydrateReleases && !shouldHydrateDetails)) {
       return
     }
 
-    const selectedRelease = getSelectedRelease(match)
+    const selectedRelease = getSelectedVndbRelease(match)
     const mainVersion = getMainVersionInfo(match)
-    if (!selectedRelease || !mainVersion.id.startsWith('v')) {
+    if (!mainVersion.id.startsWith('v')) {
       return
     }
 
@@ -827,19 +766,22 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
           !isMounted ||
           mainResult?.source !== 'visualNovel' ||
           mainResult.id !== mainVersion.id ||
-          !mainResult.releases?.length
+          (!mainResult.releases?.length && !shouldHydrateDetails)
         ) {
           return
         }
 
-        const releases = getVndbReleasesWithSelectedRelease(
-          mainResult.releases,
-          selectedRelease
-        )
-        if (
-          releases.length <= (match.releases?.length ?? 0) &&
-          !releasesNeedLanguageTitles(match.releases)
-        ) {
+        const releases = selectedRelease
+          ? getVndbReleasesWithSelectedRelease(
+              mainResult.releases,
+              selectedRelease
+            )
+          : mainResult.releases
+        const hasReleaseUpdate =
+          releasesNeedLanguageTitles(match.releases) ||
+          (releases?.length ?? 0) > (match.releases?.length ?? 0)
+
+        if (!shouldHydrateDetails && !hasReleaseUpdate) {
           return
         }
 
@@ -854,13 +796,25 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
             source: 'visualNovel',
             imageUrl: mainResult.imageUrl,
             released: mainResult.released,
+            average: mainResult.average,
+            rating: mainResult.rating,
+            votecount: mainResult.votecount,
+            length: mainResult.length,
+            lengthMinutes: mainResult.lengthMinutes,
+            lengthVotes: mainResult.lengthVotes,
+            description: mainResult.description,
+            tags: mainResult.tags,
             developers: mainResult.developers,
             languages: mainResult.languages,
             mainRelation: mainResult.mainRelation,
             relations: mainResult.relations,
-            latestRelease: selectedRelease,
+            latestRelease:
+              selectedRelease ??
+              match.latestRelease ??
+              mainResult.latestRelease,
             releases,
-            releaseVns: selectedRelease.vns
+            releaseVns:
+              selectedRelease?.vns ?? match.releaseVns ?? mainResult.releaseVns
           }
         ])
 
@@ -919,7 +873,7 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
     match.source === 'release'
       ? ''
       : getLanguageList(match.languages ?? [], i18n.language)
-  const selectedRelease = getSelectedRelease(match)
+  const selectedRelease = getSelectedVndbRelease(match)
   const releaseOptions = getSortedReleases(match)
   const releaseOptionSections = getReleaseOptionSections(releaseOptions)
   const includedVns = selectedRelease?.vns ?? match.releaseVns ?? []
@@ -951,6 +905,14 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
           source: match.source,
           imageUrl: match.imageUrl,
           released: match.released,
+          average: match.average,
+          rating: match.rating,
+          votecount: match.votecount,
+          length: match.length,
+          lengthMinutes: match.lengthMinutes,
+          lengthVotes: match.lengthVotes,
+          description: match.description,
+          tags: match.tags,
           developers: match.developers,
           languages: match.languages,
           mainRelation: match.mainRelation,

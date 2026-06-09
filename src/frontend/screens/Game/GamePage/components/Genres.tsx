@@ -1,17 +1,28 @@
-import React from 'react'
+import React, { useContext } from 'react'
+import { getTopVndbTags } from 'frontend/helpers/vndb'
+import GameContext from '../../GameContext'
 
 type GenresProps = {
   genres: string[]
 }
 
 const Genres: React.FC<GenresProps> = ({ genres }) => {
-  if (genres[0] === '' || genres.length === 0) {
+  const { vndbMatch } = useContext(GameContext)
+  const displayGenres =
+    genres[0] === '' || genres.length === 0
+      ? getTopVndbTags(vndbMatch?.tags, {
+          category: 'cont',
+          limit: 6
+        }).map((tag) => tag.name)
+      : genres
+
+  if (!displayGenres.length) {
     return null
   }
 
   return (
     <span className="genres">
-      {genres.map((genre) => (
+      {displayGenres.map((genre) => (
         <span key={genre} className="genre">
           {genre}
         </span>

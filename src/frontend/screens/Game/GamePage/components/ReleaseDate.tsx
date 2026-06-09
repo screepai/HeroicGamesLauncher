@@ -32,18 +32,14 @@ function convertDate(date: string) {
 }
 
 const ReleaseDate: React.FC<ReleaseDateProps> = ({ date, runnerDate }) => {
-  const { is } = useContext(GameContext)
+  const { is, vndbMatch } = useContext(GameContext)
 
   const { t } = useTranslation()
-
-  if (!date || date[0] === '' || date.length === 0) {
-    return null
-  }
 
   const getReleaseDate = () => {
     let windowsReleaseDate = runnerDate
 
-    if (!windowsReleaseDate) {
+    if (!windowsReleaseDate && date?.length) {
       for (let i = 0; i < date.length; i++) {
         const [platformName, releaseDate] = date[i].split(': ')
 
@@ -60,7 +56,7 @@ const ReleaseDate: React.FC<ReleaseDateProps> = ({ date, runnerDate }) => {
       }
     }
 
-    return convertDate(windowsReleaseDate || '')
+    return convertDate(windowsReleaseDate || vndbMatch?.released || '')
   }
 
   if (!getReleaseDate()) {

@@ -77,6 +77,14 @@ function storedMatchToResult(match: VndbGameMatch): VndbSearchResult {
     source: match.source ?? 'visualNovel',
     imageUrl: match.imageUrl,
     released: match.released,
+    average: match.average,
+    rating: match.rating,
+    votecount: match.votecount,
+    length: match.length,
+    lengthMinutes: match.lengthMinutes,
+    lengthVotes: match.lengthVotes,
+    description: match.description,
+    tags: match.tags,
     developers: match.developers ?? [],
     languages: match.languages ?? [],
     platforms: getStoredMatchPlatforms(match),
@@ -151,6 +159,14 @@ function releaseToSearchResult(
     source: 'release',
     imageUrl: release.imageUrl ?? parentResult.imageUrl,
     released: release.released,
+    average: parentResult.average,
+    rating: parentResult.rating,
+    votecount: parentResult.votecount,
+    length: parentResult.length,
+    lengthMinutes: parentResult.lengthMinutes,
+    lengthVotes: parentResult.lengthVotes,
+    description: parentResult.description,
+    tags: parentResult.tags,
     developers: parentResult.developers,
     languages: release.languages ?? [],
     platforms: release.platforms,
@@ -256,6 +272,14 @@ function getHydratedMatchUpdate(
     source: result.source,
     imageUrl: result.imageUrl,
     released: result.released,
+    average: result.average,
+    rating: result.rating,
+    votecount: result.votecount,
+    length: result.length,
+    lengthMinutes: result.lengthMinutes,
+    lengthVotes: result.lengthVotes,
+    description: result.description,
+    tags: result.tags,
     developers: result.developers,
     languages: result.languages,
     mainRelation: result.mainRelation,
@@ -376,7 +400,7 @@ function VndbMainRelation({
   return (
     <Tooltip title={label} arrow placement="bottom-start">
       <span className="vndbSyncRelation vndbSyncRelation--main">
-        Main: {label}
+        Related: {label}
       </span>
     </Tooltip>
   )
@@ -676,6 +700,14 @@ export default function VndbSyncButton({
             source: normalizedMatch?.source,
             imageUrl: normalizedMatch?.imageUrl,
             released: normalizedMatch?.released,
+            average: normalizedMatch?.average,
+            rating: normalizedMatch?.rating,
+            votecount: normalizedMatch?.votecount,
+            length: normalizedMatch?.length,
+            lengthMinutes: normalizedMatch?.lengthMinutes,
+            lengthVotes: normalizedMatch?.lengthVotes,
+            description: normalizedMatch?.description,
+            tags: normalizedMatch?.tags,
             developers: normalizedMatch?.developers,
             languages: normalizedMatch?.languages,
             mainRelation: normalizedMatch?.mainRelation,

@@ -1,18 +1,51 @@
 import { useContext } from 'react'
 import { useTranslation } from 'react-i18next'
 import GameContext from '../../GameContext'
-import { DownloadDone } from '@mui/icons-material'
-import PopoverComponent from 'frontend/components/UI/PopoverComponent'
-import { GameInfo } from 'common/types'
+import type { GameInfo } from 'common/types'
+import type { VndbRelease } from 'common/types/vndb'
+import {
+  getSelectedVndbRelease,
+  getVndbPlatformsLabel
+} from 'frontend/helpers/vndb'
 
 interface Props {
   gameInfo: GameInfo
 }
 
+function getUniqueSortedValues(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))].sort((left, right) =>
+    left.localeCompare(right)
+  )
+}
+
+function getLanguageLabel(language: string, locale: string): string {
+  if (language === 'unknown') {
+    return 'Unknown language'
+  }
+
+  try {
+    const normalizedLocale = locale.replace('_', '-')
+
+    return (
+      new Intl.DisplayNames([normalizedLocale, 'en'], {
+        type: 'language'
+      }).of(language) ?? language
+    )
+  } catch {
+    return language
+  }
+}
+
+function getLanguageList(languages: string[], locale: string): string {
+  return getUniqueSortedValues(languages)
+    .map((language) => getLanguageLabel(language, locale))
+    .join(', ')
+}
+
 const InstalledInfo = ({ gameInfo }: Props) => {
-  const { t } = useTranslation('gamepage')
+  const { t, i18n } = useTranslation('gamepage')
   const { t: t2 } = useTranslation()
-  const { gameSettings, runner, is } = useContext(GameContext)
+  const { gameSettings, runner, is, vndbMatch } = useContext(GameContext)
 
   if (!gameInfo.is_installed) {
     return null
@@ -24,6 +57,80 @@ const InstalledInfo = ({ gameInfo }: Props) => {
 
   const isSideloaded = runner === 'sideload'
   const isThirdParty = !!gameInfo.thirdPartyManagedApp
+  const selectedVndbRelease = vndbMatch
+    ? getSelectedVndbRelease(vndbMatch)
+    : undefined
+
+  function getBooleanLabel(value: boolean | undefined) {
+    if (value === undefined) {
+      return ''
+    }
+
+    return value ? t('box.yes', 'Yes') : t('box.no', 'No')
+  }
+
+  function getReleaseFlagsLabel(release: VndbRelease): string {
+    return [
+      release.official !== undefined
+        ? `${t('vndb.official', 'Official')}: ${getBooleanLabel(
+            release.official
+          )}`
+        : '',
+      release.patch !== undefined
+        ? `${t('vndb.patch', 'Patch')}: ${getBooleanLabel(release.patch)}`
+        : '',
+      release.freeware !== undefined
+        ? `${t('vndb.freeware', 'Freeware')}: ${getBooleanLabel(
+            release.freeware
+          )}`
+        : ''
+    ]
+      .filter(Boolean)
+      .join(', ')
+  }
+
+  const vndbReleaseLanguages = selectedVndbRelease
+    ? getLanguageList(selectedVndbRelease.languages, i18n.language)
+    : ''
+  const vndbReleasePlatforms = selectedVndbRelease
+    ? getVndbPlatformsLabel(selectedVndbRelease.platforms)
+    : ''
+  const vndbReleaseFlags = selectedVndbRelease
+    ? getReleaseFlagsLabel(selectedVndbRelease)
+    : ''
+  const vndbReleaseInfo = selectedVndbRelease ? (
+    <>
+      <div>
+        <b>{t('vndb.downloaded-version', 'Downloaded version')}:</b>{' '}
+        {selectedVndbRelease.title}
+      </div>
+      <div>
+        <b>{t('vndb.release-id', 'Release ID')}:</b> {selectedVndbRelease.id}
+      </div>
+      {selectedVndbRelease.released && (
+        <div>
+          <b>{t('vndb.release-date', 'Release date')}:</b>{' '}
+          {selectedVndbRelease.released}
+        </div>
+      )}
+      {vndbReleaseLanguages && (
+        <div>
+          <b>{t('vndb.release-languages', 'Release languages')}:</b>{' '}
+          {vndbReleaseLanguages}
+        </div>
+      )}
+      {vndbReleasePlatforms && (
+        <div>
+          <b>{t('vndb.platforms', 'Platforms')}:</b> {vndbReleasePlatforms}
+        </div>
+      )}
+      {vndbReleaseFlags && (
+        <div>
+          <b>{t('vndb.release-flags', 'Release flags')}:</b> {vndbReleaseFlags}
+        </div>
+      )}
+    </>
+  ) : null
 
   const {
     install: { platform: installPlatform },
@@ -33,10 +140,13 @@ const InstalledInfo = ({ gameInfo }: Props) => {
 
   if (installPlatform === 'Browser') {
     return (
-      <div style={{ textTransform: 'capitalize' }}>
-        <b>{t('info.installedPlatform', 'Installed Platform')}:</b>{' '}
-        {installPlatform}
-      </div>
+      <>
+        <div style={{ textTransform: 'capitalize' }}>
+          <b>{t('info.installedPlatform', 'Installed Platform')}:</b>{' '}
+          {installPlatform}
+        </div>
+        {vndbReleaseInfo}
+      </>
     )
   }
 
@@ -124,26 +234,11 @@ const InstalledInfo = ({ gameInfo }: Props) => {
           )}
         </>
       )}
+      {vndbReleaseInfo}
     </>
   )
 
   return info
-
-  return (
-    <PopoverComponent
-      item={
-        <span
-          title={t('info.clickToOpen', 'Click to open')}
-          className="iconWithText"
-        >
-          <DownloadDone />
-          {t('info.installedInfo', 'Installed Information')}
-        </span>
-      }
-    >
-      <div className="poppedElement">{info}</div>
-    </PopoverComponent>
-  )
 }
 
 export default InstalledInfo
