@@ -7,6 +7,8 @@ import LibraryContext from '../../LibraryContext'
 import './index.css'
 import AddGameButton from '../AddGameButton'
 import VndbSyncButton from './VndbSyncButton'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faTags, faTimes } from '@fortawesome/free-solid-svg-icons'
 
 type Props = {
   list: GameInfo[]
@@ -18,7 +20,13 @@ export default memo(function LibraryHeader({
   onVndbMatchesChange
 }: Props) {
   const { t } = useTranslation()
-  const { showFavourites } = useContext(LibraryContext)
+  const {
+    showFavourites,
+    selectedGames,
+    isSelectingGames,
+    clearGameSelection,
+    openSelectedGamesCategories
+  } = useContext(LibraryContext)
 
   const numberOfGames = useMemo(() => {
     if (!list) {
@@ -39,15 +47,49 @@ export default memo(function LibraryHeader({
       data-tour="library-header"
     >
       <div className="libraryHeaderWrapper">
-        <span className="libraryTitle">
-          {showFavourites
-            ? t('favourites', 'Favourites')
-            : t('title.allGames', 'All Games')}
-          <span className="numberOfgames">{numberOfGames}</span>
-          <AddGameButton data-tour="library-add-game" />
-          <VndbSyncButton list={list} onMatchesChange={onVndbMatchesChange} />
-        </span>
-        <ActionIcons />
+        {isSelectingGames ? (
+          <div className="libraryBulkSelection">
+            <strong>
+              {t('library.bulk-selected', '{{count}} selected', {
+                count: selectedGames.length
+              })}
+            </strong>
+            <button
+              className="libraryBulkAction"
+              onClick={openSelectedGamesCategories}
+            >
+              <FontAwesomeIcon icon={faTags} />
+              {t('submenu.categories', 'Categories')}
+            </button>
+            <VndbSyncButton
+              list={selectedGames}
+              onMatchesChange={onVndbMatchesChange}
+            />
+            <button
+              className="libraryBulkAction"
+              onClick={clearGameSelection}
+              title={t('button.cancel', 'Cancel')}
+            >
+              <FontAwesomeIcon icon={faTimes} />
+              {t('button.cancel', 'Cancel')}
+            </button>
+          </div>
+        ) : (
+          <>
+            <span className="libraryTitle">
+              {showFavourites
+                ? t('favourites', 'Favourites')
+                : t('title.allGames', 'All Games')}
+              <span className="numberOfgames">{numberOfGames}</span>
+              <AddGameButton data-tour="library-add-game" />
+              <VndbSyncButton
+                list={list}
+                onMatchesChange={onVndbMatchesChange}
+              />
+            </span>
+            <ActionIcons />
+          </>
+        )}
       </div>
     </h5>
   )

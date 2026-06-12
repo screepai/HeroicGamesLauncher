@@ -29,6 +29,37 @@
   outline: -webkit-focus-ring-color auto 1px;
 }
 
+.gameCard.selectionMode,
+.gameListItem.selectionMode {
+  cursor: pointer;
+}
+
+.gameCard.selected,
+.gameListItem.selected {
+  box-shadow:
+    0 0 0 3px var(--success),
+    0 0 12px 4px #00000055;
+}
+
+.gameCardSelectionIndicator {
+  align-items: center;
+  background: var(--success);
+  border-radius: 50%;
+  color: var(--text-tertiary);
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  position: absolute;
+  right: var(--space-xs);
+  top: var(--space-xs);
+  width: 28px;
+  z-index: 7;
+}
+
+.selectionMode .icons {
+  pointer-events: none;
+}
+
 .gameCard > .gameCardStatus {
   position: absolute;
   z-index: 5;

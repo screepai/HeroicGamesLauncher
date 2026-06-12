@@ -59,6 +59,11 @@ export interface ContextType {
     listCategories: () => string[]
     addToGame: (category: string, appName: string) => void
     removeFromGame: (category: string, appName: string) => void
+    setGamesMembership: (
+      category: string,
+      appNames: string[],
+      assigned: boolean
+    ) => void
     addCategory: (newCategory: string) => void
     removeCategory: (category: string) => void
     renameCategory: (oldName: string, newName: string) => void
@@ -260,6 +265,13 @@ export interface LibraryContextType {
   alphabetFilterLetter: string | null
   setAlphabetFilterLetter: (letter: string | null) => void
   gamesForAlphabetFilter: GameInfo[]
+  selectedGames: GameInfo[]
+  isSelectingGames: boolean
+  isGameSelected: (game: GameInfo) => boolean
+  startGameSelection: (game: GameInfo) => void
+  toggleGameSelection: (game: GameInfo) => void
+  clearGameSelection: () => void
+  openSelectedGamesCategories: () => void
 }
 
 export interface GameContextType {

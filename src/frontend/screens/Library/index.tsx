@@ -44,6 +44,34 @@ import {
 
 const storage = window.localStorage
 
+function getStoredBoolean(key: string, fallback: boolean): boolean {
+  const value = storage.getItem(key)
+  if (value === 'true') {
+    return true
+  }
+  if (value === 'false') {
+    return false
+  }
+  return fallback
+}
+
+function getStoredStringArray(key: string): string[] {
+  const value = storage.getItem(key)
+  if (!value) {
+    return []
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return Array.isArray(parsed) &&
+      parsed.every((item) => typeof item === 'string')
+      ? parsed
+      : []
+  } catch {
+    return []
+  }
+}
+
 type SearchableGame = {
   original: GameInfo
   normalizedSearchNames: string[]
@@ -157,7 +185,7 @@ export default React.memo(function Library(): JSX.Element {
   )
 
   const [showHidden, setShowHidden] = useState(
-    JSON.parse(storage.getItem('show_hidden') || 'false')
+    getStoredBoolean('show_hidden', false)
   )
   const handleShowHidden = (value: boolean) => {
     storage.setItem('show_hidden', JSON.stringify(value))
@@ -165,7 +193,7 @@ export default React.memo(function Library(): JSX.Element {
   }
 
   const [showFavouritesLibrary, setShowFavourites] = useState(
-    JSON.parse(storage.getItem('show_favorites') || 'false')
+    getStoredBoolean('show_favorites', false)
   )
   const handleShowFavourites = (value: boolean) => {
     storage.setItem('show_favorites', JSON.stringify(value))
@@ -173,7 +201,7 @@ export default React.memo(function Library(): JSX.Element {
   }
 
   const [showInstalledOnly, setShowInstalledOnly] = useState(
-    JSON.parse(storage.getItem('show_installed_only') || 'false')
+    getStoredBoolean('show_installed_only', false)
   )
   const handleShowInstalledOnly = (value: boolean) => {
     storage.setItem('show_installed_only', JSON.stringify(value))
@@ -181,7 +209,7 @@ export default React.memo(function Library(): JSX.Element {
   }
 
   const [showNonAvailable, setShowNonAvailable] = useState(
-    JSON.parse(storage.getItem('show_non_available') || 'true')
+    getStoredBoolean('show_non_available', true)
   )
   const handleShowNonAvailable = (value: boolean) => {
     storage.setItem('show_non_available', JSON.stringify(value))
@@ -189,7 +217,7 @@ export default React.memo(function Library(): JSX.Element {
   }
 
   const [showSupportOfflineOnly, setSupportOfflineOnly] = useState(
-    JSON.parse(storage.getItem('show_support_offline_only') || 'false')
+    getStoredBoolean('show_support_offline_only', false)
   )
   const handleShowSupportOfflineOnly = (value: boolean) => {
     storage.setItem('show_support_offline_only', JSON.stringify(value))
@@ -197,7 +225,7 @@ export default React.memo(function Library(): JSX.Element {
   }
 
   const [showThirdPartyManagedOnly, setShowThirdPartyManagedOnly] = useState(
-    JSON.parse(storage.getItem('show_third_party_managed_only') || 'false')
+    getStoredBoolean('show_third_party_managed_only', false)
   )
   const handleShowThirdPartyOnly = (value: boolean) => {
     storage.setItem('show_third_party_managed_only', JSON.stringify(value))
@@ -205,7 +233,7 @@ export default React.memo(function Library(): JSX.Element {
   }
 
   const [showUpdatesOnly, setShowUpdatesOnly] = useState(
-    JSON.parse(storage.getItem('show_updates_only') || 'false')
+    getStoredBoolean('show_updates_only', false)
   )
   const handleShowUpdatesOnly = (value: boolean) => {
     storage.setItem('show_updates_only', JSON.stringify(value))
@@ -213,9 +241,56 @@ export default React.memo(function Library(): JSX.Element {
   }
 
   const [showCategories, setShowCategories] = useState(false)
+  const [bulkCategoryGames, setBulkCategoryGames] = useState<GameInfo[] | null>(
+    null
+  )
+  const [selectedGamesByKey, setSelectedGamesByKey] = useState<
+    Record<string, GameInfo>
+  >({})
+  const selectedGames = useMemo(
+    () => Object.values(selectedGamesByKey),
+    [selectedGamesByKey]
+  )
+  const isSelectingGames = selectedGames.length > 0
+
+  const getSelectionKey = (game: GameInfo) => `${game.runner}:${game.app_name}`
+
+  const isGameSelected = (game: GameInfo) =>
+    getSelectionKey(game) in selectedGamesByKey
+
+  const startGameSelection = (game: GameInfo) => {
+    setSelectedGamesByKey({ [getSelectionKey(game)]: game })
+  }
+
+  const toggleGameSelection = (game: GameInfo) => {
+    setSelectedGamesByKey((current) => {
+      const key = getSelectionKey(game)
+      const next = { ...current }
+
+      if (next[key]) {
+        delete next[key]
+      } else {
+        next[key] = game
+      }
+
+      return next
+    })
+  }
+
+  const clearGameSelection = () => setSelectedGamesByKey({})
+
+  const openSelectedGamesCategories = () => {
+    setBulkCategoryGames(selectedGames)
+    setShowCategories(true)
+  }
+
+  const closeCategories = () => {
+    setShowCategories(false)
+    setBulkCategoryGames(null)
+  }
 
   const [showAlphabetFilter, setShowAlphabetFilter] = useState(
-    JSON.parse(storage.getItem('showAlphabetFilter') || 'true')
+    getStoredBoolean('showAlphabetFilter', true)
   )
   const handleToggleAlphabetFilter = () => {
     const newValue = !showAlphabetFilter
@@ -227,7 +302,7 @@ export default React.memo(function Library(): JSX.Element {
   >(null)
 
   const [sortDescending, setSortDescending] = useState(
-    JSON.parse(storage?.getItem('sortDescending') || 'false')
+    getStoredBoolean('sortDescending', false)
   )
   function handleSortDescending(value: boolean) {
     storage.setItem('sortDescending', JSON.stringify(value))
@@ -235,7 +310,7 @@ export default React.memo(function Library(): JSX.Element {
   }
 
   const [sortInstalled, setSortInstalled] = useState(
-    JSON.parse(storage?.getItem('sortInstalled') || 'true')
+    getStoredBoolean('sortInstalled', true)
   )
   function handleSortInstalled(value: boolean) {
     storage.setItem('sortInstalled', JSON.stringify(value))
@@ -243,7 +318,7 @@ export default React.memo(function Library(): JSX.Element {
   }
 
   const [showCategorySections, setShowCategorySections] = useState(
-    JSON.parse(storage.getItem('showCategorySections') || 'false')
+    getStoredBoolean('showCategorySections', false)
   )
   function handleShowCategorySections(value: boolean) {
     storage.setItem('showCategorySections', JSON.stringify(value))
@@ -329,6 +404,12 @@ export default React.memo(function Library(): JSX.Element {
         return
       }
 
+      if (event.key === 'Escape' && isSelectingGames) {
+        event.preventDefault()
+        clearGameSelection()
+        return
+      }
+
       if (event.key === 'Escape' && filterText) {
         event.preventDefault()
         setFilterText('')
@@ -356,7 +437,7 @@ export default React.memo(function Library(): JSX.Element {
     return () => {
       document.removeEventListener('keydown', handleDocumentKeyDown)
     }
-  }, [filterText])
+  }, [filterText, isSelectingGames])
 
   function handleModal(
     appName: string,
@@ -589,8 +670,7 @@ export default React.memo(function Library(): JSX.Element {
       }
 
       if (!showNonAvailable) {
-        const nonAvailbleGames = storage.getItem('nonAvailableGames') || '[]'
-        const nonAvailbleGamesArray = JSON.parse(nonAvailbleGames)
+        const nonAvailbleGamesArray = getStoredStringArray('nonAvailableGames')
         library = library.filter(
           (game) => !nonAvailbleGamesArray.includes(game.app_name)
         )
@@ -601,8 +681,7 @@ export default React.memo(function Library(): JSX.Element {
       }
 
       if (!showNonAvailable) {
-        const nonAvailbleGames = storage.getItem('nonAvailableGames') || '[]'
-        const nonAvailbleGamesArray = JSON.parse(nonAvailbleGames)
+        const nonAvailbleGamesArray = getStoredStringArray('nonAvailableGames')
         library = library.filter(
           (game) => !nonAvailbleGamesArray.includes(game.app_name)
         )
@@ -853,7 +932,14 @@ export default React.memo(function Library(): JSX.Element {
         onToggleAlphabetFilter: handleToggleAlphabetFilter,
         gamesForAlphabetFilter,
         alphabetFilterLetter,
-        setAlphabetFilterLetter
+        setAlphabetFilterLetter,
+        selectedGames,
+        isSelectingGames,
+        isGameSelected,
+        startGameSelection,
+        toggleGameSelection,
+        clearGameSelection,
+        openSelectedGamesCategories
       }}
     >
       <Header />
@@ -931,7 +1017,12 @@ export default React.memo(function Library(): JSX.Element {
         <ArrowDropUp id="backToTopArrow" className="material-icons" />
       </button>
 
-      {showCategories && <CategoriesManager />}
+      {showCategories && (
+        <CategoriesManager
+          games={bulkCategoryGames ?? undefined}
+          onClose={closeCategories}
+        />
+      )}
     </LibraryContext.Provider>
   )
 })

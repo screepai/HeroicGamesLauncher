@@ -12,6 +12,36 @@
       gap: 0.5rem;
     }
 
+    .CategoriesManager__BulkList {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .CategoriesManager__BulkCategory {
+      align-items: center;
+      background: var(--input-background);
+      border: 1px solid var(--modal-border);
+      border-radius: var(--space-xs);
+      color: var(--text-default);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      padding: var(--space-sm);
+      text-align: start;
+    }
+
+    .CategoriesManager__BulkCategory > span:last-child {
+      align-items: center;
+      display: flex;
+      gap: var(--space-xs);
+    }
+
+    .CategoriesManager__BulkCategory.isAssigned {
+      border-color: var(--success);
+      box-shadow: inset 0 0 0 1px var(--success);
+    }
+
     .Category {
       display: flex;
       align-items: center;

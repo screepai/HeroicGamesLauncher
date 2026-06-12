@@ -30,6 +30,35 @@
   border-radius: var(--space-3xs);
 }
 
+.libraryBulkSelection {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  grid-column: 1 / -1;
+}
+
+.libraryBulkAction {
+  align-items: center;
+  background: var(--input-background);
+  border: 1px solid var(--modal-border);
+  border-radius: var(--space-md);
+  color: var(--text-default);
+  cursor: pointer;
+  display: inline-flex;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
+}
+
+.libraryBulkAction:hover,
+.libraryBulkAction:focus-visible {
+  background: var(--accent-overlay);
+}
+
+.libraryBulkSelection .vndbSyncButton {
+  margin-inline-start: 0;
+}
+
 .vndbSyncButton {
   align-items: center;
   background: var(--input-background);

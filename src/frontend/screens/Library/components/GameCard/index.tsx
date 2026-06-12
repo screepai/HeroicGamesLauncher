@@ -1,9 +1,16 @@
 import './index.css'
 
-import { useContext, CSSProperties, useMemo, useState, useEffect } from 'react'
+import {
+  useContext,
+  CSSProperties,
+  useMemo,
+  useState,
+  useEffect,
+  useRef
+} from 'react'
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faRepeat, faBan } from '@fortawesome/free-solid-svg-icons'
+import { faRepeat, faBan, faCheck } from '@fortawesome/free-solid-svg-icons'
 
 import DownIcon from 'frontend/assets/down-icon.svg?react'
 import { FavouriteGame, GameInfo, HiddenGame, Runner } from 'common/types'
@@ -119,7 +126,13 @@ const GameCard = ({
       'openGameCategoriesModal'
     )
 
-  const { layout } = useContext(LibraryContext)
+  const {
+    layout,
+    isSelectingGames,
+    isGameSelected,
+    startGameSelection,
+    toggleGameSelection
+  } = useContext(LibraryContext)
 
   const {
     art_logo: logo = undefined,
@@ -129,6 +142,10 @@ const GameCard = ({
     install: gameInstallInfo
   } = { ...gameInfoFromProps }
   const title = gameInfoFromProps.overrides?.title || gameInfoFromProps.title
+  const selected = isGameSelected(gameInfoFromProps)
+  const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const holdStartRef = useRef<{ x: number; y: number } | null>(null)
+  const suppressNextClickRef = useRef(false)
   const art_cover =
     gameInfoFromProps.overrides?.art_cover || gameInfoFromProps.art_cover
   const cover =
@@ -163,6 +180,71 @@ const GameCard = ({
   }
 
   const grid = forceCard || layout === 'grid'
+
+  const cancelSelectionHold = () => {
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current)
+      holdTimeoutRef.current = null
+    }
+    holdStartRef.current = null
+  }
+
+  useEffect(() => {
+    return () => {
+      if (holdTimeoutRef.current) {
+        clearTimeout(holdTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const handleSelectionPointerDown = (
+    event: React.PointerEvent<HTMLDivElement>
+  ) => {
+    if (
+      isSelectingGames ||
+      event.button !== 0 ||
+      (event.target as HTMLElement).closest('button')
+    ) {
+      return
+    }
+
+    holdStartRef.current = { x: event.clientX, y: event.clientY }
+    holdTimeoutRef.current = setTimeout(() => {
+      suppressNextClickRef.current = true
+      startGameSelection(gameInfoFromProps)
+      cancelSelectionHold()
+    }, 500)
+  }
+
+  const handleSelectionPointerMove = (
+    event: React.PointerEvent<HTMLDivElement>
+  ) => {
+    const start = holdStartRef.current
+    if (
+      start &&
+      (Math.abs(event.clientX - start.x) > 8 ||
+        Math.abs(event.clientY - start.y) > 8)
+    ) {
+      cancelSelectionHold()
+    }
+  }
+
+  const handleSelectionClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (suppressNextClickRef.current) {
+      event.preventDefault()
+      event.stopPropagation()
+      suppressNextClickRef.current = false
+      return
+    }
+
+    if (!isSelectingGames) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+    toggleGameSelection(gameInfoFromProps)
+  }
 
   const {
     isInstalling,
@@ -436,7 +518,9 @@ const GameCard = ({
     hidden: isHiddenGame,
     notAvailable: notAvailable,
     gamepad: activeController,
-    justPlayed: justPlayed
+    justPlayed: justPlayed,
+    selectionMode: isSelectingGames,
+    selected
   })
 
   const imgClasses = classNames('gameImg', { installed: isInstalled })
@@ -471,12 +555,24 @@ const GameCard = ({
           onClose={() => setShowUninstallModal(false)}
         />
       )}
-      <ContextMenu items={items}>
+      <ContextMenu items={items} disabled={isSelectingGames}>
         <div
           className={wrapperClasses}
           data-app-name={appName}
           data-tour={dataTour}
+          aria-selected={isSelectingGames ? selected : undefined}
+          onPointerDown={handleSelectionPointerDown}
+          onPointerMove={handleSelectionPointerMove}
+          onPointerUp={cancelSelectionHold}
+          onPointerCancel={cancelSelectionHold}
+          onPointerLeave={cancelSelectionHold}
+          onClickCapture={handleSelectionClick}
         >
+          {selected && (
+            <span className="gameCardSelectionIndicator">
+              <FontAwesomeIcon icon={faCheck} />
+            </span>
+          )}
           {haveStatus && <span className="gameCardStatus">{label}</span>}
           {showUpdateBadge && (
             <span className="gameCardUpdateBadge">

@@ -12,6 +12,7 @@ import ContextProvider from 'frontend/state/ContextProvider'
 import { Dialog, DialogHeader } from 'frontend/components/UI/Dialog'
 import { DialogContent } from '@mui/material'
 import { TextInputField } from 'frontend/components/UI'
+import type { GameInfo } from 'common/types'
 import './index.css'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -29,6 +30,11 @@ interface CategoryItemProps {
   renameFunction: (oldName: string, newName: string) => void
   dragHandleProps: DraggableProvidedDragHandleProps | null
   isDragging: boolean
+}
+
+interface CategoriesManagerProps {
+  games?: GameInfo[]
+  onClose?: () => void
 }
 
 function CategoryItem({
@@ -183,7 +189,7 @@ const reorderCategories = (
   return reordered
 }
 
-function CategoriesManager() {
+function CategoriesManager({ games, onClose }: CategoriesManagerProps) {
   const { t } = useTranslation()
   const { customCategories } = useContext(ContextProvider)
 
@@ -207,6 +213,42 @@ function CategoriesManager() {
   }
 
   const categories = customCategories.listCategories()
+  const selectedGameIds =
+    games?.map((game) => `${game.app_name}_${game.runner}`) ?? []
+  const isBulkMode = selectedGameIds.length > 0
+  const close = () => {
+    if (onClose) {
+      onClose()
+    } else {
+      setShowCategories(false)
+    }
+  }
+
+  const getAssignedGameCount = (category: string) => {
+    const gamesInCategory = new Set(customCategories.list[category] ?? [])
+    return selectedGameIds.filter((gameId) => gamesInCategory.has(gameId))
+      .length
+  }
+
+  const toggleBulkCategory = (category: string) => {
+    const assignedToAll =
+      getAssignedGameCount(category) === selectedGameIds.length
+    customCategories.setGamesMembership(
+      category,
+      selectedGameIds,
+      !assignedToAll
+    )
+  }
+
+  const addBulkCategory = () => {
+    const category = newCategoryName.trim()
+    if (!category) {
+      return
+    }
+
+    customCategories.setGamesMembership(category, selectedGameIds, true)
+    setNewCategoryName('')
+  }
 
   const handleDragEnd = ({ source, destination }: DropResult) => {
     if (!destination || destination.index === source.index) {
@@ -221,41 +263,76 @@ function CategoriesManager() {
   return (
     <Dialog
       showCloseButton
-      onClose={() => setShowCategories(false)}
+      onClose={close}
       className="CategoriesManager__Dialog"
     >
-      <DialogHeader onClose={() => setShowCategories(false)}>
-        <div>{t('categories-manager.title', 'Manage Categories')}</div>
+      <DialogHeader onClose={close}>
+        <div>
+          {isBulkMode
+            ? t('categories-manager.bulk-title', 'Categorize {{count}} games', {
+                count: selectedGameIds.length
+              })
+            : t('categories-manager.title', 'Manage Categories')}
+        </div>
       </DialogHeader>
       <DialogContent>
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId="categories-manager-list">
-            {(provided) => (
-              <div
-                className="CategoriesManager__List"
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-              >
-                {categories.map((cat, index) => (
-                  <Draggable draggableId={cat} index={index} key={cat}>
-                    {(provided, snapshot) => (
-                      <div ref={provided.innerRef} {...provided.draggableProps}>
-                        <CategoryItem
-                          name={cat}
-                          removeFunction={removeCategory}
-                          renameFunction={renameCategory}
-                          dragHandleProps={provided.dragHandleProps}
-                          isDragging={snapshot.isDragging}
-                        />
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+        {isBulkMode ? (
+          <div className="CategoriesManager__BulkList">
+            {categories.map((category) => {
+              const assignedCount = getAssignedGameCount(category)
+              const assignedToAll = assignedCount === selectedGameIds.length
+
+              return (
+                <button
+                  className={`CategoriesManager__BulkCategory${
+                    assignedToAll ? ' isAssigned' : ''
+                  }`}
+                  key={category}
+                  onClick={() => toggleBulkCategory(category)}
+                  aria-pressed={assignedToAll}
+                >
+                  <span>{category}</span>
+                  <span>
+                    {assignedCount}/{selectedGameIds.length}
+                    {assignedToAll && <FontAwesomeIcon icon={faCheck} />}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        ) : (
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="categories-manager-list">
+              {(provided) => (
+                <div
+                  className="CategoriesManager__List"
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                >
+                  {categories.map((cat, index) => (
+                    <Draggable draggableId={cat} index={index} key={cat}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                        >
+                          <CategoryItem
+                            name={cat}
+                            removeFunction={removeCategory}
+                            renameFunction={renameCategory}
+                            dragHandleProps={provided.dragHandleProps}
+                            isDragging={snapshot.isDragging}
+                          />
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
+        )}
         {categories.length === 0 &&
           t('categories-manager.no-categories', 'No categories yet.')}
         <hr />
@@ -270,7 +347,7 @@ function CategoriesManager() {
           afterInput={
             <button
               className="button"
-              onClick={() => addCategory()}
+              onClick={isBulkMode ? addBulkCategory : addCategory}
               title={t('categories-manager.add', 'Add')}
               disabled={isCategoryNameEmpty}
             >

@@ -814,14 +814,14 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
               selectedRelease ??
               (match.selectedReleases !== undefined
                 ? undefined
-                : match.latestRelease ?? mainResult.latestRelease),
+                : (match.latestRelease ?? mainResult.latestRelease)),
             selectedReleases: match.selectedReleases,
             releases,
             releaseVns:
               selectedRelease?.vns ??
               (match.selectedReleases !== undefined
                 ? undefined
-                : match.releaseVns ?? mainResult.releaseVns)
+                : (match.releaseVns ?? mainResult.releaseVns))
           }
         ])
 

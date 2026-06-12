@@ -404,14 +404,14 @@ export default React.memo(function GamePage(): JSX.Element | null {
               selectedRelease ??
               (vndbMatch.selectedReleases !== undefined
                 ? undefined
-                : vndbMatch.latestRelease ?? mainResult.latestRelease),
+                : (vndbMatch.latestRelease ?? mainResult.latestRelease)),
             selectedReleases: vndbMatch.selectedReleases,
             releases,
             releaseVns:
               selectedRelease?.vns ??
               (vndbMatch.selectedReleases !== undefined
                 ? undefined
-                : vndbMatch.releaseVns ?? mainResult.releaseVns)
+                : (vndbMatch.releaseVns ?? mainResult.releaseVns))
           }
         ])
 

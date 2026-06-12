@@ -45,7 +45,14 @@ const initialContext: LibraryContextType = {
   onToggleAlphabetFilter: () => null,
   alphabetFilterLetter: null,
   setAlphabetFilterLetter: () => null,
-  gamesForAlphabetFilter: [] as GameInfo[]
+  gamesForAlphabetFilter: [] as GameInfo[],
+  selectedGames: [],
+  isSelectingGames: false,
+  isGameSelected: () => false,
+  startGameSelection: () => null,
+  toggleGameSelection: () => null,
+  clearGameSelection: () => null,
+  openSelectedGamesCategories: () => null
 }
 
 export default React.createContext(initialContext)

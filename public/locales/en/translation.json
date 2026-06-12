@@ -198,6 +198,7 @@
         "cancel": "Cancel",
         "confirm": "Confirm",
         "continue": "Continue",
+        "done": "Done",
         "go_to_library": "Go to Library",
         "login": "Log in",
         "search": "Search"
@@ -205,6 +206,8 @@
     "categories-manager": {
         "add": "Add",
         "add-placeholder": "Add new category",
+        "bulk-title_one": "Categorize {{count}} games",
+        "bulk-title_other": "Categorize {{count}} games",
         "cancel-remove": "Cancel removal of \"{{name}}\"",
         "cancel-rename": "Cancel rename of \"{{name}}\"",
         "confirm-remove": "Confirm removal of \"{{name}}\"",
@@ -573,6 +576,8 @@
         "options": "Launch Options..."
     },
     "library": {
+        "bulk-selected_one": "{{count}} selected",
+        "bulk-selected_other": "{{count}} selected",
         "hideAlphabetFilter": "Hide Alphabet Filter",
         "hideCategorySections": "Show one game list",
         "showAlphabetFilter": "Show Alphabet Filter",
@@ -1102,6 +1107,9 @@
     },
     "store": "Epic Store",
     "stores": "Stores",
+    "submenu": {
+        "categories": "Categories"
+    },
     "title": {
         "allGames": "All Games"
     },
@@ -1185,7 +1193,7 @@
         "length-minutes": "{{minutes}}m",
         "sync": {
             "button": "VNDB",
-            "downloaded-release": "Downloaded: {{release}}",
+            "downloaded-releases": "Downloaded: {{releases}}",
             "error": {
                 "match": "Unable to search VNDB for the current library.",
                 "no-results": "No VNDB results found.",
@@ -1203,6 +1211,7 @@
             "search-manual": "Search VNDB",
             "section-language": "{{language}} releases",
             "section-main": "Main titles",
+            "selected": "Selected",
             "title": "Sync VNDB Titles"
         }
     },

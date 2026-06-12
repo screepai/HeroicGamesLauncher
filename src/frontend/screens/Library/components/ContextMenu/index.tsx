@@ -14,15 +14,21 @@ export interface Item {
 interface Props {
   children: React.ReactNode
   items: Item[]
+  disabled?: boolean
 }
 
-function ContextMenu({ children, items }: Props) {
+function ContextMenu({ children, items, disabled = false }: Props) {
   const [contextMenu, setContextMenu] = React.useState<{
     mouseX: number
     mouseY: number
   } | null>(null)
 
   const handleContextMenu = (event: React.MouseEvent) => {
+    if (disabled) {
+      event.preventDefault()
+      return
+    }
+
     event.preventDefault()
     setContextMenu(
       contextMenu === null
@@ -44,7 +50,10 @@ function ContextMenu({ children, items }: Props) {
   }
 
   return (
-    <div onContextMenu={handleContextMenu} style={{ cursor: 'context-menu' }}>
+    <div
+      onContextMenu={handleContextMenu}
+      style={{ cursor: disabled ? undefined : 'context-menu' }}
+    >
       {children}
       <Menu
         open={contextMenu !== null}

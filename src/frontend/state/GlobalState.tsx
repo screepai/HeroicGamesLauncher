@@ -47,6 +47,37 @@ const globalSettings = configStore.get_nodefault('settings')
 
 const RTL_LANGUAGES = ['fa', 'ar']
 
+function getStoredStringArray(key: string): string[] {
+  const value = storage.getItem(key)
+  if (!value) {
+    return []
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return Array.isArray(parsed) &&
+      parsed.every((item) => typeof item === 'string')
+      ? parsed
+      : []
+  } catch {
+    return []
+  }
+}
+
+function getStoredNullableString(key: string): string | null {
+  const value = storage.getItem(key)
+  if (!value) {
+    return null
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return typeof parsed === 'string' ? parsed : null
+  } catch {
+    return null
+  }
+}
+
 type T = TFunction<'gamepage'> & TFunction<'translations'>
 
 interface Props {
@@ -224,9 +255,7 @@ class GlobalState extends PureComponent<Props> {
     refreshingInTheBackground: true,
     hiddenGames: configStore.get('games.hidden', []),
     currentCustomCategories: loadCurrentCategories(),
-    sidebarCollapsed: JSON.parse(
-      storage.getItem('sidebar_collapsed') || 'false'
-    ),
+    sidebarCollapsed: storage.getItem('sidebar_collapsed') === 'true',
     favouriteGames: configStore.get('games.favourites', []),
     customCategories: configStore.get('games.customCategories', {}),
     customCategoriesOrder: configStore.get('games.customCategoriesOrder', []),
@@ -258,7 +287,7 @@ class GlobalState extends PureComponent<Props> {
     dialogModalOptions: { showDialog: false },
     externalLinkDialogOptions: { showDialog: false },
     hideChangelogsOnStartup: globalSettings?.hideChangelogsOnStartup || false,
-    lastChangelogShown: JSON.parse(storage.getItem('last_changelog') || 'null'),
+    lastChangelogShown: getStoredNullableString('last_changelog'),
     helpItems: {},
     experimentalFeatures: {
       enableHelp: false,
@@ -532,6 +561,38 @@ class GlobalState extends PureComponent<Props> {
       customCategories: newCustomCategories
     })
     configStore.set('games.customCategories', newCustomCategories)
+  }
+
+  setGamesCustomCategoryMembership = (
+    category: string,
+    appNames: string[],
+    assigned: boolean
+  ) => {
+    const selectedAppNames = new Set(appNames)
+    const categoryExists = Boolean(this.state.customCategories[category])
+    const gamesInCategory = this.state.customCategories[category] || []
+    const nextGames = assigned
+      ? [...new Set([...gamesInCategory, ...appNames])]
+      : gamesInCategory.filter((game) => !selectedAppNames.has(game))
+    const newCustomCategories = {
+      ...this.state.customCategories,
+      [category]: nextGames
+    }
+    const newCustomCategoriesOrder = categoryExists
+      ? this.state.customCategoriesOrder
+      : [...this.getCustomCategories(), category]
+    const newCurrentCustomCategories =
+      !categoryExists && this.state.currentCustomCategories.length > 0
+        ? [...this.state.currentCustomCategories, category]
+        : this.state.currentCustomCategories
+
+    this.setState({
+      customCategories: newCustomCategories,
+      customCategoriesOrder: newCustomCategoriesOrder,
+      currentCustomCategories: newCurrentCustomCategories
+    })
+    configStore.set('games.customCategories', newCustomCategories)
+    configStore.set('games.customCategoriesOrder', newCustomCategoriesOrder)
   }
 
   handleShowDialogModal = ({
@@ -1042,7 +1103,7 @@ class GlobalState extends PureComponent<Props> {
     }
 
     if (!gameUpdates.length) {
-      const storedGameUpdates = JSON.parse(storage.getItem('updates') || '[]')
+      const storedGameUpdates = getStoredStringArray('updates')
       this.setState({ gameUpdates: storedGameUpdates })
     }
 
@@ -1215,6 +1276,7 @@ class GlobalState extends PureComponent<Props> {
             listCategories: this.getCustomCategories,
             addToGame: this.addGameToCustomCategory,
             removeFromGame: this.removeGameFromCustomCategory,
+            setGamesMembership: this.setGamesCustomCategoryMembership,
             addCategory: this.setCustomCategory,
             removeCategory: this.removeCustomCategory,
             renameCategory: this.renameCustomCategory,
