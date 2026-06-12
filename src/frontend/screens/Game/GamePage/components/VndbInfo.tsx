@@ -107,6 +107,7 @@ function getVndbUserDataSyncTarget(gameInfo: GameInfo): VndbUserDataSyncTarget {
     appName: gameInfo.app_name,
     runner: gameInfo.runner,
     installedAt: gameInfo.install.installed_at,
+    installPath: gameInfo.install.install_path || gameInfo.folder_name,
     includeReleases: false
   }
 }

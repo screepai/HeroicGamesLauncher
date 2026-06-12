@@ -119,7 +119,8 @@ function getVndbUserDataSyncTarget(game: GameInfo): VndbUserDataSyncTarget {
   return {
     appName: game.app_name,
     runner: game.runner,
-    installedAt: game.install.installed_at
+    installedAt: game.install.installed_at,
+    installPath: game.install.install_path || game.folder_name
   }
 }
 
@@ -159,11 +160,18 @@ function releaseToSearchResult(
 async function hydrateSelectedMatch(
   result: VndbSearchResult | null
 ): Promise<VndbSearchResult | null> {
-  if (!result || result.source !== 'release') {
+  if (!result) {
     return result
   }
 
-  const mainVisualNovelId = getVndbReleaseMainVisualNovelId(result)
+  if (result.source === 'visualNovel' && result.releases !== undefined) {
+    return result
+  }
+
+  const mainVisualNovelId =
+    result.source === 'release'
+      ? getVndbReleaseMainVisualNovelId(result)
+      : result.id
   if (!mainVisualNovelId) {
     return normalizeVndbSelectedMatch(result)
   }
@@ -174,10 +182,12 @@ async function hydrateSelectedMatch(
       limit: 1
     })
 
-    return normalizeVndbSelectedMatch(
-      result,
+    const hydratedMainResult =
       mainResult?.id === mainVisualNovelId ? mainResult : undefined
-    )
+
+    return result.source === 'release'
+      ? normalizeVndbSelectedMatch(result, hydratedMainResult)
+      : (hydratedMainResult ?? result)
   } catch (error) {
     console.error(error)
     return normalizeVndbSelectedMatch(result)
@@ -513,6 +523,11 @@ export default function VndbSyncButton({
   const [error, setError] = useState<string | null>(null)
 
   const matchableGames = useMemo(() => list.filter(isMatchableGame), [list])
+  const matchableGamesByKey = useMemo(
+    () =>
+      new Map(matchableGames.map((game) => [getGameKey(game), game] as const)),
+    [matchableGames]
+  )
 
   async function loadMatches() {
     setOpen(true)
@@ -527,26 +542,30 @@ export default function VndbSyncButton({
         runner: game.runner,
         title: getDisplayTitle(game)
       }))
-      const [storedMatches, nextSuggestions] = await Promise.all([
-        window.api.vndb.getAllGameMatches(),
-        window.api.vndb.matchGames(targets)
-      ])
+      const storedMatches = await window.api.vndb.getAllGameMatches()
+      const unmatchedTargets = targets.filter(
+        (target) => !storedMatches[getMatchKey(target)]
+      )
+      const matchedSuggestions = unmatchedTargets.length
+        ? await window.api.vndb.matchGames(unmatchedTargets)
+        : []
+      const matchedResults = new Map(
+        matchedSuggestions.map((suggestion) => [
+          getMatchKey(suggestion.game),
+          suggestion.result
+        ])
+      )
+      const nextSuggestions = targets.map((game) => ({
+        game,
+        result: matchedResults.get(getMatchKey(game)) ?? null
+      }))
       const nextSelectedMatches: MatchState = {}
 
       for (const suggestion of nextSuggestions) {
-        const storedMatch =
-          storedMatches[
-            getMatchKey({
-              appName: suggestion.game.appName,
-              runner: suggestion.game.runner
-            })
-          ]
-        nextSelectedMatches[
-          getMatchKey({
-            appName: suggestion.game.appName,
-            runner: suggestion.game.runner
-          })
-        ] = getSelectedMatchFromStoredMatch(storedMatch)
+        const key = getMatchKey(suggestion.game)
+        const storedMatch = storedMatches[key]
+        nextSelectedMatches[key] =
+          getSelectedMatchFromStoredMatch(storedMatch) ?? suggestion.result
       }
 
       setSuggestions(nextSuggestions)
@@ -756,11 +775,18 @@ export default function VndbSyncButton({
         runner: suggestion.game.runner
       }) === pickerGameKey
   )
-  const pickerResultSections = getPickerResultSections(pickerResults)
-  const pickerSelectedReleaseIds = new Set(
-    getResultSelectedReleases(
-      pickerGameKey ? selectedMatches[pickerGameKey] : undefined
-    ).map((release) => release.id)
+  const pickerResultSections = useMemo(
+    () => getPickerResultSections(pickerResults),
+    [pickerResults]
+  )
+  const pickerSelectedReleaseIds = useMemo(
+    () =>
+      new Set(
+        getResultSelectedReleases(
+          pickerGameKey ? selectedMatches[pickerGameKey] : undefined
+        ).map((release) => release.id)
+      ),
+    [pickerGameKey, selectedMatches]
   )
 
   return (
@@ -972,9 +998,7 @@ export default function VndbSyncButton({
                       appName: suggestion.game.appName,
                       runner: suggestion.game.runner
                     })
-                    const localGame = matchableGames.find(
-                      (game) => getGameKey(game) === key
-                    )
+                    const localGame = matchableGamesByKey.get(key)
                     const selectedMatch = selectedMatches[key] ?? null
 
                     return (

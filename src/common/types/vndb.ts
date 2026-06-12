@@ -153,6 +153,7 @@ export interface VndbUserDataSyncTarget {
   appName: string
   runner: Runner
   installedAt?: string
+  installPath?: string
   includeReleases?: boolean
 }
 

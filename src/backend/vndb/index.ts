@@ -1,6 +1,7 @@
 import CacheStore from 'backend/cache'
 import { tsStore } from 'backend/constants/key_value_stores'
 import { logError, logInfo, LogPrefix } from 'backend/logger'
+import { stat } from 'fs/promises'
 import { isVndbError, parseVndbId } from 'vndb-kana-api'
 import type {
   AuthInfo,
@@ -121,12 +122,18 @@ type PartialVndbRelease = Partial<
 type PartialAuthInfo = Partial<AuthInfo> & Pick<AuthInfo, 'id' | 'username'>
 
 const vndbSearchCache = new CacheStore<VndbSearchResult[]>(
-  'vndb-search-v8',
+  'vndb-search-v9',
+  60 * 24 * 7
+)
+const vndbMatchCache = new CacheStore<VndbSearchResult | null>(
+  'vndb-match-v1',
   60 * 24 * 7
 )
 
 const maxSearchResults = 50
 const maxVisualNovelReleases = 50
+const maxHydratedVisualNovelSearchResults = 5
+const matchSearchConcurrency = 5
 const finishedLabelId = 2
 
 const searchFields = [
@@ -149,6 +156,16 @@ const searchFields = [
   'languages',
   'platforms',
   'relations{id,title,relation,relation_official,released,image{url}}'
+].join(',')
+
+const matchSearchFields = [
+  'id',
+  'title',
+  'alttitle',
+  'titles{title,latin}',
+  'aliases',
+  'released',
+  'image{url}'
 ].join(',')
 
 const releaseSearchFields = [
@@ -561,6 +578,33 @@ function getRecordedInstallDate(installedAt: string | undefined) {
   return isValidDate(date) ? date : undefined
 }
 
+async function getFilesystemInstallDate(installPath: string | undefined) {
+  if (!installPath) {
+    return undefined
+  }
+
+  try {
+    const stats = await stat(installPath)
+    return stats.birthtimeMs > 0 && isValidDate(stats.birthtime)
+      ? stats.birthtime
+      : undefined
+  } catch {
+    return undefined
+  }
+}
+
+async function getInstallStartDate(target: VndbUserDataSyncTarget) {
+  const recordedDate = getRecordedInstallDate(target.installedAt)
+  if (recordedDate) {
+    return { date: recordedDate, source: 'metadata' as const }
+  }
+
+  const filesystemDate = await getFilesystemInstallDate(target.installPath)
+  return filesystemDate
+    ? { date: filesystemDate, source: 'filesystem' as const }
+    : undefined
+}
+
 function isDateAfter(left: string, right: string): boolean {
   return left.localeCompare(right) > 0
 }
@@ -838,16 +882,24 @@ export async function syncVndbUserData(
           )
         : undefined
       const effectiveFinished = finished ?? userListEntry?.finished ?? undefined
-      const recordedStarted = formatVndbDate(
-        getRecordedInstallDate(target.installedAt)
-      )
+      const installStart =
+        target.runner === 'sideload'
+          ? await getInstallStartDate(target)
+          : undefined
+      const recordedStarted = formatVndbDate(installStart?.date)
       const update: VndbUserOptionsUpdate = {}
 
-      if (target.runner === 'sideload') {
-        if (
-          recordedStarted &&
-          (!effectiveFinished ||
-            !isDateAfter(recordedStarted, effectiveFinished))
+      if (recordedStarted) {
+        const filesystemStartAfterVoteDate =
+          installStart?.source === 'filesystem' &&
+          finished !== undefined &&
+          isDateAfter(recordedStarted, finished)
+
+        if (filesystemStartAfterVoteDate) {
+          update.started = null
+        } else if (
+          !effectiveFinished ||
+          !isDateAfter(recordedStarted, effectiveFinished)
         ) {
           update.started = recordedStarted
         }
@@ -922,7 +974,11 @@ export async function searchVndbVisualNovels(
       })
     ])
     const mappedVisualNovels = await Promise.all(
-      (visualNovels as PartialVisualNovel[]).map(mapVisualNovelWithReleases)
+      (visualNovels as PartialVisualNovel[]).map((visualNovel, index) =>
+        index < maxHydratedVisualNovelSearchResults
+          ? mapVisualNovelWithReleases(visualNovel)
+          : Promise.resolve(mapVisualNovel(visualNovel))
+      )
     )
     const mappedResults = sortSearchResults(
       normalizedQuery,
@@ -939,18 +995,50 @@ export async function searchVndbVisualNovels(
   }
 }
 
+async function findVndbMatchCandidate(
+  title: string
+): Promise<VndbSearchResult | null> {
+  const normalizedTitle = normalizeSearchQuery(title)
+  if (!normalizedTitle) {
+    return null
+  }
+
+  const cacheKey = normalizeTitleForMatch(normalizedTitle)
+  const cached = vndbMatchCache.get(cacheKey)
+  if (cached !== undefined) {
+    return cached
+  }
+
+  const [visualNovel] = (await vndbClient.searchVisualNovels(
+    normalizedTitle,
+    matchSearchFields,
+    1
+  )) as PartialVisualNovel[]
+  const result = visualNovel ? mapVisualNovel(visualNovel) : null
+  vndbMatchCache.set(cacheKey, result)
+  return result
+}
+
 export async function matchVndbGames(
   games: VndbGameMatchTarget[]
 ): Promise<VndbGameMatchSuggestion[]> {
-  const suggestions: VndbGameMatchSuggestion[] = []
+  const suggestions = new Array<VndbGameMatchSuggestion>(games.length)
+  let nextGameIndex = 0
 
-  for (const game of games) {
-    const results = await searchVndbVisualNovels(game.title, 1)
-    suggestions.push({
-      game,
-      result: results[0] ?? null
-    })
+  async function matchNextGame(): Promise<void> {
+    while (nextGameIndex < games.length) {
+      const gameIndex = nextGameIndex
+      nextGameIndex += 1
+      const game = games[gameIndex]
+      suggestions[gameIndex] = {
+        game,
+        result: await findVndbMatchCandidate(game.title)
+      }
+    }
   }
+
+  const workerCount = Math.min(matchSearchConcurrency, games.length)
+  await Promise.all(Array.from({ length: workerCount }, () => matchNextGame()))
 
   return suggestions
 }
