@@ -568,6 +568,10 @@ function isDateAfter(left: string, right: string): boolean {
 function getStoredMatchMainVisualNovelId(
   match: VndbGameMatch
 ): string | undefined {
+  if (match.source !== 'release') {
+    return match.vndbId.startsWith('v') ? match.vndbId : undefined
+  }
+
   return (
     match.mainVndbId ??
     match.mainRelation?.id ??
@@ -621,8 +625,10 @@ function getVndbRequestErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error)
   }
 
+  const status = error.status ? `HTTP ${error.status}` : undefined
+
   if (typeof error.response === 'string' && error.response.trim()) {
-    return error.response.trim()
+    return [status, error.response.trim()].filter(Boolean).join(': ')
   }
 
   if (
@@ -631,10 +637,36 @@ function getVndbRequestErrorMessage(error: unknown): string {
     'message' in error.response &&
     typeof error.response.message === 'string'
   ) {
-    return error.response.message
+    return [status, error.response.message].filter(Boolean).join(': ')
   }
 
-  return error.message
+  if (error.response !== undefined) {
+    try {
+      return [status, JSON.stringify(error.response)].filter(Boolean).join(': ')
+    } catch {
+      // Fall back to the error message when the response is not serializable.
+    }
+  }
+
+  return [status, error.message].filter(Boolean).join(': ')
+}
+
+function getVndbRequestErrorDetails(error: unknown) {
+  if (!isVndbError(error)) {
+    return {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    }
+  }
+
+  return {
+    name: error.name,
+    message: error.message,
+    status: error.status,
+    code: error.code,
+    response: error.response,
+    stack: error.stack
+  }
 }
 
 export async function getVndbUserOptions(
@@ -697,10 +729,27 @@ export async function updateVndbUserOptions(
     return getEmptyUserOptions(false)
   }
 
-  await vndbClient.updateUserListEntry(
-    visualNovelId,
-    normalizeUserOptionsUpdate(update)
-  )
+  const normalizedUpdate = normalizeUserOptionsUpdate(update)
+
+  try {
+    await vndbClient.updateUserListEntry(visualNovelId, normalizedUpdate)
+  } catch (error) {
+    const message = getVndbRequestErrorMessage(error)
+    logError(
+      [
+        'VNDB user options update failed:',
+        {
+          visualNovelId,
+          update: normalizedUpdate,
+          error: getVndbRequestErrorDetails(error)
+        }
+      ],
+      LogPrefix.Backend
+    )
+    throw new Error(
+      `Unable to update VNDB user options for ${visualNovelId}: ${message}`
+    )
+  }
 
   return getVndbUserOptions(visualNovelId)
 }

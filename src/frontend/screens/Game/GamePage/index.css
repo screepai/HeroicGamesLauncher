@@ -674,6 +674,10 @@
           }
         }
 
+        .vndbInfoResyncDates {
+          align-self: flex-start;
+        }
+
         .vndbInfoUserDates label,
         .vndbInfoVoteControl,
         .vndbInfoLabelOptions {

@@ -19,7 +19,7 @@ import {
   getVndbReleasesWithSelectedReleases,
   sortVndbReleasesByDate
 } from 'frontend/helpers/vndb'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface Props {
@@ -58,7 +58,6 @@ type Translate = (
 ) => string
 
 const editableLabelDenylist = new Set([0, 7])
-const finishedLabelId = 2
 const voteOptions = Array.from({ length: 91 }, (_value, index) => 10 + index)
 
 function getVndbUrl(id: string): string {
@@ -676,7 +675,12 @@ function VndbUserOptionsSection({
     } catch (error) {
       console.error(error)
       setSaveError(
-        t('vndb.user-options-save-error', 'Unable to save VNDB user options.')
+        error instanceof Error
+          ? error.message
+          : t(
+              'vndb.user-options-save-error',
+              'Unable to save VNDB user options.'
+            )
       )
       return false
     } finally {
@@ -692,16 +696,14 @@ function VndbUserOptionsSection({
     const savedDate = field === 'started' ? savedStartDate : savedFinishDate
 
     setDate(value)
-    if (!value) {
-      setDate(savedDate)
-      return
-    }
     if (value === savedDate) {
       return
     }
 
     const saved = await save(
-      field === 'started' ? { started: value } : { finished: value }
+      field === 'started'
+        ? { started: value || null }
+        : { finished: value || null }
     )
     if (!saved) {
       setDate(savedDate)
@@ -783,6 +785,13 @@ function VndbUserOptionsSection({
                   value={finishDate}
                 />
               </label>
+              <button
+                className="button is-secondary vndbInfoResyncDates"
+                disabled={saving || !state.options.canWrite}
+                onClick={() => void resyncDates()}
+              >
+                {t('vndb.resync-dates', 'Resync dates')}
+              </button>
             </div>
 
             <label className="vndbInfoVoteControl">
@@ -826,14 +835,6 @@ function VndbUserOptionsSection({
                 ))}
               </select>
             </label>
-
-            <button
-              className="button is-secondary"
-              disabled={saving || !state.options.canWrite}
-              onClick={() => void resyncDates()}
-            >
-              {t('vndb.resync-dates', 'Resync dates')}
-            </button>
           </div>
 
           {!state.options.canWrite && (
@@ -856,7 +857,6 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
   const [releaseSaveError, setReleaseSaveError] = useState<string | null>(null)
   const [userOptionsState, setUserOptionsState] =
     useState<VndbUserOptionsState>({ status: 'idle' })
-  const autoStartDateSyncKeyRef = useRef<string | null>(null)
   const userOptionsVnId = match ? getMainVersionInfo(match).id : ''
   const userDataSyncTarget = useMemo(
     () => getVndbUserDataSyncTarget(gameInfo),
@@ -1023,25 +1023,6 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
     }
   }, [userOptionsVnId, t])
 
-  useEffect(() => {
-    if (
-      !match ||
-      gameInfo.runner !== 'sideload' ||
-      userOptionsState.status !== 'ready' ||
-      !userOptionsState.options.canWrite
-    ) {
-      return
-    }
-
-    const syncKey = `${match.runner}:${match.appName}:${match.vndbId}`
-    if (autoStartDateSyncKeyRef.current === syncKey) {
-      return
-    }
-
-    autoStartDateSyncKeyRef.current = syncKey
-    void syncVndbUserDates({ silent: true })
-  }, [gameInfo.runner, match, syncVndbUserDates, userOptionsState])
-
   if (!match) {
     return null
   }
@@ -1146,10 +1127,6 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
       update
     })
     setUserOptionsState({ status: 'ready', options })
-
-    if (update.labels?.includes(finishedLabelId)) {
-      await syncVndbUserDates()
-    }
   }
 
   return (
