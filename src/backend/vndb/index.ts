@@ -1,4 +1,5 @@
 import CacheStore from 'backend/cache'
+import { tsStore } from 'backend/constants/key_value_stores'
 import { logError, logInfo, LogPrefix } from 'backend/logger'
 import { isVndbError, parseVndbId } from 'vndb-kana-api'
 import type {
@@ -20,6 +21,8 @@ import type {
   VndbRelation,
   VndbSearchResult,
   VndbTag,
+  VndbUserDataSyncResult,
+  VndbUserDataSyncTarget,
   VndbUserLabel,
   VndbUserOptions,
   VndbUserOptionsUpdate
@@ -124,6 +127,7 @@ const vndbSearchCache = new CacheStore<VndbSearchResult[]>(
 
 const maxSearchResults = 50
 const maxVisualNovelReleases = 50
+const finishedLabelId = 2
 
 const searchFields = [
   'id',
@@ -519,6 +523,72 @@ function getEmptyUserOptions(hasToken: boolean): VndbUserOptions {
   }
 }
 
+function isValidDate(date: Date): boolean {
+  return Number.isFinite(date.getTime())
+}
+
+function formatVndbDate(date: Date | undefined): string | undefined {
+  if (!date || !isValidDate(date)) {
+    return undefined
+  }
+
+  return date.toISOString().slice(0, 10)
+}
+
+function getUnixTimestampDate(timestamp: number | null | undefined) {
+  if (typeof timestamp !== 'number') {
+    return undefined
+  }
+
+  return new Date(timestamp * 1000)
+}
+
+function getStoredLastPlayedDate(appName: string) {
+  const value = tsStore.get_nodefault(`${appName}.lastPlayed`)
+  if (typeof value !== 'string' || !value) {
+    return undefined
+  }
+
+  return new Date(value)
+}
+
+function getRecordedInstallDate(installedAt: string | undefined) {
+  if (!installedAt) {
+    return undefined
+  }
+
+  const date = new Date(installedAt)
+  return isValidDate(date) ? date : undefined
+}
+
+function isDateAfter(left: string, right: string): boolean {
+  return left.localeCompare(right) > 0
+}
+
+function getStoredMatchMainVisualNovelId(
+  match: VndbGameMatch
+): string | undefined {
+  return (
+    match.mainVndbId ??
+    match.mainRelation?.id ??
+    match.latestRelease?.vns[0]?.id ??
+    match.releaseVns?.[0]?.id ??
+    (match.vndbId.startsWith('v') ? match.vndbId : undefined)
+  )
+}
+
+function getStoredMatchSelectedReleases(match: VndbGameMatch): VndbRelease[] {
+  if (match.selectedReleases !== undefined) {
+    return match.selectedReleases
+  }
+
+  if (match.latestRelease) {
+    return [match.latestRelease]
+  }
+
+  return []
+}
+
 function getPermissions(authInfo: PartialAuthInfo) {
   const permissions = authInfo.permissions ?? []
 
@@ -546,6 +616,27 @@ function normalizeUserOptionsUpdate(
   }
 }
 
+function getVndbRequestErrorMessage(error: unknown): string {
+  if (!isVndbError(error)) {
+    return error instanceof Error ? error.message : String(error)
+  }
+
+  if (typeof error.response === 'string' && error.response.trim()) {
+    return error.response.trim()
+  }
+
+  if (
+    typeof error.response === 'object' &&
+    error.response !== null &&
+    'message' in error.response &&
+    typeof error.response.message === 'string'
+  ) {
+    return error.response.message
+  }
+
+  return error.message
+}
+
 export async function getVndbUserOptions(
   visualNovelId: string
 ): Promise<VndbUserOptions> {
@@ -571,7 +662,7 @@ export async function getVndbUserOptions(
     vndbClient.getUserList({
       user: authInfo.id,
       filters: ['id', '=', visualNovelId],
-      fields: 'id,vote,labels{id,label}',
+      fields: 'id,vote,voted,started,finished,labels{id,label}',
       results: 1
     })
   ])
@@ -589,7 +680,10 @@ export async function getVndbUserOptions(
     selectedLabelIds:
       userListEntry?.labels.map((label) => label.id).filter((id) => id !== 7) ??
       [],
-    vote: userListEntry?.vote ?? null
+    vote: userListEntry?.vote ?? null,
+    started: userListEntry?.started ?? null,
+    finished: userListEntry?.finished ?? null,
+    voted: userListEntry?.voted ?? null
   }
 }
 
@@ -626,6 +720,118 @@ export async function updateVndbUserRelease(
   } else {
     await vndbClient.deleteUserReleaseEntry(releaseId)
   }
+}
+
+export async function syncVndbUserData(
+  targets: VndbUserDataSyncTarget[]
+): Promise<VndbUserDataSyncResult> {
+  refreshVndbClientApiToken()
+
+  if (!hasStoredApiToken()) {
+    return {
+      hasToken: false,
+      canWrite: false,
+      synced: 0,
+      skipped: targets.length,
+      errors: []
+    }
+  }
+
+  const authInfo = (await vndbClient.getAuthInfo()) as PartialAuthInfo
+  const { canRead, canWrite } = getPermissions(authInfo)
+  const result: VndbUserDataSyncResult = {
+    hasToken: true,
+    canWrite,
+    synced: 0,
+    skipped: 0,
+    errors: []
+  }
+
+  if (!canWrite) {
+    return {
+      ...result,
+      skipped: targets.length
+    }
+  }
+
+  const storedMatches = getAllStoredMatches()
+
+  for (const target of targets) {
+    const match = storedMatches[getMatchKey(target)]
+    const visualNovelId = match ? getStoredMatchMainVisualNovelId(match) : ''
+
+    if (!match || !visualNovelId) {
+      result.skipped += 1
+      continue
+    }
+
+    try {
+      const userListEntry = canRead
+        ? getUserListEntry(
+            (
+              await vndbClient.getUserList({
+                user: authInfo.id,
+                filters: ['id', '=', visualNovelId],
+                fields: 'id,voted,started,finished,labels{id,label}',
+                results: 1
+              })
+            ).results,
+            visualNovelId
+          )
+        : undefined
+      const hasFinishedLabel =
+        userListEntry?.labels.some((label) => label.id === finishedLabelId) ??
+        false
+      const finished = hasFinishedLabel
+        ? formatVndbDate(
+            getUnixTimestampDate(userListEntry?.voted) ??
+              getStoredLastPlayedDate(target.appName)
+          )
+        : undefined
+      const effectiveFinished = finished ?? userListEntry?.finished ?? undefined
+      const recordedStarted = formatVndbDate(
+        getRecordedInstallDate(target.installedAt)
+      )
+      const update: VndbUserOptionsUpdate = {}
+
+      if (target.runner === 'sideload') {
+        if (
+          recordedStarted &&
+          (!effectiveFinished ||
+            !isDateAfter(recordedStarted, effectiveFinished))
+        ) {
+          update.started = recordedStarted
+        }
+      }
+
+      if (finished) {
+        update.finished = finished
+      }
+
+      const selectedReleases = getStoredMatchSelectedReleases(match)
+
+      if (Object.keys(update).length) {
+        await vndbClient.updateUserListEntry(visualNovelId, update)
+      }
+
+      if (target.includeReleases !== false) {
+        await Promise.all(
+          selectedReleases.map((release) =>
+            vndbClient.updateUserReleaseEntry(release.id, { status: 2 })
+          )
+        )
+      }
+
+      result.synced += 1
+    } catch (error) {
+      result.errors.push({
+        appName: target.appName,
+        message: getVndbRequestErrorMessage(error)
+      })
+    }
+  }
+
+  return result
 }
 
 export async function searchVndbVisualNovels(

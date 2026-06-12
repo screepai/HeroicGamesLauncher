@@ -117,6 +117,7 @@
                 "title-finished": "Update Finished"
             }
         },
+        "locale-emulator-path": "Select Locale Emulator executable",
         "no": "NO",
         "ok": "OK",
         "postpone": "Postpone",
@@ -191,6 +192,7 @@
                 "title": "Wine not found!"
             }
         },
+        "windows-executable": "Windows executable",
         "wineprefix": "Select WinePrefix Folder",
         "yes": "YES"
     },
@@ -856,6 +858,8 @@
             "recently_played_installed": "Recently Played Games (Only Installed)"
         },
         "library_top_section": "Library Top Section",
+        "locale-emulator-path": "Locale Emulator executable",
+        "locale-emulator-path-placeholder": "Select Locale Emulator executable...",
         "log": {
             "descriptiveNames": {
                 "game-log": "Game log of {{gameTitle}}",
@@ -1197,21 +1201,20 @@
             "error": {
                 "match": "Unable to search VNDB for the current library.",
                 "no-results": "No VNDB results found.",
-                "refresh": "Unable to refresh existing VNDB matches.",
-                "refresh-empty": "No existing VNDB matches could be refreshed.",
                 "save": "Unable to sync VNDB matches.",
-                "search": "VNDB search failed."
+                "search": "VNDB search failed.",
+                "sync-data": "Unable to sync existing VNDB data."
             },
             "languages": "Languages: {{languages}}",
             "loading": "Searching VNDB...",
             "no-match": "No VNDB match",
             "platforms": "Platforms: {{platforms}}",
-            "refresh-existing": "Refresh existing matches",
             "search-label": "Search VNDB",
             "search-manual": "Search VNDB",
             "section-language": "{{language}} releases",
             "section-main": "Main titles",
             "selected": "Selected",
+            "sync-existing-data": "Sync existing data",
             "title": "Sync VNDB Titles"
         }
     },

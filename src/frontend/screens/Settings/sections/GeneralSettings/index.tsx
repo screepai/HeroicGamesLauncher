@@ -11,6 +11,7 @@ import {
   EgsSettings,
   HideChangelogOnStartup,
   LibraryTopSection,
+  LocaleEmulatorPath,
   MaxRecentGames,
   MaxWorkers,
   MinimizeOnGameLaunch,
@@ -36,6 +37,8 @@ export default function GeneralSettings() {
       <ThemeSelector />
 
       <DefaultInstallPath />
+
+      <LocaleEmulatorPath />
 
       <WinePrefixesBasePath />
 

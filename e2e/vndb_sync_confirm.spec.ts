@@ -81,7 +81,7 @@ electronTest(
       )
     })
 
-    await page.getByRole('button', { name: 'VNDB' }).click()
+    await page.getByRole('button', { name: 'VNDB', exact: true }).click()
 
     const row = page.locator('.vndbSyncRow', { hasText: game.title })
     await expect(page.getByText(suggestedResult.title)).not.toBeVisible()

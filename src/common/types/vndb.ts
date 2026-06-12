@@ -137,11 +137,34 @@ export interface VndbUserOptions {
   labels: VndbUserLabel[]
   selectedLabelIds: number[]
   vote: number | null
+  started?: string | null
+  finished?: string | null
+  voted?: number | null
 }
 
 export interface VndbUserOptionsUpdate {
   labels?: number[]
   vote?: number | null
+  started?: string | null
+  finished?: string | null
+}
+
+export interface VndbUserDataSyncTarget {
+  appName: string
+  runner: Runner
+  installedAt?: string
+  includeReleases?: boolean
+}
+
+export interface VndbUserDataSyncResult {
+  hasToken: boolean
+  canWrite: boolean
+  synced: number
+  skipped: number
+  errors: Array<{
+    appName: string
+    message: string
+  }>
 }
 
 export interface VndbGameMatchUpdate {

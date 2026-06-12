@@ -414,6 +414,11 @@
             background: var(--body-background);
           }
         }
+
+        & > div > input.hiddenCheckbox {
+          display: none;
+        }
+
         & > div > .hltbWrapper > .MuiAccordion-root {
           background-color: unset;
           box-shadow: none;
@@ -657,21 +662,37 @@
           min-width: 0;
         }
 
+        .vndbInfoUserDates {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-sm);
+
+          label {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-3xs);
+          }
+        }
+
+        .vndbInfoUserDates label,
         .vndbInfoVoteControl,
         .vndbInfoLabelOptions {
           display: flex;
           flex-direction: column;
           gap: var(--space-3xs);
           min-width: 0;
-
-          & > span {
-            color: var(--text-secondary);
-            font-size: var(--text-sm);
-            font-weight: var(--bold);
-            text-transform: uppercase;
-          }
         }
 
+        .vndbInfoUserDates label > span,
+        .vndbInfoVoteControl > span,
+        .vndbInfoLabelOptions > span {
+          color: var(--text-secondary);
+          font-size: var(--text-sm);
+          font-weight: var(--bold);
+          text-transform: uppercase;
+        }
+
+        .vndbInfoUserDates input,
         .vndbInfoVoteControl select,
         .vndbInfoLabelOptions select {
           background: var(--input-background);
@@ -682,12 +703,14 @@
           padding: var(--space-2xs) var(--space-xs);
         }
 
+        .vndbInfoUserDates input:focus-visible,
         .vndbInfoVoteControl select:focus-visible,
         .vndbInfoLabelOptions select:focus-visible {
           border-color: var(--accent);
           outline: none;
         }
 
+        .vndbInfoUserDates input:disabled,
         .vndbInfoVoteControl select:disabled,
         .vndbInfoLabelOptions select:disabled {
           cursor: not-allowed;

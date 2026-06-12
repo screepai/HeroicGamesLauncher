@@ -23,12 +23,19 @@ export default class SideloadLibraryManager implements LibraryManager {
     customUserAgent,
     launchFullScreen
   }: GameInfo): void {
+    const current = libraryStore.get('games', [])
+    const gameIndex = current.findIndex((value) => value.app_name === app_name)
+    const installedAt =
+      gameIndex === -1
+        ? new Date().toISOString()
+        : current[gameIndex].install.installed_at
     const game: GameInfo = {
       runner: 'sideload',
       app_name,
       title,
       install: {
         executable,
+        installed_at: installedAt,
         platform,
         is_dlc: false
       },
@@ -54,10 +61,6 @@ export default class SideloadLibraryManager implements LibraryManager {
         macAppExecutable
       )
     }
-
-    const current = libraryStore.get('games', [])
-
-    const gameIndex = current.findIndex((value) => value.app_name === app_name)
 
     // edit app in case it exists
     if (gameIndex !== -1) {

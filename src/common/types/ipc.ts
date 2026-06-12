@@ -56,7 +56,9 @@ import type {
   VndbGameMatchUpdate,
   VndbSearchResult,
   VndbUserOptions,
-  VndbUserOptionsUpdate
+  VndbUserOptionsUpdate,
+  VndbUserDataSyncResult,
+  VndbUserDataSyncTarget
 } from './vndb'
 import type { GetLogFileArgs } from 'backend/logger/paths'
 
@@ -399,6 +401,9 @@ interface AsyncIPCFunctions {
     releaseId: string
     selected: boolean
   }) => Promise<void>
+  'vndb.syncUserData': (
+    targets: VndbUserDataSyncTarget[]
+  ) => Promise<VndbUserDataSyncResult>
 }
 
 interface FrontendMessages {

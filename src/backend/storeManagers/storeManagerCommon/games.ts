@@ -1,9 +1,10 @@
 import { GameInfo, GameSettings, Runner } from 'common/types'
+import { GlobalConfig } from 'backend/config'
 import { GameConfig } from '../../game_config'
 import { logInfo, LogPrefix, logWarning } from 'backend/logger'
 import { basename, dirname } from 'path'
 import { constants as FS_CONSTANTS } from 'graceful-fs'
-import i18next from 'i18next'
+import i18next, { t as translate } from 'i18next'
 import {
   callRunner,
   getKnownFixesEnvVariables,
@@ -25,7 +26,7 @@ import {
 import { BrowserWindow, dialog, Menu } from 'electron'
 import { gameManagerMap } from '../index'
 import { sendGameStatusUpdate } from 'backend/utils'
-import { isLinux, isMac } from 'backend/constants/environment'
+import { isLinux, isMac, isWindows } from 'backend/constants/environment'
 import { windowIcon } from 'backend/constants/paths'
 
 import type LogWriter from 'backend/logger/log_writer'
@@ -148,8 +149,36 @@ export async function launchGame(
   }
 
   const gameSettings = await getAppSettings(appName)
-  const { launcherArgs } = gameSettings
-  const extraArgs = [...shlex.split(launcherArgs ?? ''), ...args]
+  const { jpLocale, launcherArgs } = gameSettings
+  const gameExecutable = executable
+  const useLocaleEmulator = isWindows && jpLocale && Boolean(gameExecutable)
+
+  if (useLocaleEmulator) {
+    const { localeEmulatorPath } = GlobalConfig.get().getSettings()
+
+    if (!localeEmulatorPath) {
+      showDialogBoxModalAuto({
+        title: translate(
+          'box.error.locale-emulator-path.title',
+          'Locale Emulator path is missing'
+        ),
+        message: translate(
+          'box.error.locale-emulator-path.message',
+          'Set the Locale Emulator executable path in General Settings before launching this game.'
+        ),
+        type: 'ERROR'
+      })
+      return false
+    }
+
+    executable = localeEmulatorPath
+  }
+
+  const extraArgs = [
+    ...(useLocaleEmulator && gameExecutable ? ['-run', gameExecutable] : []),
+    ...shlex.split(launcherArgs ?? ''),
+    ...args
+  ]
   const extraArgsJoined = extraArgs.join(' ')
 
   if (executable) {

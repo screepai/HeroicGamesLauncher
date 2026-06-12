@@ -126,6 +126,7 @@ export interface AppSettings extends GameSettings {
   hideChangelogsOnStartup: boolean
   hideWindowOnProtocolLaunch: boolean
   libraryTopSection: LibraryTopSectionOptions
+  localeEmulatorPath: string
   maxRecentGames: number
   maxWorkers: number
   minimizeOnLaunch: boolean
@@ -242,6 +243,7 @@ export interface GameSettings {
   gamescope: GameScopeSettings
   enviromentOptions: EnviromentVariable[]
   ignoreGameUpdates: boolean
+  jpLocale: boolean
   language: string
   launcherArgs: string
   lastUsedLaunchOption?: LaunchOption
@@ -311,6 +313,7 @@ export interface InstallProgress {
   file?: string
 }
 export interface InstalledInfo {
+  installed_at?: string
   manifest?: {
     disk_size: number
     download_size: number

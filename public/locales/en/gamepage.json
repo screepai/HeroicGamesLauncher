@@ -256,6 +256,8 @@
         "title": "Select components to Install"
     },
     "setting": {
+        "jp-locale": "JP locale",
+        "jp-locale-description": "Launch this game through the configured Locale Emulator executable.",
         "show-wine-settings": "Show Wine settings",
         "use-shared-wine-config": "Use shared Wine prefix",
         "warn-use-shared-wine-config": "Only use this option if you know what you are doing.<br />Sharing the same prefix for multiple games can create problems if their dependencies are incompatible.",
@@ -346,6 +348,7 @@
         "average": "Average",
         "downloaded-version": "Downloaded version",
         "entry-type": "VNDB entry type",
+        "finish-date": "Finish date",
         "freeware": "Freeware",
         "included-vns": "Included visual novels",
         "labels": "Labels",
@@ -367,8 +370,11 @@
         "release-section-language": "{{language}} releases",
         "release-selector": "Downloaded release selector",
         "release-title": "Release title",
+        "resync-dates": "Resync dates",
         "selected-release": "Selected",
+        "start-date": "Start date",
         "synced-at": "Synced",
+        "user-dates-sync-error": "Unable to resync VNDB dates.",
         "user-options-listread-missing": "Your VNDB API token needs the listread permission to load labels and votes.",
         "user-options-listwrite-missing": "Your VNDB API token needs the listwrite permission to edit labels and votes.",
         "user-options-load-error": "Unable to load VNDB user options.",

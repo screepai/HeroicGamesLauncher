@@ -7,6 +7,8 @@ import {
   getSelectedVndbRelease,
   getVndbPlatformsLabel
 } from 'frontend/helpers/vndb'
+import { ToggleSwitch } from 'frontend/components/UI'
+import useSetting from 'frontend/hooks/useSetting'
 
 interface Props {
   gameInfo: GameInfo
@@ -46,6 +48,7 @@ const InstalledInfo = ({ gameInfo }: Props) => {
   const { t, i18n } = useTranslation('gamepage')
   const { t: t2 } = useTranslation()
   const { gameSettings, runner, is, vndbMatch } = useContext(GameContext)
+  const [jpLocale, setJpLocale] = useSetting('jpLocale', false)
 
   if (!gameInfo.is_installed) {
     return null
@@ -203,15 +206,31 @@ const InstalledInfo = ({ gameInfo }: Props) => {
         </div>
       )}
       {!isThirdParty && (
-        <div
-          className="clickable"
-          onClick={() =>
-            appLocation !== undefined ? window.api.openFolder(appLocation) : {}
-          }
-        >
-          <b>{t('info.path')}:</b>{' '}
-          <div className="truncatedPath">{appLocation}</div>
-        </div>
+        <>
+          <div
+            className="clickable"
+            onClick={() =>
+              appLocation !== undefined
+                ? window.api.openFolder(appLocation)
+                : {}
+            }
+          >
+            <b>{t('info.path')}:</b>{' '}
+            <div className="truncatedPath">{appLocation}</div>
+          </div>
+          {is.win && isSideloaded && (
+            <ToggleSwitch
+              htmlId="jp-locale"
+              value={jpLocale}
+              handleChange={() => setJpLocale(!jpLocale)}
+              title={t('setting.jp-locale', 'JP locale')}
+              description={t(
+                'setting.jp-locale-description',
+                'Launch this game through the configured Locale Emulator executable.'
+              )}
+            />
+          )}
+        </>
       )}
       {!is.win && !is.native && (
         <>

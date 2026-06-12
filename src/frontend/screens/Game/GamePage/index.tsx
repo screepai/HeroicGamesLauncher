@@ -745,6 +745,7 @@ export default React.memo(function GamePage(): JSX.Element | null {
                           className="vndbTab"
                         >
                           <VndbInfo
+                            gameInfo={gameInfo}
                             match={vndbMatch}
                             onMatchChange={setVndbMatch}
                           />

@@ -39,6 +39,7 @@ export { default as HideWindowOnProtocolLaunch } from './HideWindowOnProtocolLau
 export { default as LauncherArgs } from './LauncherArgs'
 export { default as LaunchOptionSelector } from './LaunchOptionSelector'
 export { default as LibraryTopSection } from './LibraryTopSection'
+export { default as LocaleEmulatorPath } from './LocaleEmulatorPath'
 export { default as MaxRecentGames } from './MaxRecentGames'
 export { default as MaxWorkers } from './MaxWorkers'
 export { default as MinimizeOnGameLaunch } from './MinimizeOnGameLaunch'
