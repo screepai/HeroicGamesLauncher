@@ -37,7 +37,7 @@ export function getVndbSearchNames(match: VndbGameMatch | undefined) {
     ...(match.latestRelease?.vns.flatMap((vn) => [
       vn.title,
       ...(vn.aliases ?? []),
-      ...vn.relations.map((relation) => relation.title)
+      ...(vn.relations ?? []).map((relation) => relation.title)
     ]) ?? []),
     ...(match.releases?.flatMap((release) => [
       release.title,
@@ -48,13 +48,13 @@ export function getVndbSearchNames(match: VndbGameMatch | undefined) {
       ...release.vns.flatMap((vn) => [
         vn.title,
         ...(vn.aliases ?? []),
-        ...vn.relations.map((relation) => relation.title)
+        ...(vn.relations ?? []).map((relation) => relation.title)
       ])
     ]) ?? []),
     ...(match.releaseVns?.flatMap((vn) => [
       vn.title,
       ...(vn.aliases ?? []),
-      ...vn.relations.map((relation) => relation.title)
+      ...(vn.relations ?? []).map((relation) => relation.title)
     ]) ?? [])
   ])
 }

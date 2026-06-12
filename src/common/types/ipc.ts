@@ -395,6 +395,10 @@ interface AsyncIPCFunctions {
     vnId: string
     update: VndbUserOptionsUpdate
   }) => Promise<VndbUserOptions>
+  'vndb.updateUserRelease': (args: {
+    releaseId: string
+    selected: boolean
+  }) => Promise<void>
 }
 
 interface FrontendMessages {

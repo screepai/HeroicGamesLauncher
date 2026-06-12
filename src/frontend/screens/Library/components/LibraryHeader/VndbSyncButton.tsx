@@ -98,11 +98,10 @@ function storedMatchToResult(match: VndbGameMatch): VndbSearchResult {
 }
 
 function getSelectedMatchFromStoredMatch(
-  storedMatch: VndbGameMatch | undefined,
-  suggestedResult: VndbSearchResult | null
+  storedMatch: VndbGameMatch | undefined
 ): VndbSearchResult | null {
   if (!storedMatch) {
-    return suggestedResult
+    return null
   }
 
   return storedMatchToResult(storedMatch)
@@ -632,7 +631,7 @@ export default function VndbSyncButton({
             appName: suggestion.game.appName,
             runner: suggestion.game.runner
           })
-        ] = getSelectedMatchFromStoredMatch(storedMatch, suggestion.result)
+        ] = getSelectedMatchFromStoredMatch(storedMatch)
       }
 
       setSuggestions(nextSuggestions)

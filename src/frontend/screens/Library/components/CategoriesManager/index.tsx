@@ -239,11 +239,7 @@ function CategoriesManager({ games, onClose }: CategoriesManagerProps) {
       isAssigned: boolean
     ) => void
 
-    setGamesMembership(
-      category,
-      selectedGameIds,
-      !assignedToAll
-    )
+    setGamesMembership(category, selectedGameIds, !assignedToAll)
   }
 
   const addBulkCategory = () => {

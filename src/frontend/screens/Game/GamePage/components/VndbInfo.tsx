@@ -296,6 +296,20 @@ function getReleaseVnsLabel(release: VndbRelease): string {
     .join(', ')
 }
 
+function getUniqueReleaseVns(
+  releases: VndbRelease[]
+): VndbReleaseVisualNovel[] {
+  const visualNovels = new Map<string, VndbReleaseVisualNovel>()
+
+  for (const release of releases) {
+    for (const visualNovel of release.vns) {
+      visualNovels.set(visualNovel.id, visualNovel)
+    }
+  }
+
+  return [...visualNovels.values()]
+}
+
 function getReleaseTitleForLanguage(
   release: VndbRelease,
   language: string
@@ -439,7 +453,7 @@ function VndbReleaseCard({
       ]
         .filter(Boolean)
         .join(' ')}
-      disabled={savingRelease || isSelected}
+      disabled={savingRelease}
       onClick={() => onSelect(release)}
       aria-pressed={isSelected}
     >
@@ -497,14 +511,14 @@ function VndbReleaseChooser({
   releaseOptionSections,
   releaseOptions,
   savingRelease,
-  selectedRelease
+  selectedReleaseIds
 }: {
   mainVersion: MainVersionInfo
   onSelect: (release: VndbRelease) => void
   releaseOptionSections: ReleaseOptionSection[]
   releaseOptions: VndbRelease[]
   savingRelease: boolean
-  selectedRelease: VndbRelease
+  selectedReleaseIds: Set<string>
 }) {
   const { t, i18n } = useTranslation('gamepage')
 
@@ -530,7 +544,7 @@ function VndbReleaseChooser({
               {section.items.map(({ release, isNewestRelease }) => (
                 <VndbReleaseCard
                   isNewestRelease={isNewestRelease}
-                  isSelected={release.id === selectedRelease.id}
+                  isSelected={selectedReleaseIds.has(release.id)}
                   key={`${section.id}:${release.id}`}
                   language={section.language}
                   mainVersion={mainVersion}
@@ -719,7 +733,7 @@ function VndbUserOptionsSection({
             <WarningMessage>
               {t(
                 'vndb.user-options-listwrite-missing',
-                'Your VNDB API token needs the listwrite permission to edit labels and votes.'
+                'Your VNDB API token needs the listwrite permission to edit labels, votes, and releases.'
               )}
             </WarningMessage>
           )}
@@ -881,26 +895,49 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
       ? ''
       : getLanguageList(match.languages ?? [], i18n.language)
   const selectedRelease = getSelectedVndbRelease(match)
+  const selectedReleases = getSelectedVndbReleases(match)
+  const selectedReleaseIds = new Set(
+    selectedReleases.map((release) => release.id)
+  )
   const releaseOptions = getSortedReleases(match)
   const releaseOptionSections = getReleaseOptionSections(releaseOptions)
-  const includedVns = selectedRelease?.vns ?? match.releaseVns ?? []
+  const includedVns = selectedReleases.length
+    ? getUniqueReleaseVns(selectedReleases)
+    : (match.releaseVns ?? [])
   const relations = match.relations ?? []
   const mainVersion = getMainVersionInfo(match)
 
   async function handleSelectedReleaseChange(release: VndbRelease) {
-    if (!match || release.id === selectedRelease?.id) {
+    if (!match) {
       return
     }
 
+    const isSelected = selectedReleaseIds.has(release.id)
+    const nextSelectedReleases = isSelected
+      ? selectedReleases.filter(
+          (selectedRelease) => selectedRelease.id !== release.id
+        )
+      : [...selectedReleases, release]
+    const primaryRelease = nextSelectedReleases[0]
     setSavingRelease(true)
     setReleaseSaveError(null)
 
     try {
+      if (
+        userOptionsState.status === 'ready' &&
+        userOptionsState.options.canWrite
+      ) {
+        await window.api.vndb.updateUserRelease({
+          releaseId: release.id,
+          selected: !isSelected
+        })
+      }
+
       const nextMatch = {
         ...match,
-        latestRelease: release,
-        selectedReleases: [release],
-        releaseVns: release.vns
+        latestRelease: primaryRelease,
+        selectedReleases: nextSelectedReleases,
+        releaseVns: primaryRelease?.vns
       }
       const updatedMatches = await window.api.vndb.syncGameMatches([
         {
@@ -925,10 +962,10 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
           languages: match.languages,
           mainRelation: match.mainRelation,
           relations: match.relations,
-          latestRelease: release,
-          selectedReleases: [release],
+          latestRelease: primaryRelease,
+          selectedReleases: nextSelectedReleases,
           releases: match.releases,
-          releaseVns: release.vns
+          releaseVns: primaryRelease?.vns
         }
       ])
 
@@ -936,7 +973,7 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
     } catch (error) {
       console.error(error)
       setReleaseSaveError(
-        t('vndb.release-save-error', 'Unable to save selected VNDB release.')
+        t('vndb.release-save-error', 'Unable to save selected VNDB releases.')
       )
     } finally {
       setSavingRelease(false)
@@ -981,16 +1018,14 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
         state={userOptionsState}
       />
 
-      {selectedRelease && (
-        <VndbReleaseChooser
-          mainVersion={mainVersion}
-          onSelect={(release) => void handleSelectedReleaseChange(release)}
-          releaseOptionSections={releaseOptionSections}
-          releaseOptions={releaseOptions}
-          savingRelease={savingRelease}
-          selectedRelease={selectedRelease}
-        />
-      )}
+      <VndbReleaseChooser
+        mainVersion={mainVersion}
+        onSelect={(release) => void handleSelectedReleaseChange(release)}
+        releaseOptionSections={releaseOptionSections}
+        releaseOptions={releaseOptions}
+        savingRelease={savingRelease}
+        selectedReleaseIds={selectedReleaseIds}
+      />
 
       <VndbIncludedVisualNovels includedVns={includedVns} />
       <VndbRelations relations={relations} />

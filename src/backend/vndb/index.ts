@@ -611,6 +611,23 @@ export async function updateVndbUserOptions(
   return getVndbUserOptions(visualNovelId)
 }
 
+export async function updateVndbUserRelease(
+  releaseId: string,
+  selected: boolean
+): Promise<void> {
+  refreshVndbClientApiToken()
+
+  if (!hasStoredApiToken()) {
+    throw new Error('VNDB API token is not configured')
+  }
+
+  if (selected) {
+    await vndbClient.updateUserReleaseEntry(releaseId, { status: 2 })
+  } else {
+    await vndbClient.deleteUserReleaseEntry(releaseId)
+  }
+}
+
 export async function searchVndbVisualNovels(
   query: string,
   limit?: number

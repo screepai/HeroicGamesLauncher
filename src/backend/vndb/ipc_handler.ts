@@ -7,6 +7,7 @@ import {
   matchVndbGames,
   searchVndbVisualNovels,
   syncVndbGameMatches,
+  updateVndbUserRelease,
   updateVndbUserOptions
 } from '.'
 
@@ -38,4 +39,8 @@ addHandler('vndb.getUserOptions', (_event, args) =>
 
 addHandler('vndb.updateUserOptions', (_event, args) =>
   updateVndbUserOptions(args.vnId, args.update)
+)
+
+addHandler('vndb.updateUserRelease', (_event, args) =>
+  updateVndbUserRelease(args.releaseId, args.selected)
 )
