@@ -1,4 +1,4 @@
-import { memo, useContext, useMemo } from 'react'
+import { memo, useContext, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import ActionIcons from 'frontend/components/UI/ActionIcons'
 import { GameInfo } from 'common/types'
@@ -7,8 +7,14 @@ import LibraryContext from '../../LibraryContext'
 import './index.css'
 import AddGameButton from '../AddGameButton'
 import VndbSyncButton from './VndbSyncButton'
+import BulkGameOptionsDialog from './BulkGameOptionsDialog'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faTags, faTimes } from '@fortawesome/free-solid-svg-icons'
+import {
+  faCheckDouble,
+  faSlidersH,
+  faTags,
+  faTimes
+} from '@fortawesome/free-solid-svg-icons'
 
 type Props = {
   list: GameInfo[]
@@ -24,9 +30,14 @@ export default memo(function LibraryHeader({
     showFavourites,
     selectedGames,
     isSelectingGames,
+    isGameSelected,
+    selectAllGames,
     clearGameSelection,
     openSelectedGamesCategories
   } = useContext(LibraryContext)
+  const [showBulkOptions, setShowBulkOptions] = useState(false)
+  const allVisibleGamesSelected =
+    list.length > 0 && list.every((game) => isGameSelected(game))
 
   const numberOfGames = useMemo(() => {
     if (!list) {
@@ -56,10 +67,32 @@ export default memo(function LibraryHeader({
             </strong>
             <button
               className="libraryBulkAction"
+              onClick={() =>
+                allVisibleGamesSelected
+                  ? clearGameSelection()
+                  : selectAllGames(list)
+              }
+            >
+              <FontAwesomeIcon
+                icon={allVisibleGamesSelected ? faTimes : faCheckDouble}
+              />
+              {allVisibleGamesSelected
+                ? t('library.unselect-all', 'Unselect All')
+                : t('library.select-all', 'Select All')}
+            </button>
+            <button
+              className="libraryBulkAction"
               onClick={openSelectedGamesCategories}
             >
               <FontAwesomeIcon icon={faTags} />
               {t('submenu.categories', 'Categories')}
+            </button>
+            <button
+              className="libraryBulkAction"
+              onClick={() => setShowBulkOptions(true)}
+            >
+              <FontAwesomeIcon icon={faSlidersH} />
+              {t('library.bulk-options.button', 'Options')}
             </button>
             <VndbSyncButton
               list={selectedGames}
@@ -73,6 +106,12 @@ export default memo(function LibraryHeader({
               <FontAwesomeIcon icon={faTimes} />
               {t('button.cancel', 'Cancel')}
             </button>
+            {showBulkOptions && (
+              <BulkGameOptionsDialog
+                games={selectedGames}
+                onClose={() => setShowBulkOptions(false)}
+              />
+            )}
           </div>
         ) : (
           <>

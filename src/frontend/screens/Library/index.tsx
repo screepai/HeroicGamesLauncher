@@ -277,6 +277,14 @@ export default React.memo(function Library(): JSX.Element {
     })
   }
 
+  const selectAllGames = (games: GameInfo[]) => {
+    setSelectedGamesByKey(
+      Object.fromEntries(
+        games.map((game) => [getSelectionKey(game), game] as const)
+      )
+    )
+  }
+
   const clearGameSelection = () => setSelectedGamesByKey({})
 
   const openSelectedGamesCategories = () => {
@@ -938,6 +946,7 @@ export default React.memo(function Library(): JSX.Element {
         isGameSelected,
         startGameSelection,
         toggleGameSelection,
+        selectAllGames,
         clearGameSelection,
         openSelectedGamesCategories
       }}

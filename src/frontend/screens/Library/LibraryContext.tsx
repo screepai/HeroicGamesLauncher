@@ -51,6 +51,7 @@ const initialContext: LibraryContextType = {
   isGameSelected: () => false,
   startGameSelection: () => null,
   toggleGameSelection: () => null,
+  selectAllGames: () => null,
   clearGameSelection: () => null,
   openSelectedGamesCategories: () => null
 }

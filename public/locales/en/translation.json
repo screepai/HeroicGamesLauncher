@@ -294,6 +294,10 @@
             "update_game": "Update game"
         }
     },
+    "cover-picker": {
+        "search": "Search Covers",
+        "title": "Cover Search"
+    },
     "discounts": {
         "aria": {
             "pagination": "Pagination",
@@ -578,10 +582,14 @@
         "options": "Launch Options..."
     },
     "library": {
+        "bulk-options": {
+            "button": "Options"
+        },
         "bulk-selected_one": "{{count}} selected",
         "bulk-selected_other": "{{count}} selected",
         "hideAlphabetFilter": "Hide Alphabet Filter",
         "hideCategorySections": "Show one game list",
+        "select-all": "Select All",
         "showAlphabetFilter": "Show Alphabet Filter",
         "showCategorySections": "Group by categories",
         "sortAscending": "Sort Ascending",
@@ -590,7 +598,8 @@
         "toggleLayout": {
             "grid": "Toggle to a grid layout",
             "list": "Toggle to a list layout"
-        }
+        },
+        "unselect-all": "Unselect All"
     },
     "Library": "Library",
     "loading": {
@@ -1193,6 +1202,10 @@
         "quitMessage": "Are you sure you want to quit?"
     },
     "vndb": {
+        "image-picker": {
+            "error": "Failed to search VNDB for covers.",
+            "no-results": "No VNDB covers found."
+        },
         "length-hours-minutes": "{{hours}}h {{minutes}}m",
         "length-minutes": "{{minutes}}m",
         "sync": {

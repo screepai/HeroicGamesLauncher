@@ -48,6 +48,7 @@ const InstalledInfo = ({ gameInfo }: Props) => {
   const { t, i18n } = useTranslation('gamepage')
   const { t: t2 } = useTranslation()
   const { gameSettings, runner, is, vndbMatch } = useContext(GameContext)
+  const [isVisualNovel, setIsVisualNovel] = useSetting('isVisualNovel', false)
   const [jpLocale, setJpLocale] = useSetting('jpLocale', false)
 
   if (!gameInfo.is_installed) {
@@ -60,6 +61,18 @@ const InstalledInfo = ({ gameInfo }: Props) => {
 
   const isSideloaded = runner === 'sideload'
   const isThirdParty = !!gameInfo.thirdPartyManagedApp
+  const visualNovelSetting = !isThirdParty ? (
+    <ToggleSwitch
+      htmlId="is-visual-novel"
+      value={isVisualNovel}
+      handleChange={() => setIsVisualNovel(!isVisualNovel)}
+      title={t('sideload.info.is-visual-novel', 'Is Visual Novel')}
+      description={t(
+        'sideload.info.is-visual-novel-description',
+        'Identify this game as a visual novel.'
+      )}
+    />
+  ) : null
   const selectedVndbRelease = vndbMatch
     ? getSelectedVndbRelease(vndbMatch)
     : undefined
@@ -148,6 +161,7 @@ const InstalledInfo = ({ gameInfo }: Props) => {
           <b>{t('info.installedPlatform', 'Installed Platform')}:</b>{' '}
           {installPlatform}
         </div>
+        {visualNovelSetting}
         {vndbReleaseInfo}
       </>
     )
@@ -207,6 +221,7 @@ const InstalledInfo = ({ gameInfo }: Props) => {
       )}
       {!isThirdParty && (
         <>
+          {visualNovelSetting}
           <div
             className="clickable"
             onClick={() =>
@@ -218,7 +233,7 @@ const InstalledInfo = ({ gameInfo }: Props) => {
             <b>{t('info.path')}:</b>{' '}
             <div className="truncatedPath">{appLocation}</div>
           </div>
-          {is.win && isSideloaded && (
+          {is.win && (
             <ToggleSwitch
               htmlId="jp-locale"
               value={jpLocale}

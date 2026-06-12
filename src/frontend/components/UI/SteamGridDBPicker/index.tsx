@@ -11,6 +11,9 @@ import {
 import CachedImage from 'frontend/components/UI/CachedImage'
 import TextInputWithIconField from 'frontend/components/UI/TextInputWithIconField'
 import { SGDBGame, SGDBGrid } from 'common/types'
+import type { VndbSearchResult } from 'common/types/vndb'
+
+type VndbImageResult = VndbSearchResult & { imageUrl: string }
 
 interface Props {
   initialTitle: string
@@ -19,6 +22,8 @@ interface Props {
   mode?: 'grids' | 'heroes'
   dimensions?: string[]
   styles?: string[]
+  includeVndb?: boolean
+  enableSteamGridDb?: boolean
 }
 
 const DEFAULT_GRID_DIMENSIONS = ['600x900', '342x482', '660x930']
@@ -30,21 +35,25 @@ export default function SteamGridDBPicker({
   onClose,
   mode = 'grids',
   dimensions,
-  styles
+  styles,
+  includeVndb = false,
+  enableSteamGridDb = true
 }: Props) {
   const { t } = useTranslation()
   const [query, setQuery] = useState(initialTitle)
   const [games, setGames] = useState<SGDBGame[]>([])
   const [grids, setGrids] = useState<SGDBGrid[]>([])
+  const [vndbResults, setVndbResults] = useState<VndbImageResult[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [steamGridError, setSteamGridError] = useState<string | null>(null)
+  const [vndbError, setVndbError] = useState<string | null>(null)
 
   const handleSelectGame = useCallback(
     async (gameId: number) => {
       setSelectedGameId(gameId)
       setLoading(true)
-      setError(null)
+      setSteamGridError(null)
       setGrids([])
       try {
         const fetcher =
@@ -62,12 +71,12 @@ export default function SteamGridDBPicker({
         })
         setGrids(results)
         if (results.length === 0) {
-          setError(
+          setSteamGridError(
             t('steamgriddb.error.no-grids', 'No covers found for this game.')
           )
         }
       } catch (err) {
-        setError(t('steamgriddb.error.grids', 'Failed to fetch grids'))
+        setSteamGridError(t('steamgriddb.error.grids', 'Failed to fetch grids'))
         console.error(err)
       } finally {
         setLoading(false)
@@ -78,39 +87,88 @@ export default function SteamGridDBPicker({
 
   const searchGames = useCallback(
     async (searchQuery: string) => {
-      if (!searchQuery) return
+      const normalizedQuery = searchQuery.trim()
+      if (!normalizedQuery) return
+
       setLoading(true)
-      setError(null)
+      setSteamGridError(null)
+      setVndbError(null)
       setGrids([])
       setGames([])
+      setVndbResults([])
       setSelectedGameId(null)
+
       try {
-        const results = await window.api.steamgriddb.searchGame(searchQuery)
-        setGames(results)
-        if (results.length === 1) {
-          void handleSelectGame(results[0].id)
-        } else if (results.length === 0) {
-          setError(t('steamgriddb.error.no-games', 'No games found.'))
-        }
-      } catch (err) {
-        setError(
-          t(
-            'steamgriddb.error.search',
-            'Failed to search for games, please check your SteamGridDB API key and try again'
+        const [steamGridResult, vndbResult] = await Promise.allSettled([
+          enableSteamGridDb
+            ? window.api.steamgriddb.searchGame(normalizedQuery)
+            : Promise.resolve([]),
+          includeVndb
+            ? window.api.vndb.searchVisualNovels({
+                query: normalizedQuery,
+                limit: 20
+              })
+            : Promise.resolve([])
+        ])
+
+        if (vndbResult.status === 'fulfilled') {
+          const imageResults = vndbResult.value.filter(
+            (result): result is VndbImageResult => Boolean(result.imageUrl)
           )
-        )
-        console.error(err)
+          setVndbResults(imageResults)
+
+          if (includeVndb && !enableSteamGridDb && imageResults.length === 0) {
+            setVndbError(
+              t('vndb.image-picker.no-results', 'No VNDB covers found.')
+            )
+          }
+        } else {
+          setVndbError(
+            t('vndb.image-picker.error', 'Failed to search VNDB for covers.')
+          )
+          const message =
+            vndbResult.reason instanceof Error
+              ? vndbResult.reason.message
+              : String(vndbResult.reason)
+          window.api.logError(`VNDB cover search failed: ${message}`)
+        }
+
+        if (steamGridResult.status === 'fulfilled') {
+          const results = steamGridResult.value
+          setGames(results)
+
+          if (results.length === 1) {
+            await handleSelectGame(results[0].id)
+          } else if (
+            enableSteamGridDb &&
+            results.length === 0 &&
+            (vndbResult.status !== 'fulfilled' ||
+              !vndbResult.value.some((result) => result.imageUrl))
+          ) {
+            setSteamGridError(
+              t('steamgriddb.error.no-games', 'No games found.')
+            )
+          }
+        } else {
+          setSteamGridError(
+            t(
+              'steamgriddb.error.search',
+              'Failed to search for games, please check your SteamGridDB API key and try again'
+            )
+          )
+          console.error(steamGridResult.reason)
+        }
       } finally {
         setLoading(false)
       }
     },
-    [t, handleSelectGame]
+    [enableSteamGridDb, handleSelectGame, includeVndb, t]
   )
 
   const goBack = () => {
     setSelectedGameId(null)
     setGrids([])
-    setError(null)
+    setSteamGridError(null)
   }
 
   useEffect(() => {
@@ -128,7 +186,11 @@ export default function SteamGridDBPicker({
               <FontAwesomeIcon icon={faArrowLeft} />
             </button>
           )}
-          <h3>{t('steamgriddb.picker.title', 'SteamGridDB Covers')}</h3>
+          <h3>
+            {includeVndb
+              ? t('cover-picker.title', 'Cover Search')
+              : t('steamgriddb.picker.title', 'SteamGridDB Covers')}
+          </h3>
         </div>
         <button className="button is-ghost" onClick={onClose}>
           <FontAwesomeIcon icon={faTimes} />
@@ -138,7 +200,11 @@ export default function SteamGridDBPicker({
       {!selectedGameId && (
         <TextInputWithIconField
           htmlId="steamgriddb-search"
-          label={t('steamgriddb.picker.search', 'Search Game')}
+          label={
+            includeVndb
+              ? t('cover-picker.search', 'Search Covers')
+              : t('steamgriddb.picker.search', 'Search Game')
+          }
           value={query}
           onChange={setQuery}
           icon={<FontAwesomeIcon icon={faSearch} />}
@@ -157,9 +223,12 @@ export default function SteamGridDBPicker({
         </div>
       )}
 
-      {error && <div className="SteamGridDBPicker__error">{error}</div>}
+      {steamGridError && (
+        <div className="SteamGridDBPicker__error">{steamGridError}</div>
+      )}
+      {vndbError && <div className="SteamGridDBPicker__error">{vndbError}</div>}
 
-      {!loading && games.length > 1 && !selectedGameId && (
+      {!loading && enableSteamGridDb && games.length > 1 && !selectedGameId && (
         <div className="SteamGridDBPicker__games">
           <h4>{t('steamgriddb.picker.select-game', 'Select a Game:')}</h4>
           <ul>
@@ -172,7 +241,7 @@ export default function SteamGridDBPicker({
         </div>
       )}
 
-      {!loading && grids.length > 0 && (
+      {!loading && (grids.length > 0 || vndbResults.length > 0) && (
         <div className="SteamGridDBPicker__grids">
           {grids.map((grid) => (
             <div
@@ -181,6 +250,20 @@ export default function SteamGridDBPicker({
               onClick={() => onSelect(grid.url)}
             >
               <CachedImage src={grid.thumb} />
+              {includeVndb && (
+                <span className="SteamGridDBPicker__source">SteamGridDB</span>
+              )}
+            </div>
+          ))}
+          {vndbResults.map((result) => (
+            <div
+              key={`${result.source}:${result.id}`}
+              className="SteamGridDBPicker__grid-item"
+              title={result.title}
+              onClick={() => onSelect(result.imageUrl)}
+            >
+              <CachedImage src={result.imageUrl} />
+              <span className="SteamGridDBPicker__source">VNDB</span>
             </div>
           ))}
         </div>

@@ -270,6 +270,7 @@ export interface LibraryContextType {
   isGameSelected: (game: GameInfo) => boolean
   startGameSelection: (game: GameInfo) => void
   toggleGameSelection: (game: GameInfo) => void
+  selectAllGames: (games: GameInfo[]) => void
   clearGameSelection: () => void
   openSelectedGamesCategories: () => void
 }

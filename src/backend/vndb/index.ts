@@ -656,12 +656,27 @@ function getUserListEntry(
 function normalizeUserOptionsUpdate(
   update: VndbUserOptionsUpdate
 ): VndbUserOptionsUpdate {
-  return {
-    ...update,
-    labels: update.labels
-      ?.filter((labelId) => labelId !== 0 && labelId !== 7)
+  const normalizedUpdate: VndbUserOptionsUpdate = {}
+
+  if (update.labels !== undefined) {
+    normalizedUpdate.labels = update.labels
+      .filter((labelId) => labelId !== 0 && labelId !== 7)
       .sort((left, right) => left - right)
   }
+
+  if (update.vote !== undefined) {
+    normalizedUpdate.vote = update.vote
+  }
+
+  if (typeof update.started === 'string' && update.started.trim()) {
+    normalizedUpdate.started = update.started.trim()
+  }
+
+  if (update.finished !== undefined) {
+    normalizedUpdate.finished = update.finished
+  }
+
+  return normalizedUpdate
 }
 
 function getVndbRequestErrorMessage(error: unknown): string {
@@ -774,6 +789,10 @@ export async function updateVndbUserOptions(
   }
 
   const normalizedUpdate = normalizeUserOptionsUpdate(update)
+
+  if (!Object.keys(normalizedUpdate).length) {
+    return getVndbUserOptions(visualNovelId)
+  }
 
   try {
     await vndbClient.updateUserListEntry(visualNovelId, normalizedUpdate)
@@ -895,11 +914,10 @@ export async function syncVndbUserData(
           finished !== undefined &&
           isDateAfter(recordedStarted, finished)
 
-        if (filesystemStartAfterVoteDate) {
-          update.started = null
-        } else if (
-          !effectiveFinished ||
-          !isDateAfter(recordedStarted, effectiveFinished)
+        if (
+          !filesystemStartAfterVoteDate &&
+          (!effectiveFinished ||
+            !isDateAfter(recordedStarted, effectiveFinished))
         ) {
           update.started = recordedStarted
         }
@@ -911,8 +929,9 @@ export async function syncVndbUserData(
 
       const selectedReleases = getStoredMatchSelectedReleases(match)
 
-      if (Object.keys(update).length) {
-        await vndbClient.updateUserListEntry(visualNovelId, update)
+      const normalizedUpdate = normalizeUserOptionsUpdate(update)
+      if (Object.keys(normalizedUpdate).length) {
+        await vndbClient.updateUserListEntry(visualNovelId, normalizedUpdate)
       }
 
       if (target.includeReleases !== false) {

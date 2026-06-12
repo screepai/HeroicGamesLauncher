@@ -119,4 +119,10 @@
       gap: var(--space-md);
     }
   }
+
+  .imageSearchActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
 }

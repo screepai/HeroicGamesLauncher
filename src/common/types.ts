@@ -243,6 +243,7 @@ export interface GameSettings {
   gamescope: GameScopeSettings
   enviromentOptions: EnviromentVariable[]
   ignoreGameUpdates: boolean
+  isVisualNovel: boolean
   jpLocale: boolean
   language: string
   launcherArgs: string

@@ -73,6 +73,7 @@
         "browse_wine_prefix": "Browse Wine Prefix",
         "cancel": "Pause/Cancel",
         "changelog": "Show Changelog",
+        "confirm": "Confirm",
         "continue": "Continue Downloading",
         "details": "Details",
         "edit-game": "Edit Game",
@@ -224,6 +225,15 @@
     "launch": {
         "default": "Default"
     },
+    "library": {
+        "bulk-options": {
+            "description_one": "Apply options to {{count}} selected games.",
+            "description_other": "Apply options to {{count}} selected games.",
+            "load-error": "Unable to load the selected game settings.",
+            "mixed": "Mixed; leave unchanged or click to set",
+            "title": "Game Options"
+        }
+    },
     "modifyInstall": {
         "dlcsCollapsible": "DLC",
         "nodlcs": "No DLC available",
@@ -268,6 +278,8 @@
             "title": "Title"
         },
         "images": {
+            "search-covers": "Search Covers",
+            "search-steamgriddb": "Search SteamGridDB",
             "summary": "Images"
         },
         "import-hint": {
@@ -280,6 +292,8 @@
             "exe": "Select Executable",
             "fullscreen": "Launch Fullscreen (F11 to exit)",
             "image-hint": "Square Art (click on the image to search on SteamGridDB)",
+            "is-visual-novel": "Is Visual Novel",
+            "is-visual-novel-description": "Identify these games as visual novels.",
             "title": "Game/App Title",
             "useragent": "Custom User Agent"
         },

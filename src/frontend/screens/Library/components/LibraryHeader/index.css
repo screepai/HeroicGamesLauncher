@@ -55,6 +55,29 @@
   background: var(--accent-overlay);
 }
 
+.libraryBulkAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.BulkGameOptionsDialog {
+  width: min(520px, 92vw);
+}
+
+.bulkGameOptionsContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.bulkGameOptionsContent p {
+  margin: 0;
+}
+
+.bulkGameOptionsMixed {
+  color: var(--text-secondary);
+}
+
 .libraryBulkSelection .vndbSyncButton {
   margin-inline-start: 0;
 }

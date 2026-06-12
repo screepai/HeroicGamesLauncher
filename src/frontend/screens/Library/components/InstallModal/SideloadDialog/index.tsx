@@ -58,6 +58,8 @@ export default function SideloadDialog({
   const [gameUrl, setGameUrl] = useState('')
   const [customUserAgent, setCustomUserAgent] = useState('')
   const [launchFullScreen, setLaunchFullScreen] = useState(false)
+  const [isVisualNovel, setIsVisualNovel] = useState(false)
+  const [jpLocale, setJpLocale] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const [heroUrl, setHeroUrl] = useState('')
   const [searching, setSearching] = useState(false)
@@ -124,35 +126,66 @@ export default function SideloadDialog({
         setImageUrl(art_square || '')
         setHeroUrl(art_cover && art_cover !== art_square ? art_cover : '')
       })
+
+      void getGameSettings(appName, 'sideload').then((settings) => {
+        if (settings) {
+          setIsVisualNovel(settings.isVisualNovel)
+          setJpLocale(settings.jpLocale)
+        }
+      })
     } else {
       setApp_name(short.generate().toString())
     }
   }, [])
 
   async function searchImage() {
-    if (hasSgdbKey) {
-      setSgdbTarget('square')
+    if (hasSgdbKey || !title.trim()) {
       return
     }
+
     setSearching(true)
 
     try {
-      const response = await axios.get(
-        `https://steamgrid.usebottles.com/api/search/${title}`,
-        { timeout: 3500 }
-      )
+      if (isVisualNovel) {
+        try {
+          const vndbResults = await window.api.vndb.searchVisualNovels({
+            query: title,
+            limit: 5
+          })
+          const vndbImage = vndbResults.find(
+            (result) => result.imageUrl
+          )?.imageUrl
 
-      if (response.status === 200) {
-        const steamGridImage = response.data as string
-
-        if (steamGridImage && steamGridImage.startsWith('http')) {
-          setImageUrl(steamGridImage)
+          if (vndbImage) {
+            setImageLoading(true)
+            setImageUrl(vndbImage)
+            return
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          window.api.logError(`VNDB cover search failed: ${message}`)
         }
-      } else {
-        throw new Error('Fetch failed')
       }
-    } catch (error) {
-      window.api.logError(`${error}`)
+
+      try {
+        const response = await axios.get(
+          `https://steamgrid.usebottles.com/api/search/${title}`,
+          { timeout: 3500 }
+        )
+
+        if (response.status === 200) {
+          const steamGridImage = response.data as string
+
+          if (steamGridImage && steamGridImage.startsWith('http')) {
+            setImageUrl(steamGridImage)
+          }
+        } else {
+          throw new Error('Fetch failed')
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        window.api.logError(message)
+      }
     } finally {
       setSearching(false)
     }
@@ -194,6 +227,17 @@ export default function SideloadDialog({
       browserUrl: gameUrl,
       customUserAgent,
       launchFullScreen
+    })
+
+    window.api.setSetting({
+      appName: app_name,
+      key: 'isVisualNovel',
+      value: isVisualNovel
+    })
+    window.api.setSetting({
+      appName: app_name,
+      key: 'jpLocale',
+      value: jpLocale
     })
 
     await refreshLibrary({
@@ -311,11 +355,13 @@ export default function SideloadDialog({
           <div className="imageIcons">
             <div
               className={classNames('appImageContainer', {
-                hasSgdbKey,
+                hasSgdbKey: hasSgdbKey || isVisualNovel,
                 searching,
                 loading: imageLoading
               })}
-              onClick={() => hasSgdbKey && setSgdbTarget('square')}
+              onClick={() =>
+                (hasSgdbKey || isVisualNovel) && setSgdbTarget('square')
+              }
             >
               <CachedImage
                 className={classNames('appImage', {
@@ -330,7 +376,7 @@ export default function SideloadDialog({
                   <FontAwesomeIcon icon={faSpinner} spin size="3x" />
                 </div>
               )}
-              {hasSgdbKey && !searching && !imageLoading && (
+              {(hasSgdbKey || isVisualNovel) && !searching && !imageLoading && (
                 <div className="imageHoverOverlay">
                   <FontAwesomeIcon icon={faSearch} size="3x" />
                 </div>
@@ -362,6 +408,8 @@ export default function SideloadDialog({
               <SteamGridDBPicker
                 initialTitle={title}
                 mode={sgdbTarget === 'cover' ? 'heroes' : 'grids'}
+                includeVndb={isVisualNovel && sgdbTarget === 'square'}
+                enableSteamGridDb={hasSgdbKey}
                 onClose={() => setSgdbTarget(null)}
                 onSelect={(url: string) => {
                   if (sgdbTarget === 'cover') {
@@ -404,12 +452,36 @@ export default function SideloadDialog({
                   value={title}
                   maxLength={40}
                 />
+                <ToggleSwitch
+                  htmlId="is-visual-novel"
+                  value={isVisualNovel}
+                  handleChange={() => setIsVisualNovel(!isVisualNovel)}
+                  title={t('sideload.info.is-visual-novel', 'Is Visual Novel')}
+                  description={t(
+                    'sideload.info.is-visual-novel-description',
+                    'Identify this sideloaded game as a visual novel.'
+                  )}
+                />
+                {platform === 'win32' && (
+                  <ToggleSwitch
+                    htmlId="jp-locale"
+                    value={jpLocale}
+                    handleChange={() => setJpLocale(!jpLocale)}
+                    title={t('setting.jp-locale', 'JP locale')}
+                    description={t(
+                      'setting.jp-locale-description',
+                      'Launch this game through the configured Locale Emulator executable.'
+                    )}
+                  />
+                )}
                 <details className="advancedFields">
                   <summary>{t('sideload.images.summary', 'Images')}</summary>
                   <TextInputWithIconField
                     label={t(
                       'sideload.info.image-hint',
-                      'Square Art (click on the image to search on SteamGridDB)'
+                      isVisualNovel
+                        ? 'Square Art (click on the image to search covers)'
+                        : 'Square Art (click on the image to search on SteamGridDB)'
                     )}
                     placeholder={t(
                       'sideload.placeholder.image',
@@ -421,6 +493,25 @@ export default function SideloadDialog({
                     icon={<Folder />}
                     onIconClick={() => handleSelectLocalImage('square')}
                   />
+                  <div className="imageSearchActions">
+                    <button
+                      type="button"
+                      className="button is-secondary is-small"
+                      disabled={
+                        (!hasSgdbKey && !isVisualNovel) || !title.trim()
+                      }
+                      onClick={() => {
+                        setSgdbTarget('square')
+                      }}
+                    >
+                      {isVisualNovel
+                        ? t('sideload.images.search-covers', 'Search Covers')
+                        : t(
+                            'sideload.images.search-steamgriddb',
+                            'Search SteamGridDB'
+                          )}
+                    </button>
+                  </div>
                   <TextInputWithIconField
                     label={t(
                       'sideload.info.cover-hint',
