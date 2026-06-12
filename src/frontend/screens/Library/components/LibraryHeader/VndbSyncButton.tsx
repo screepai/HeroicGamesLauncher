@@ -97,16 +97,6 @@ function storedMatchToResult(match: VndbGameMatch): VndbSearchResult {
   }
 }
 
-function normalizeVndbTitle(title: string): string {
-  return title
-    .trim()
-    .replace(/\s+/g, ' ')
-    .toLocaleLowerCase()
-    .replace(/['’]/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-}
-
 function getSelectedMatchFromStoredMatch(
   storedMatch: VndbGameMatch | undefined,
   suggestedResult: VndbSearchResult | null
@@ -115,27 +105,7 @@ function getSelectedMatchFromStoredMatch(
     return suggestedResult
   }
 
-  const storedResult = storedMatchToResult(storedMatch)
-  if (suggestedResult?.id !== storedResult.id) {
-    const storedReleaseMatchesFreshVisualNovel =
-      (storedResult.source === 'release' || storedResult.id.startsWith('r')) &&
-      suggestedResult?.source === 'visualNovel' &&
-      normalizeVndbTitle(storedResult.title) ===
-        normalizeVndbTitle(suggestedResult.title)
-
-    if (storedReleaseMatchesFreshVisualNovel) {
-      return suggestedResult
-    }
-
-    return storedResult
-  }
-
-  return {
-    ...suggestedResult,
-    source: storedResult.source,
-    title: storedResult.title,
-    imageUrl: storedResult.imageUrl ?? suggestedResult.imageUrl
-  }
+  return storedMatchToResult(storedMatch)
 }
 
 function getDisplayTitle(game: GameInfo): string {
@@ -333,12 +303,15 @@ function getHydratedMatchUpdate(
     mainRelation: result.mainRelation,
     relations: result.relations,
     latestRelease:
-      selectedRelease ?? (hasExplicitSelection ? undefined : result.latestRelease),
+      selectedRelease ??
+      (hasExplicitSelection ? undefined : result.latestRelease),
     selectedReleases,
     releases,
     releaseVns:
       selectedRelease?.vns ??
-      (hasExplicitSelection ? undefined : match.releaseVns ?? result.releaseVns)
+      (hasExplicitSelection
+        ? undefined
+        : (match.releaseVns ?? result.releaseVns))
   }
 }
 
@@ -748,11 +721,14 @@ export default function VndbSyncButton({
             ...(isSameVisualNovel ? (currentMatch?.releases ?? []) : []),
             ...(hydratedMatch.releases ?? [])
           ]
+          const matchWithSyncedData = isSameVisualNovel
+            ? { ...hydratedMatch, ...currentMatch }
+            : hydratedMatch
 
           return {
             ...current,
             [pickerGameKey]: {
-              ...hydratedMatch,
+              ...matchWithSyncedData,
               latestRelease: nextSelectedReleases[0],
               selectedReleases: nextSelectedReleases,
               releases: getVndbReleasesWithSelectedReleases(
@@ -767,10 +743,17 @@ export default function VndbSyncButton({
       }
 
       const selectedMatch = await hydrateSelectedMatch(result)
-      setSelectedMatches((current) => ({
-        ...current,
-        [pickerGameKey]: selectedMatch
-      }))
+      setSelectedMatches((current) => {
+        const currentMatch = current[pickerGameKey]
+
+        return {
+          ...current,
+          [pickerGameKey]:
+            selectedMatch && currentMatch?.id === selectedMatch.id
+              ? currentMatch
+              : selectedMatch
+        }
+      })
       setPickerGameKey(null)
       setPickerResults([])
     } finally {
