@@ -233,7 +233,13 @@ function CategoriesManager({ games, onClose }: CategoriesManagerProps) {
   const toggleBulkCategory = (category: string) => {
     const assignedToAll =
       getAssignedGameCount(category) === selectedGameIds.length
-    customCategories.setGamesMembership(
+    const setGamesMembership = customCategories.setGamesMembership as (
+      category: string,
+      gameIds: string[],
+      isAssigned: boolean
+    ) => void
+
+    setGamesMembership(
       category,
       selectedGameIds,
       !assignedToAll
@@ -246,7 +252,13 @@ function CategoriesManager({ games, onClose }: CategoriesManagerProps) {
       return
     }
 
-    customCategories.setGamesMembership(category, selectedGameIds, true)
+    const setGamesMembership = customCategories.setGamesMembership as (
+      category: string,
+      gameIds: string[],
+      isAssigned: boolean
+    ) => void
+
+    setGamesMembership(category, selectedGameIds, true)
     setNewCategoryName('')
   }
 
