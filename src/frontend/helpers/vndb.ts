@@ -193,9 +193,18 @@ export function getVndbReleasesWithSelectedRelease(
   releases: VndbRelease[] | undefined,
   selectedRelease: VndbRelease
 ): VndbRelease[] {
+  return getVndbReleasesWithSelectedReleases(releases, [selectedRelease])
+}
+
+export function getVndbReleasesWithSelectedReleases(
+  releases: VndbRelease[] | undefined,
+  selectedReleases: VndbRelease[]
+): VndbRelease[] {
   const releaseMap = new Map<string, VndbRelease>()
 
-  releaseMap.set(selectedRelease.id, selectedRelease)
+  for (const selectedRelease of selectedReleases) {
+    releaseMap.set(selectedRelease.id, selectedRelease)
+  }
   for (const release of releases ?? []) {
     releaseMap.set(release.id, release)
   }
@@ -203,9 +212,22 @@ export function getVndbReleasesWithSelectedRelease(
   return [...releaseMap.values()]
 }
 
+export function getSelectedVndbReleases(match: VndbGameMatch): VndbRelease[] {
+  if (match.selectedReleases !== undefined) {
+    return match.selectedReleases
+  }
+
+  const selectedRelease = getSelectedVndbRelease(match)
+  return selectedRelease ? [selectedRelease] : []
+}
+
 export function getSelectedVndbRelease(
   match: VndbGameMatch
 ): VndbRelease | undefined {
+  if (match.selectedReleases !== undefined) {
+    return match.selectedReleases[0]
+  }
+
   if (match.latestRelease) {
     return match.latestRelease
   }
@@ -284,6 +306,7 @@ export function normalizeVndbSelectedMatch(
       latestRelease:
         releases.find((currentRelease) => currentRelease.id === release.id) ??
         release,
+      selectedReleases: [release],
       releases,
       releaseVns: release.vns
     }
@@ -314,6 +337,7 @@ export function normalizeVndbSelectedMatch(
     relations: mainVisualNovel.relations ?? result.relations,
     mainRelation: mainVisualNovel.mainRelation,
     latestRelease: release,
+    selectedReleases: [release],
     releases: getVndbReleasesWithSelectedRelease(result.releases, release),
     releaseVns: release.vns
   }

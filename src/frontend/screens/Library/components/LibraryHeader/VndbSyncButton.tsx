@@ -27,7 +27,7 @@ import {
 } from 'frontend/components/UI/Dialog'
 import fallbackImage from 'frontend/assets/heroic_card.jpg'
 import {
-  getVndbReleasesWithSelectedRelease,
+  getVndbReleasesWithSelectedReleases,
   getVndbReleaseMainVisualNovelId,
   getUniqueSortedVndbPlatforms,
   getVndbPlatformsLabel,
@@ -91,6 +91,7 @@ function storedMatchToResult(match: VndbGameMatch): VndbSearchResult {
     relations: match.relations ?? [],
     mainRelation: match.mainRelation,
     latestRelease: match.latestRelease,
+    selectedReleases: match.selectedReleases,
     releases: match.releases,
     releaseVns: match.releaseVns
   }
@@ -234,6 +235,10 @@ function getStoredMatchMainVisualNovelId(
 function getStoredMatchSelectedRelease(
   match: VndbGameMatch
 ): VndbRelease | undefined {
+  if (match.selectedReleases !== undefined) {
+    return match.selectedReleases[0]
+  }
+
   if (match.latestRelease) {
     return match.latestRelease
   }
@@ -253,13 +258,56 @@ function getStoredMatchSelectedRelease(
   }
 }
 
+function getStoredMatchSelectedReleases(match: VndbGameMatch): VndbRelease[] {
+  if (match.selectedReleases !== undefined) {
+    return match.selectedReleases
+  }
+
+  const selectedRelease = getStoredMatchSelectedRelease(match)
+  return selectedRelease ? [selectedRelease] : []
+}
+
+function getResultSelectedReleases(
+  result: VndbSearchResult | null | undefined
+): VndbRelease[] {
+  if (!result) {
+    return []
+  }
+
+  if (result.selectedReleases !== undefined) {
+    return result.selectedReleases
+  }
+
+  return result.latestRelease ? [result.latestRelease] : []
+}
+
+function getResultRelease(result: VndbSearchResult): VndbRelease | undefined {
+  if (result.source !== 'release') {
+    return undefined
+  }
+
+  return (
+    result.latestRelease ?? {
+      id: result.id,
+      title: result.title,
+      imageUrl: result.imageUrl,
+      released: result.released,
+      languages: result.languages,
+      platforms: result.platforms,
+      vns: result.releaseVns ?? []
+    }
+  )
+}
+
 function getHydratedMatchUpdate(
   match: VndbGameMatch,
   result: VndbSearchResult
 ): VndbGameMatchUpdate {
-  const selectedRelease = getStoredMatchSelectedRelease(match)
-  const releases = selectedRelease
-    ? getVndbReleasesWithSelectedRelease(result.releases, selectedRelease)
+  const selectedReleases = getStoredMatchSelectedReleases(match)
+  const selectedRelease = selectedReleases[0]
+  const hasExplicitSelection = match.selectedReleases !== undefined
+  const releases = selectedReleases.length
+    ? getVndbReleasesWithSelectedReleases(result.releases, selectedReleases)
     : result.releases
 
   return {
@@ -284,9 +332,13 @@ function getHydratedMatchUpdate(
     languages: result.languages,
     mainRelation: result.mainRelation,
     relations: result.relations,
-    latestRelease: selectedRelease ?? result.latestRelease,
+    latestRelease:
+      selectedRelease ?? (hasExplicitSelection ? undefined : result.latestRelease),
+    selectedReleases,
     releases,
-    releaseVns: selectedRelease?.vns ?? match.releaseVns ?? result.releaseVns
+    releaseVns:
+      selectedRelease?.vns ??
+      (hasExplicitSelection ? undefined : match.releaseVns ?? result.releaseVns)
   }
 }
 
@@ -473,27 +525,34 @@ function VndbPlatforms({ platforms }: { platforms: string[] }) {
   )
 }
 
-function VndbDownloadedRelease({ release }: { release?: VndbRelease }) {
+function VndbDownloadedReleases({ releases }: { releases: VndbRelease[] }) {
   const { t } = useTranslation()
 
-  if (!release) {
+  if (!releases.length) {
     return null
   }
 
-  const releaseLabel = [
-    release.title,
-    release.released ? `(${release.released})` : ''
-  ]
-    .filter(Boolean)
-    .join(' ')
-  const platforms = getVndbPlatformsLabel(release.platforms)
-  const label = platforms ? `${releaseLabel} - ${platforms}` : releaseLabel
+  const releaseLabels = releases.map((release) => {
+    const releaseLabel = [
+      release.title,
+      release.released ? `(${release.released})` : ''
+    ]
+      .filter(Boolean)
+      .join(' ')
+    const platforms = getVndbPlatformsLabel(release.platforms)
+    return platforms ? `${releaseLabel} - ${platforms}` : releaseLabel
+  })
+  const [firstRelease, ...otherReleases] = releaseLabels
+  const displayLabel = otherReleases.length
+    ? `${firstRelease} +${otherReleases.length}`
+    : firstRelease
+  const tooltipLabel = releaseLabels.join('\n')
 
   return (
-    <Tooltip title={label} arrow placement="bottom-start">
+    <Tooltip title={tooltipLabel} arrow placement="bottom-start">
       <span className="vndbSyncRelation">
-        {t('vndb.sync.downloaded-release', 'Downloaded: {{release}}', {
-          release: label
+        {t('vndb.sync.downloaded-releases', 'Downloaded: {{releases}}', {
+          releases: displayLabel
         })}
       </span>
     </Tooltip>
@@ -538,7 +597,7 @@ function VndbResultCard({
         </span>
         <VndbMainRelation relation={result.mainRelation} />
         <VndbReleaseVns result={result} />
-        <VndbDownloadedRelease release={result.latestRelease} />
+        <VndbDownloadedReleases releases={getResultSelectedReleases(result)} />
         <VndbLanguages languages={result.languages} locale={locale} />
         {result.source === 'release' && (
           <VndbPlatforms platforms={result.platforms} />
@@ -664,6 +723,49 @@ export default function VndbSyncButton({
 
     setPickerLoading(true)
     try {
+      if (result?.source === 'release') {
+        const release = getResultRelease(result)
+        const hydratedMatch = await hydrateSelectedMatch(result)
+        if (!release || !hydratedMatch) {
+          return
+        }
+
+        setSelectedMatches((current) => {
+          const currentMatch = current[pickerGameKey]
+          const isSameVisualNovel = currentMatch?.id === hydratedMatch.id
+          const selectedReleases = isSameVisualNovel
+            ? getResultSelectedReleases(currentMatch)
+            : []
+          const isSelected = selectedReleases.some(
+            (selectedRelease) => selectedRelease.id === release.id
+          )
+          const nextSelectedReleases = isSelected
+            ? selectedReleases.filter(
+                (selectedRelease) => selectedRelease.id !== release.id
+              )
+            : [...selectedReleases, release]
+          const availableReleases = [
+            ...(isSameVisualNovel ? (currentMatch?.releases ?? []) : []),
+            ...(hydratedMatch.releases ?? [])
+          ]
+
+          return {
+            ...current,
+            [pickerGameKey]: {
+              ...hydratedMatch,
+              latestRelease: nextSelectedReleases[0],
+              selectedReleases: nextSelectedReleases,
+              releases: getVndbReleasesWithSelectedReleases(
+                availableReleases,
+                nextSelectedReleases
+              ),
+              releaseVns: nextSelectedReleases[0]?.vns
+            }
+          }
+        })
+        return
+      }
+
       const selectedMatch = await hydrateSelectedMatch(result)
       setSelectedMatches((current) => ({
         ...current,
@@ -713,6 +815,7 @@ export default function VndbSyncButton({
             mainRelation: normalizedMatch?.mainRelation,
             relations: normalizedMatch?.relations,
             latestRelease: normalizedMatch?.latestRelease,
+            selectedReleases: normalizedMatch?.selectedReleases,
             releases: normalizedMatch?.releases,
             releaseVns: normalizedMatch?.releaseVns
           }
@@ -796,6 +899,11 @@ export default function VndbSyncButton({
       }) === pickerGameKey
   )
   const pickerResultSections = getPickerResultSections(pickerResults)
+  const pickerSelectedReleaseIds = new Set(
+    getResultSelectedReleases(
+      pickerGameKey ? selectedMatches[pickerGameKey] : undefined
+    ).map((release) => release.id)
+  )
 
   return (
     <>
@@ -844,7 +952,7 @@ export default function VndbSyncButton({
                         className="button is-ghost"
                         onClick={() => setPickerGameKey(null)}
                       >
-                        {t('button.cancel', 'Cancel')}
+                        {t('button.done', 'Done')}
                       </button>
                     </div>
                     <TextInputField
@@ -902,76 +1010,96 @@ export default function VndbSyncButton({
                           </h4>
                           <div className="vndbSyncPickerResults">
                             {section.items.map(
-                              ({ result, isPinnedMain, isNewestRelease }) => (
-                                <button
-                                  className={[
-                                    'vndbSyncPickerResult',
-                                    isPinnedMain
-                                      ? 'vndbSyncPickerResult--main'
-                                      : '',
-                                    isNewestRelease
-                                      ? 'vndbSyncPickerResult--newest'
-                                      : ''
-                                  ]
-                                    .filter(Boolean)
-                                    .join(' ')}
-                                  key={`${section.id}:${result.source}:${result.id}`}
-                                  onClick={() =>
-                                    void selectPickerResult(result)
-                                  }
-                                >
-                                  <CachedImage
-                                    src={result.imageUrl || fallbackImage}
-                                    fallback={fallbackImage}
-                                  />
-                                  <span className="vndbSyncPickerResultBody">
-                                    <Tooltip
-                                      title={result.title}
-                                      arrow
-                                      placement="bottom-start"
-                                    >
-                                      <strong>{result.title}</strong>
-                                    </Tooltip>
-                                    <small>
-                                      {result.id}
-                                      {result.released
-                                        ? ` - ${result.released}`
-                                        : ''}
-                                      {result.source === 'release'
-                                        ? ' - Release'
-                                        : ''}
-                                    </small>
-                                    <span className="vndbSyncResultBadges">
-                                      {isPinnedMain && (
-                                        <span className="vndbSyncResultBadge vndbSyncResultBadge--main">
-                                          Main
-                                        </span>
-                                      )}
-                                      {isNewestRelease && (
-                                        <span className="vndbSyncResultBadge vndbSyncResultBadge--newest">
-                                          Newest
-                                        </span>
+                              ({ result, isPinnedMain, isNewestRelease }) => {
+                                const isSelected =
+                                  result.source === 'release' &&
+                                  pickerSelectedReleaseIds.has(result.id)
+
+                                return (
+                                  <button
+                                    className={[
+                                      'vndbSyncPickerResult',
+                                      isPinnedMain
+                                        ? 'vndbSyncPickerResult--main'
+                                        : '',
+                                      isNewestRelease
+                                        ? 'vndbSyncPickerResult--newest'
+                                        : '',
+                                      isSelected
+                                        ? 'vndbSyncPickerResult--selected'
+                                        : ''
+                                    ]
+                                      .filter(Boolean)
+                                      .join(' ')}
+                                    key={`${section.id}:${result.source}:${result.id}`}
+                                    onClick={() =>
+                                      void selectPickerResult(result)
+                                    }
+                                    aria-pressed={
+                                      result.source === 'release'
+                                        ? isSelected
+                                        : undefined
+                                    }
+                                  >
+                                    <CachedImage
+                                      src={result.imageUrl || fallbackImage}
+                                      fallback={fallbackImage}
+                                    />
+                                    <span className="vndbSyncPickerResultBody">
+                                      <Tooltip
+                                        title={result.title}
+                                        arrow
+                                        placement="bottom-start"
+                                      >
+                                        <strong>{result.title}</strong>
+                                      </Tooltip>
+                                      <small>
+                                        {result.id}
+                                        {result.released
+                                          ? ` - ${result.released}`
+                                          : ''}
+                                        {result.source === 'release'
+                                          ? ' - Release'
+                                          : ''}
+                                      </small>
+                                      <span className="vndbSyncResultBadges">
+                                        {isPinnedMain && (
+                                          <span className="vndbSyncResultBadge vndbSyncResultBadge--main">
+                                            Main
+                                          </span>
+                                        )}
+                                        {isNewestRelease && (
+                                          <span className="vndbSyncResultBadge vndbSyncResultBadge--newest">
+                                            Newest
+                                          </span>
+                                        )}
+                                        {isSelected && (
+                                          <span className="vndbSyncResultBadge vndbSyncResultBadge--selected">
+                                            <FontAwesomeIcon icon={faCheck} />
+                                            {t(
+                                              'vndb.sync.selected',
+                                              'Selected'
+                                            )}
+                                          </span>
+                                        )}
+                                      </span>
+                                      <VndbMainRelation
+                                        relation={result.mainRelation}
+                                      />
+                                      <VndbReleaseVns result={result} />
+                                      <VndbLanguages
+                                        languages={result.languages}
+                                        locale={i18n.language}
+                                      />
+                                      {result.source === 'release' && (
+                                        <VndbPlatforms
+                                          platforms={result.platforms}
+                                        />
                                       )}
                                     </span>
-                                    <VndbMainRelation
-                                      relation={result.mainRelation}
-                                    />
-                                    <VndbReleaseVns result={result} />
-                                    <VndbDownloadedRelease
-                                      release={result.latestRelease}
-                                    />
-                                    <VndbLanguages
-                                      languages={result.languages}
-                                      locale={i18n.language}
-                                    />
-                                    {result.source === 'release' && (
-                                      <VndbPlatforms
-                                        platforms={result.platforms}
-                                      />
-                                    )}
-                                  </span>
-                                </button>
-                              )
+                                  </button>
+                                )
+                              }
                             )}
                           </div>
                         </section>

@@ -21,8 +21,8 @@ import {
   updateGame
 } from 'frontend/helpers'
 import {
-  getSelectedVndbRelease,
-  getVndbReleasesWithSelectedRelease
+  getSelectedVndbReleases,
+  getVndbReleasesWithSelectedReleases
 } from 'frontend/helpers/vndb'
 import { Link, NavLink, useLocation, useParams } from 'react-router-dom'
 import { Trans, useTranslation } from 'react-i18next'
@@ -369,11 +369,12 @@ export default React.memo(function GamePage(): JSX.Element | null {
           return
         }
 
-        const selectedRelease = getSelectedVndbRelease(vndbMatch)
-        const releases = selectedRelease
-          ? getVndbReleasesWithSelectedRelease(
+        const selectedReleases = getSelectedVndbReleases(vndbMatch)
+        const selectedRelease = selectedReleases[0]
+        const releases = selectedReleases.length
+          ? getVndbReleasesWithSelectedReleases(
               mainResult.releases,
-              selectedRelease
+              selectedReleases
             )
           : (mainResult.releases ?? vndbMatch.releases)
         const updatedMatches = await window.api.vndb.syncGameMatches([
@@ -401,13 +402,16 @@ export default React.memo(function GamePage(): JSX.Element | null {
             relations: mainResult.relations,
             latestRelease:
               selectedRelease ??
-              vndbMatch.latestRelease ??
-              mainResult.latestRelease,
+              (vndbMatch.selectedReleases !== undefined
+                ? undefined
+                : vndbMatch.latestRelease ?? mainResult.latestRelease),
+            selectedReleases: vndbMatch.selectedReleases,
             releases,
             releaseVns:
               selectedRelease?.vns ??
-              vndbMatch.releaseVns ??
-              mainResult.releaseVns
+              (vndbMatch.selectedReleases !== undefined
+                ? undefined
+                : vndbMatch.releaseVns ?? mainResult.releaseVns)
           }
         ])
 

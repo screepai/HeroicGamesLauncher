@@ -12,8 +12,9 @@ import { CachedImage, WarningMessage } from 'frontend/components/UI'
 import { createNewWindow } from 'frontend/helpers'
 import {
   getSelectedVndbRelease,
+  getSelectedVndbReleases,
   getVndbPlatformsLabel,
-  getVndbReleasesWithSelectedRelease,
+  getVndbReleasesWithSelectedReleases,
   sortVndbReleasesByDate
 } from 'frontend/helpers/vndb'
 import { useEffect, useState } from 'react'
@@ -105,8 +106,8 @@ function getSortedReleases(match: VndbGameMatch): VndbRelease[] {
     releases.set(release.id, release)
   }
 
-  if (match.latestRelease) {
-    releases.set(match.latestRelease.id, match.latestRelease)
+  for (const release of getSelectedVndbReleases(match)) {
+    releases.set(release.id, release)
   }
 
   return sortVndbReleasesByDate([...releases.values()])
@@ -748,7 +749,8 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
       return
     }
 
-    const selectedRelease = getSelectedVndbRelease(match)
+    const selectedReleases = getSelectedVndbReleases(match)
+    const selectedRelease = selectedReleases[0]
     const mainVersion = getMainVersionInfo(match)
     if (!mainVersion.id.startsWith('v')) {
       return
@@ -771,10 +773,10 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
           return
         }
 
-        const releases = selectedRelease
-          ? getVndbReleasesWithSelectedRelease(
+        const releases = selectedReleases.length
+          ? getVndbReleasesWithSelectedReleases(
               mainResult.releases,
-              selectedRelease
+              selectedReleases
             )
           : mainResult.releases
         const hasReleaseUpdate =
@@ -810,11 +812,16 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
             relations: mainResult.relations,
             latestRelease:
               selectedRelease ??
-              match.latestRelease ??
-              mainResult.latestRelease,
+              (match.selectedReleases !== undefined
+                ? undefined
+                : match.latestRelease ?? mainResult.latestRelease),
+            selectedReleases: match.selectedReleases,
             releases,
             releaseVns:
-              selectedRelease?.vns ?? match.releaseVns ?? mainResult.releaseVns
+              selectedRelease?.vns ??
+              (match.selectedReleases !== undefined
+                ? undefined
+                : match.releaseVns ?? mainResult.releaseVns)
           }
         ])
 
@@ -892,6 +899,7 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
       const nextMatch = {
         ...match,
         latestRelease: release,
+        selectedReleases: [release],
         releaseVns: release.vns
       }
       const updatedMatches = await window.api.vndb.syncGameMatches([
@@ -918,6 +926,7 @@ export default function VndbInfo({ match, onMatchChange }: Props) {
           mainRelation: match.mainRelation,
           relations: match.relations,
           latestRelease: release,
+          selectedReleases: [release],
           releases: match.releases,
           releaseVns: release.vns
         }

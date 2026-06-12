@@ -23,6 +23,7 @@ export interface VndbSearchResult {
   relations: VndbRelation[]
   mainRelation?: VndbRelation
   latestRelease?: VndbRelease
+  selectedReleases?: VndbRelease[]
   releases?: VndbRelease[]
   releaseVns?: VndbReleaseVisualNovel[]
 }
@@ -115,6 +116,7 @@ export interface VndbGameMatch {
   mainRelation?: VndbRelation
   relations?: VndbRelation[]
   latestRelease?: VndbRelease
+  selectedReleases?: VndbRelease[]
   releases?: VndbRelease[]
   releaseVns?: VndbReleaseVisualNovel[]
   syncedAt: string
@@ -165,6 +167,7 @@ export interface VndbGameMatchUpdate {
   mainRelation?: VndbRelation
   relations?: VndbRelation[]
   latestRelease?: VndbRelease
+  selectedReleases?: VndbRelease[]
   releases?: VndbRelease[]
   releaseVns?: VndbReleaseVisualNovel[]
 }

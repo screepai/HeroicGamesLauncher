@@ -340,6 +340,10 @@ button.vndbSyncCard:focus-visible {
   border-color: var(--accent);
 }
 
+.vndbSyncPickerResult--selected {
+  box-shadow: inset 0 0 0 2px var(--success, #4caf50);
+}
+
 .vndbSyncPickerResult img {
   aspect-ratio: 2 / 3;
   border-radius: var(--space-3xs);
@@ -391,6 +395,14 @@ button.vndbSyncCard:focus-visible {
 .vndbSyncResultBadge--newest {
   background: var(--accent);
   color: var(--text-tertiary);
+}
+
+.vndbSyncResultBadge--selected {
+  align-items: center;
+  background: var(--success, #4caf50);
+  color: var(--text-tertiary);
+  display: inline-flex;
+  gap: var(--space-3xs);
 }
 
 .vndbSyncPickerResult--none {

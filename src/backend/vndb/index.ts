@@ -702,6 +702,7 @@ export function syncVndbGameMatches(
 
   for (const update of updates) {
     const key = getMatchKey(update)
+    const previousMatch = currentMatches[key]
     if (!update.vndbId) {
       delete currentMatches[key]
       continue
@@ -732,6 +733,11 @@ export function syncVndbGameMatches(
       mainRelation: update.mainRelation,
       relations: update.relations,
       latestRelease: update.latestRelease,
+      selectedReleases:
+        update.selectedReleases ??
+        (previousMatch?.vndbId === update.vndbId
+          ? previousMatch.selectedReleases
+          : undefined),
       releases: update.releases,
       releaseVns: update.releaseVns,
       syncedAt
