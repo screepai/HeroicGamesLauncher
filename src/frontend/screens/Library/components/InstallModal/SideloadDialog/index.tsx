@@ -294,9 +294,13 @@ export default function SideloadDialog({
     })
     setAddingApp(false)
 
-    if (isVisualNovel) {
-      setVndbSyncGame(newGame)
-      return
+    if (newGame.isVisualNovel) {
+      const { autoVndbSyncNewGames } = await window.api.requestAppSettings()
+
+      if (autoVndbSyncNewGames) {
+        setVndbSyncGame(newGame)
+        return
+      }
     }
 
     return backdropClick()

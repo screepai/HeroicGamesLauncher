@@ -97,6 +97,7 @@ export interface AppSettings extends GameSettings {
   altLegendaryBin: string
   altNileBin: string
   autoUpdateGames: boolean
+  autoVndbSyncNewGames: boolean
   checkForUpdatesOnStartup: boolean
   checkUpdatesInterval: number
   customCSS: string

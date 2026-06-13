@@ -3,6 +3,7 @@ import LanguageSelector from 'frontend/components/UI/LanguageSelector'
 import { ThemeSelector } from 'frontend/components/UI/ThemeSelector'
 import {
   AutoUpdateGames,
+  AutoVndbSyncNewGames,
   CheckUpdatesOnStartup,
   DefaultInstallPath,
   DefaultSteamPath,
@@ -52,6 +53,8 @@ export default function GeneralSettings() {
       <CheckUpdatesOnStartup />
 
       <AutoUpdateGames />
+
+      <AutoVndbSyncNewGames />
 
       <HideChangelogOnStartup />
 
