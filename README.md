@@ -85,6 +85,7 @@ Heroic is built with Web Technologies:
 - One-click Locale Emulator (or just locale flags for Linux) setup for visual novels [Windows, for now]
 - Bulk selection and batch categorization of game cards
 - Type-to-search functionality directly within the library list
+- Built-in archive extraction with options to select contents and automatically clean up original files
 
 ## Planned features
 

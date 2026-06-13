@@ -91,7 +91,8 @@ export default function LocalLibraryWatcherHandler() {
               appName: '',
               runner: 'sideload',
               gameInfo: null,
-              sideloadTitle: currentFolder.title
+              sideloadTitle: currentFolder.title,
+              sideloadDefaultPath: currentFolder.folderPath
             })
         },
         {
@@ -108,11 +109,17 @@ export default function LocalLibraryWatcherHandler() {
         archive={currentFolder}
         onClose={() => setCurrentFolder(null)}
         onExtracted={(folder) => {
+          setPendingFolders((folders) =>
+            folders.filter(
+              (pendingFolder) => pendingFolder.folderPath !== folder.folderPath
+            )
+          )
           openInstallGameModal({
             appName: '',
             runner: 'sideload',
             gameInfo: null,
-            sideloadTitle: folder.title
+            sideloadTitle: folder.title,
+            sideloadDefaultPath: folder.folderPath
           })
           setCurrentFolder(null)
         }}

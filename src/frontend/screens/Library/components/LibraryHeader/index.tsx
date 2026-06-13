@@ -1,8 +1,14 @@
 import { memo, useContext, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import ActionIcons from 'frontend/components/UI/ActionIcons'
-import { GameInfo } from 'common/types'
+import {
+  getArchiveTitle,
+  LOCAL_LIBRARY_ARCHIVE_EXTENSIONS
+} from 'common/local_library_archive'
+import { GameInfo, LocalLibraryWatchEntry } from 'common/types'
 import type { VndbGameMatch } from 'common/types/vndb'
+import ArchiveExtractionDialog from 'frontend/components/ArchiveExtractionDialog'
+import { openInstallGameModal } from 'frontend/state/InstallGameModal'
 import LibraryContext from '../../LibraryContext'
 import './index.css'
 import AddGameButton from '../AddGameButton'
@@ -36,6 +42,8 @@ export default memo(function LibraryHeader({
     openSelectedGamesCategories
   } = useContext(LibraryContext)
   const [showBulkOptions, setShowBulkOptions] = useState(false)
+  const [archiveToExtract, setArchiveToExtract] =
+    useState<LocalLibraryWatchEntry | null>(null)
   const allVisibleGamesSelected =
     list.length > 0 && list.every((game) => isGameSelected(game))
 
@@ -51,6 +59,33 @@ export default memo(function LibraryHeader({
     const total = list.length - dlcCount
     return total > 0 ? `${total}` : 0
   }, [list])
+
+  const selectArchive = async () => {
+    const archivePath = await window.api.openDialog({
+      buttonLabel: t('box.extract', 'Extract'),
+      properties: ['openFile'],
+      title: t('box.extract-archive', 'Extract Archive'),
+      filters: [
+        {
+          name: t('box.archive-files', 'Archive files'),
+          extensions: LOCAL_LIBRARY_ARCHIVE_EXTENSIONS.map((extension) =>
+            extension.slice(1)
+          )
+        }
+      ]
+    })
+
+    if (!archivePath) {
+      return
+    }
+
+    const archiveName = archivePath.split(/[\\/]/).pop() ?? archivePath
+    setArchiveToExtract({
+      folderPath: archivePath,
+      isArchive: true,
+      title: getArchiveTitle(archiveName)
+    })
+  }
 
   return (
     <h5
@@ -120,7 +155,15 @@ export default memo(function LibraryHeader({
                 ? t('favourites', 'Favourites')
                 : t('title.allGames', 'All Games')}
               <span className="numberOfgames">{numberOfGames}</span>
-              <AddGameButton data-tour="library-add-game" />
+              <span className="libraryManualActions">
+                <AddGameButton data-tour="library-add-game" />
+                <button
+                  className="extractArchiveButton"
+                  onClick={() => void selectArchive()}
+                >
+                  {t('box.extract-archive', 'Extract Archive')}
+                </button>
+              </span>
               <VndbSyncButton
                 list={list}
                 onMatchesChange={onVndbMatchesChange}
@@ -130,6 +173,23 @@ export default memo(function LibraryHeader({
           </>
         )}
       </div>
+      {archiveToExtract && (
+        <ArchiveExtractionDialog
+          archive={archiveToExtract}
+          source="manual"
+          onClose={() => setArchiveToExtract(null)}
+          onExtracted={(folder) => {
+            setArchiveToExtract(null)
+            openInstallGameModal({
+              appName: '',
+              runner: 'sideload',
+              gameInfo: null,
+              sideloadTitle: folder.title,
+              sideloadDefaultPath: folder.folderPath
+            })
+          }}
+        />
+      )}
     </h5>
   )
 })

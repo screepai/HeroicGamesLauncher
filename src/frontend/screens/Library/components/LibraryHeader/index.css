@@ -21,6 +21,34 @@
   box-shadow: 0px 0px 0px 3px var(--button-stroke, var(--text-default));
 }
 
+.libraryManualActions {
+  display: inline-flex;
+  gap: var(--space-sm);
+  margin: 0 var(--space-lg);
+}
+
+.libraryManualActions .sideloadGameButton {
+  margin: 0;
+}
+
+.extractArchiveButton {
+  background: var(--input-background);
+  border: 1px solid var(--modal-border);
+  border-radius: var(--space-md);
+  color: var(--text-default);
+  cursor: pointer;
+  font-family: var(--secondary-font-family);
+  padding: var(--space-xs) var(--space-md);
+  text-transform: uppercase;
+  transition: 300ms;
+}
+
+.extractArchiveButton:hover,
+.extractArchiveButton:focus-visible {
+  background: var(--accent-overlay);
+  box-shadow: 0 0 0 3px var(--button-stroke, var(--text-default));
+}
+
 .numberOfgames {
   font-size: var(--text-md);
   font-weight: var(--regular);

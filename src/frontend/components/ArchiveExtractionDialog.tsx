@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Checkbox, CircularProgress, FormControlLabel } from '@mui/material'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
@@ -27,9 +27,21 @@ type Props = {
   archive: LocalLibraryWatchEntry
   onClose: () => void
   onExtracted: (folder: { folderPath: string; title: string }) => void
+  source?: 'manual' | 'watcher'
 }
 
-type Stage = 'prompt' | 'loading' | 'selection' | 'extracting'
+type ExtractedFolder = {
+  folderPath: string
+  title: string
+}
+
+type Stage =
+  | 'prompt'
+  | 'loading'
+  | 'selection'
+  | 'extracting'
+  | 'delete-prompt'
+  | 'deleting'
 
 function isPasswordError(error: unknown): boolean {
   return (
@@ -105,46 +117,78 @@ function isValidFolderName(folderName: string): boolean {
   )
 }
 
-function ArchiveTreeItem({
+const ArchiveTreeItem = memo(function ArchiveTreeItem({
   node,
   selectedPaths,
-  onToggle
+  finalRootPath,
+  onToggle,
+  onSelectFinalRoot
 }: {
   node: ArchiveTreeNode
   selectedPaths: Set<string>
+  finalRootPath: string | null
   onToggle: (paths: string[], selected: boolean) => void
+  onSelectFinalRoot: (node: ArchiveTreeNode) => void
 }) {
+  const { t } = useTranslation()
   const selectablePaths = getSelectablePaths(node)
   const selectedCount = selectablePaths.filter((path) =>
     selectedPaths.has(path)
   ).length
   const checked = selectedCount === selectablePaths.length
   const indeterminate = selectedCount > 0 && !checked
+  const selectableWithinRoot =
+    !finalRootPath ||
+    node.path === finalRootPath ||
+    node.path.startsWith(`${finalRootPath}/`)
 
   return (
     <li>
-      <FormControlLabel
-        className="archiveTreeLabel"
-        control={
-          <Checkbox
-            className="archiveTreeCheckbox"
-            checked={checked}
-            indeterminate={indeterminate}
-            onChange={() => onToggle(selectablePaths, !checked)}
-            size="small"
-          />
-        }
-        label={
-          <span className="archiveTreeEntry">
-            {node.isDirectory ? (
-              <FolderOutlinedIcon fontSize="small" />
-            ) : (
-              <InsertDriveFileOutlinedIcon fontSize="small" />
-            )}
-            <span>{node.name}</span>
-          </span>
-        }
-      />
+      <div className="archiveTreeRow">
+        <FormControlLabel
+          className="archiveTreeLabel"
+          control={
+            <Checkbox
+              className="archiveTreeCheckbox"
+              checked={checked}
+              disabled={!selectableWithinRoot}
+              indeterminate={indeterminate}
+              onChange={() => onToggle(selectablePaths, !checked)}
+              size="small"
+            />
+          }
+          label={
+            <span className="archiveTreeEntry">
+              {node.isDirectory ? (
+                <FolderOutlinedIcon fontSize="small" />
+              ) : (
+                <InsertDriveFileOutlinedIcon fontSize="small" />
+              )}
+              <span>{node.name}</span>
+            </span>
+          }
+        />
+        {node.isDirectory && (
+          <button
+            className={[
+              'archiveFinalRootButton',
+              finalRootPath === node.path ? 'is-selected' : ''
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            type="button"
+            aria-pressed={finalRootPath === node.path}
+            onClick={() => onSelectFinalRoot(node)}
+          >
+            {finalRootPath === node.path
+              ? t('box.local-library-archive.final-folder', 'Final folder')
+              : t(
+                  'box.local-library-archive.use-as-final-folder',
+                  'Use as final'
+                )}
+          </button>
+        )}
+      </div>
       {node.children.length > 0 && (
         <ul>
           {node.children.map((child) => (
@@ -152,19 +196,22 @@ function ArchiveTreeItem({
               key={child.path}
               node={child}
               selectedPaths={selectedPaths}
+              finalRootPath={finalRootPath}
               onToggle={onToggle}
+              onSelectFinalRoot={onSelectFinalRoot}
             />
           ))}
         </ul>
       )}
     </li>
   )
-}
+})
 
 export default function ArchiveExtractionDialog({
   archive,
   onClose,
-  onExtracted
+  onExtracted,
+  source = 'watcher'
 }: Props) {
   const { t } = useTranslation()
   const [stage, setStage] = useState<Stage>('prompt')
@@ -173,6 +220,9 @@ export default function ArchiveExtractionDialog({
   const [folderName, setFolderName] = useState(archive.title)
   const [password, setPassword] = useState('')
   const [passwordRequired, setPasswordRequired] = useState(false)
+  const [finalRootPath, setFinalRootPath] = useState<string | null>(null)
+  const [extractedFolder, setExtractedFolder] =
+    useState<ExtractedFolder | null>(null)
   const [error, setError] = useState('')
 
   const loadArchive = async () => {
@@ -210,7 +260,7 @@ export default function ArchiveExtractionDialog({
     }
   }
 
-  const togglePaths = (paths: string[], selected: boolean) => {
+  const togglePaths = useCallback((paths: string[], selected: boolean) => {
     setSelectedPaths((currentPaths) => {
       const nextPaths = new Set(currentPaths)
       for (const path of paths) {
@@ -222,6 +272,17 @@ export default function ArchiveExtractionDialog({
       }
       return nextPaths
     })
+  }, [])
+
+  const selectFinalRoot = useCallback((node: ArchiveTreeNode) => {
+    setFinalRootPath(node.path)
+    setFolderName(node.name)
+    setSelectedPaths(new Set(getSelectablePaths(node)))
+  }, [])
+
+  const useAutomaticRoot = () => {
+    setFinalRootPath(null)
+    setSelectedPaths(new Set(getAllSelectablePaths(tree)))
   }
 
   const extractArchive = async () => {
@@ -237,9 +298,11 @@ export default function ArchiveExtractionDialog({
         archivePath: archive.folderPath,
         destinationName: folderName.trim(),
         password: password || undefined,
+        rootPath: finalRootPath ?? undefined,
         selectedPaths: [...selectedPaths]
       })
-      onExtracted(extractedFolder)
+      setExtractedFolder(extractedFolder)
+      setStage('delete-prompt')
     } catch (extractionError) {
       if (isPasswordError(extractionError)) {
         setPasswordRequired(true)
@@ -261,33 +324,72 @@ export default function ArchiveExtractionDialog({
     }
   }
 
-  const isBusy = stage === 'loading' || stage === 'extracting'
+  const finishExtraction = () => {
+    if (extractedFolder) {
+      onExtracted(extractedFolder)
+    }
+  }
+
+  const deleteArchive = async () => {
+    setStage('deleting')
+    setError('')
+
+    try {
+      await window.api.deleteLocalLibraryArchive(archive.folderPath)
+      finishExtraction()
+    } catch (deletionError) {
+      setError(
+        deletionError instanceof Error
+          ? deletionError.message
+          : t(
+              'box.local-library-archive.delete-error',
+              'Unable to delete the original archive.'
+            )
+      )
+      setStage('delete-prompt')
+    }
+  }
+
+  const isBusy =
+    stage === 'loading' || stage === 'extracting' || stage === 'deleting'
   const folderNameValid = isValidFolderName(folderName)
   const passwordMissing = passwordRequired && password.length === 0
+  const closeDialog = stage === 'delete-prompt' ? finishExtraction : onClose
 
   return (
     <Dialog
-      onClose={isBusy ? () => {} : onClose}
+      onClose={isBusy ? () => {} : closeDialog}
       showCloseButton={!isBusy}
       className="ArchiveExtractionDialog"
     >
       <DialogHeader>
         {stage === 'prompt'
           ? t('box.local-library-archive.title', 'Compressed archive detected')
-          : t(
-              'box.local-library-archive.contents-title',
-              'Choose archive contents'
-            )}
+          : stage === 'delete-prompt' || stage === 'deleting'
+            ? t(
+                'box.local-library-archive.complete-title',
+                'Extraction complete'
+              )
+            : t(
+                'box.local-library-archive.contents-title',
+                'Choose archive contents'
+              )}
       </DialogHeader>
       <DialogContent className="archiveExtractionContent">
         {stage === 'prompt' && (
           <>
             <p>
-              {t(
-                'box.local-library-archive.message',
-                'The archive "{{title}}" was added to your watched local library. Do you want to extract it before adding the game?',
-                archive
-              )}
+              {source === 'manual'
+                ? t(
+                    'box.local-library-archive.manual-message',
+                    'Do you want to extract the archive "{{title}}" before adding the game?',
+                    archive
+                  )
+                : t(
+                    'box.local-library-archive.message',
+                    'The archive "{{title}}" was added to your watched local library. Do you want to extract it before adding the game?',
+                    archive
+                  )}
             </p>
             <code className="archivePath">{archive.folderPath}</code>
           </>
@@ -302,10 +404,15 @@ export default function ArchiveExtractionDialog({
                     'box.local-library-archive.reading',
                     'Reading archive contents...'
                   )
-                : t(
-                    'box.local-library-archive.extracting',
-                    'Extracting selected contents...'
-                  )}
+                : stage === 'extracting'
+                  ? t(
+                      'box.local-library-archive.extracting',
+                      'Extracting selected contents...'
+                    )
+                  : t(
+                      'box.local-library-archive.deleting',
+                      'Deleting original archive...'
+                    )}
             </span>
           </div>
         )}
@@ -321,12 +428,12 @@ export default function ArchiveExtractionDialog({
               value={folderName}
               onChange={setFolderName}
               warning={
-                !folderNameValid
-                  ? t(
+                folderNameValid
+                  ? undefined
+                  : t(
                       'box.local-library-archive.invalid-folder-name',
                       'Enter a valid folder name.'
                     )
-                  : undefined
               }
             />
 
@@ -356,6 +463,28 @@ export default function ArchiveExtractionDialog({
               </span>
             </div>
 
+            <div className="archiveFinalRoot">
+              <span>
+                {t(
+                  'box.local-library-archive.final-folder-help',
+                  'Choose the directory that should become the final extracted folder.'
+                )}
+              </span>
+              <button
+                className={[
+                  'archiveFinalRootButton',
+                  finalRootPath === null ? 'is-selected' : ''
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                type="button"
+                aria-pressed={finalRootPath === null}
+                onClick={useAutomaticRoot}
+              >
+                {t('box.local-library-archive.automatic-folder', 'Automatic')}
+              </button>
+            </div>
+
             <div className="archiveTree" role="tree">
               <ul>
                 {tree.map((node) => (
@@ -363,7 +492,9 @@ export default function ArchiveExtractionDialog({
                     key={node.path}
                     node={node}
                     selectedPaths={selectedPaths}
+                    finalRootPath={finalRootPath}
                     onToggle={togglePaths}
+                    onSelectFinalRoot={selectFinalRoot}
                   />
                 ))}
               </ul>
@@ -371,7 +502,19 @@ export default function ArchiveExtractionDialog({
           </>
         )}
 
-        {passwordRequired && !isBusy && (
+        {stage === 'delete-prompt' && (
+          <>
+            <p>
+              {t(
+                'box.local-library-archive.delete-message',
+                'Do you want to delete the original archive now that extraction is complete?'
+              )}
+            </p>
+            <code className="archivePath">{archive.folderPath}</code>
+          </>
+        )}
+
+        {passwordRequired && (stage === 'prompt' || stage === 'selection') && (
           <TextInputField
             htmlId="archive-extraction-password"
             label={t('box.local-library-archive.password', 'Archive password')}
@@ -385,13 +528,15 @@ export default function ArchiveExtractionDialog({
         {error && <WarningMessage>{error}</WarningMessage>}
       </DialogContent>
       <DialogFooter>
-        <button
-          className="button is-secondary"
-          onClick={onClose}
-          disabled={isBusy}
-        >
-          {t('button.cancel', 'Cancel')}
-        </button>
+        {stage !== 'delete-prompt' && (
+          <button
+            className="button is-secondary"
+            onClick={onClose}
+            disabled={isBusy}
+          >
+            {t('button.cancel', 'Cancel')}
+          </button>
+        )}
         {stage === 'prompt' && (
           <button
             className="button is-success"
@@ -411,6 +556,19 @@ export default function ArchiveExtractionDialog({
           >
             {t('box.extract-selected', 'Extract Selected')}
           </button>
+        )}
+        {stage === 'delete-prompt' && (
+          <>
+            <button className="button is-secondary" onClick={finishExtraction}>
+              {t('box.local-library-archive.keep-archive', 'Keep Archive')}
+            </button>
+            <button
+              className="button is-danger"
+              onClick={() => void deleteArchive()}
+            >
+              {t('box.local-library-archive.delete-archive', 'Delete Archive')}
+            </button>
+          </>
         )}
       </DialogFooter>
     </Dialog>

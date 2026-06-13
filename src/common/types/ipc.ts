@@ -171,8 +171,10 @@ interface AsyncIPCFunctions {
     archivePath: string
     destinationName: string
     password?: string
+    rootPath?: string
     selectedPaths: string[]
   }) => Promise<{ folderPath: string; title: string }>
+  deleteLocalLibraryArchive: (archivePath: string) => Promise<void>
   kill: (appName: string, runner: Runner) => Promise<void>
   checkDiskSpace: (folder: string) => Promise<DiskSpaceData>
   callTool: (args: Tools) => Promise<void>

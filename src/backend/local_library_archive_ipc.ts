@@ -1,5 +1,6 @@
 import { addHandler } from './ipc'
 import {
+  deleteLocalLibraryArchive,
   extractLocalLibraryArchive,
   listLocalLibraryArchive
 } from './local_library_archive'
@@ -14,4 +15,8 @@ addHandler('extractLocalLibraryArchive', (_event, args) =>
     ...args,
     onBeforePathCreated: suppressLocalLibraryPath
   })
+)
+
+addHandler('deleteLocalLibraryArchive', (_event, archivePath) =>
+  deleteLocalLibraryArchive(archivePath)
 )

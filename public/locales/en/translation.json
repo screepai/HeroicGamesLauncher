@@ -43,6 +43,7 @@
     },
     "box": {
         "add": "Add",
+        "archive-files": "Archive files",
         "cache-cleared": {
             "message": "Heroic cache cleared.",
             "title": "Cache cleared"
@@ -109,6 +110,7 @@
             }
         },
         "extract": "Extract",
+        "extract-archive": "Extract Archive",
         "extract-selected": "Extract Selected",
         "info": {
             "update": {
@@ -121,11 +123,21 @@
             }
         },
         "local-library-archive": {
+            "automatic-folder": "Automatic",
+            "complete-title": "Extraction complete",
             "contents-title": "Choose archive contents",
+            "delete-archive": "Delete Archive",
+            "delete-error": "Unable to delete the original archive.",
+            "delete-message": "Do you want to delete the original archive now that extraction is complete?",
+            "deleting": "Deleting original archive...",
             "extract-error": "Unable to extract the archive.",
             "extracting": "Extracting selected contents...",
+            "final-folder": "Final folder",
+            "final-folder-help": "Choose the directory that should become the final extracted folder.",
             "folder-name": "Final folder name",
             "invalid-folder-name": "Enter a valid folder name.",
+            "keep-archive": "Keep Archive",
+            "manual-message": "Do you want to extract the archive \"{{title}}\" before adding the game?",
             "message": "The archive \"{{title}}\" was added to your watched local library. Do you want to extract it before adding the game?",
             "password": "Archive password",
             "password-error": "Enter the archive password and try again.",
@@ -133,7 +145,8 @@
             "reading": "Reading archive contents...",
             "selected-count_one": "{{count}} selected",
             "selected-count_other": "{{count}} selected",
-            "title": "Compressed archive detected"
+            "title": "Compressed archive detected",
+            "use-as-final-folder": "Use as final"
         },
         "local-library-folder-added": {
             "message": "The folder \"{{title}}\" was added to your watched local library.\n\n{{folderPath}}\n\nDo you want to add it as a game?",

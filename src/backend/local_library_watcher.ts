@@ -61,6 +61,7 @@ function matchesExclusionRule(
 class LocalLibraryWatcher {
   private rootPath = ''
   private knownEntries = new Set<string>()
+  private suppressedEntries = new Set<string>()
   private exclusionRules: string[] = []
   private watcher: FSWatcher | undefined
   private reconcileTimeout: NodeJS.Timeout | undefined
@@ -76,7 +77,9 @@ class LocalLibraryWatcher {
 
   suppressPath(path: string): void {
     if (this.rootPath && dirname(resolve(path)) === resolve(this.rootPath)) {
-      this.knownEntries.add(basename(path))
+      const entryName = basename(path)
+      this.knownEntries.add(entryName)
+      this.suppressedEntries.add(entryName)
     }
   }
 
@@ -141,6 +144,7 @@ class LocalLibraryWatcher {
     this.watcher = undefined
     this.rootPath = ''
     this.knownEntries = new Set()
+    this.suppressedEntries = new Set()
   }
 
   private scheduleReconcile(): void {
@@ -184,7 +188,14 @@ class LocalLibraryWatcher {
       this.knownEntries,
       currentEntries,
       this.exclusionRules
-    )
+    ).filter((entryName) => !this.suppressedEntries.has(entryName))
+
+    for (const entryName of this.suppressedEntries) {
+      if (currentEntries.has(entryName)) {
+        this.suppressedEntries.delete(entryName)
+      }
+    }
+
     this.knownEntries = currentEntries
 
     for (const entryName of addedEntries) {

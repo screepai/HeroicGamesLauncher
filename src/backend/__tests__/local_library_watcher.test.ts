@@ -168,4 +168,31 @@ describe('local library watcher', () => {
       await fs.rm(rootPath, { recursive: true, force: true })
     }
   })
+
+  it('keeps future extraction destinations suppressed across staging reconciles', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-local-library-')
+    )
+    const stagingPath = join(rootPath, '.heroic-extract-staging')
+    const destinationPath = join(rootPath, 'Extracted Game')
+    const onFolderAdded = jest.fn()
+    const watcher = new LocalLibraryWatcher(onFolderAdded)
+
+    try {
+      await watcher.setPath(rootPath)
+      watcher.suppressPath(stagingPath)
+      watcher.suppressPath(destinationPath)
+
+      await fs.mkdir(stagingPath)
+      await new Promise((resolve) => setTimeout(resolve, 700))
+      await fs.rm(stagingPath, { recursive: true })
+      await fs.mkdir(destinationPath)
+      await new Promise((resolve) => setTimeout(resolve, 700))
+
+      expect(onFolderAdded).not.toHaveBeenCalled()
+    } finally {
+      watcher.stop()
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
 })

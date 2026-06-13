@@ -48,8 +48,23 @@
 }
 
 .archiveTreeLabel.MuiFormControlLabel-root {
+  flex: 1;
   margin: 0;
   min-height: 32px;
+}
+
+.ArchiveExtractionDialog .archiveTreeLabel .archiveTreeEntry {
+  color: var(--text-default);
+}
+
+.ArchiveExtractionDialog .archiveTreeLabel.Mui-disabled .archiveTreeEntry {
+  opacity: 0.6;
+}
+
+.archiveTreeRow {
+  align-items: center;
+  display: flex;
+  gap: var(--space-sm);
 }
 
 .archiveTreeCheckbox.MuiCheckbox-root {
@@ -59,6 +74,28 @@
 .archiveTreeCheckbox.MuiCheckbox-root.Mui-checked,
 .archiveTreeCheckbox.MuiCheckbox-root.MuiCheckbox-indeterminate {
   color: var(--accent, var(--success));
+}
+
+.archiveFinalRoot {
+  align-items: center;
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: space-between;
+}
+
+.archiveFinalRootButton {
+  background: var(--input-background);
+  border: 1px solid var(--modal-border);
+  border-radius: var(--space-sm);
+  color: var(--text-default);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: var(--space-2xs) var(--space-sm);
+}
+
+.archiveFinalRootButton.is-selected {
+  background: var(--accent-overlay);
+  border-color: var(--accent);
 }
 
 .archiveTreeEntry {

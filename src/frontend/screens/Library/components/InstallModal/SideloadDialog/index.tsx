@@ -40,6 +40,7 @@ type Props = {
   appName?: string
   title: string
   setTitle: (title: string) => void
+  defaultPath?: string
 }
 
 export default function SideloadDialog({
@@ -51,7 +52,8 @@ export default function SideloadDialog({
   children,
   appName,
   title,
-  setTitle
+  setTitle,
+  defaultPath
 }: Props) {
   const { t, i18n } = useTranslation('gamepage')
   const [selectedExe, setSelectedExe] = useState('')
@@ -239,11 +241,13 @@ export default function SideloadDialog({
       isVisualNovel
     })
 
-    window.api.setSetting({
-      appName: app_name,
-      key: 'jpLocale',
-      value: jpLocale
-    })
+    const gameSettings = await getGameSettings(app_name, 'sideload')
+    if (gameSettings) {
+      await writeConfig({
+        appName: app_name,
+        config: { ...gameSettings, jpLocale }
+      })
+    }
 
     await refreshLibrary({
       library: 'sideload',
@@ -558,7 +562,7 @@ export default function SideloadDialog({
                     path={selectedExe}
                     placeholder={t('sideload.info.exe', 'Select Executable')}
                     pathDialogTitle={t('box.sideload.exe', 'Select Executable')}
-                    pathDialogDefaultPath={winePrefix}
+                    pathDialogDefaultPath={defaultPath || winePrefix}
                     pathDialogFilters={fileFilters(platformToInstall)}
                     htmlId="sideload-exe"
                     label={t('sideload.info.exe', 'Select Executable')}

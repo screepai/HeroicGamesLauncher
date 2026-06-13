@@ -33,6 +33,7 @@ type Props = {
   runner: Runner
   gameInfo?: GameInfo | null
   sideloadTitle?: string
+  sideloadDefaultPath?: string
 }
 
 export type AvailablePlatforms = {
@@ -46,7 +47,8 @@ function InstallModal({
   appName,
   runner,
   gameInfo = null,
-  sideloadTitle: suggestedSideloadTitle
+  sideloadTitle: suggestedSideloadTitle,
+  sideloadDefaultPath
 }: Props) {
   const { platform } = useContext(ContextProvider)
   const { t } = useTranslation('gamepage')
@@ -264,6 +266,7 @@ function InstallModal({
             backdropClick={closeModal}
             platformToInstall={platformToInstall}
             appName={appName}
+            defaultPath={sideloadDefaultPath}
           >
             {platformSelection()}
             {hasWine ? (
@@ -299,6 +302,7 @@ export function InstallGameWrapper() {
       runner={installGameModalState.runner!}
       gameInfo={installGameModalState.gameInfo}
       sideloadTitle={installGameModalState.sideloadTitle}
+      sideloadDefaultPath={installGameModalState.sideloadDefaultPath}
     />
   )
 }

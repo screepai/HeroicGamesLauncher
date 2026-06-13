@@ -30,6 +30,7 @@ jest.mock('../utils', () => ({
 }))
 
 import {
+  deleteLocalLibraryArchive,
   extractLocalLibraryArchive,
   listLocalLibraryArchive,
   parseArchiveListing,
@@ -75,7 +76,7 @@ Attributes = A
     }
   )
 
-  it('extracts only selected files and promotes a single root directory', async () => {
+  it('discards an archive-named wrapper and keeps its selected parent folder as the result', async () => {
     const rootPath = await fs.mkdtemp(
       join(process.cwd(), '.tmp-heroic-local-library-archive-')
     )
@@ -102,7 +103,8 @@ Attributes = A
       const result = await extractLocalLibraryArchive({
         archivePath,
         destinationName: 'Renamed Game',
-        selectedPaths: ['Game/Keep/keep.txt'],
+        rootPath: 'Game/Keep',
+        selectedPaths: ['Game/Keep/keep.txt', 'Game/Keep/no-longer-listed.txt'],
         onBeforePathCreated: (path) => suppressedPaths.push(path)
       })
 
@@ -111,10 +113,10 @@ Attributes = A
         title: 'Renamed Game'
       })
       await expect(
-        fs.readFile(join(result.folderPath, 'Keep', 'keep.txt'), 'utf8')
+        fs.readFile(join(result.folderPath, 'keep.txt'), 'utf8')
       ).resolves.toBe('keep')
       await expect(
-        fs.access(join(result.folderPath, 'Delete'))
+        fs.access(join(result.folderPath, 'Keep'))
       ).rejects.toMatchObject({ code: 'ENOENT' })
       expect(suppressedPaths).toHaveLength(2)
       expect(suppressedPaths).toContain(result.folderPath)
@@ -166,6 +168,30 @@ Attributes = A
       await expect(
         fs.readFile(join(result.folderPath, 'secret.txt'), 'utf8')
       ).resolves.toBe('classified')
+    } finally {
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it('deletes only supported archive files', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-delete-archive-')
+    )
+    const archivePath = join(rootPath, 'game.zip')
+    const ordinaryFilePath = join(rootPath, 'game.exe')
+
+    try {
+      await fs.writeFile(archivePath, 'archive')
+      await fs.writeFile(ordinaryFilePath, 'game')
+
+      await deleteLocalLibraryArchive(archivePath)
+      await expect(fs.access(archivePath)).rejects.toMatchObject({
+        code: 'ENOENT'
+      })
+      await expect(deleteLocalLibraryArchive(ordinaryFilePath)).rejects.toThrow(
+        'not a supported archive'
+      )
+      await expect(fs.readFile(ordinaryFilePath, 'utf8')).resolves.toBe('game')
     } finally {
       await fs.rm(rootPath, { recursive: true, force: true })
     }

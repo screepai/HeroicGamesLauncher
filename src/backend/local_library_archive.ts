@@ -5,54 +5,20 @@ import { basename, dirname, join, resolve } from 'path'
 import { path7z } from '7zip-bin-full'
 import sanitizeFilename from 'sanitize-filename'
 
+import {
+  getArchiveExtension,
+  getArchiveTitle
+} from 'common/local_library_archive'
 import type { LocalLibraryArchiveEntry } from 'common/types'
 
 import { fixAsarPath } from './constants/paths'
 import { spawnAsync } from './utils'
 
-const ARCHIVE_EXTENSIONS = [
-  '.tar.bz2',
-  '.tar.gz',
-  '.tar.lz',
-  '.tar.lz4',
-  '.tar.lzma',
-  '.tar.xz',
-  '.tar.zst',
-  '.tbz2',
-  '.zipx',
-  '.7z',
-  '.ace',
-  '.alz',
-  '.arc',
-  '.arj',
-  '.bz',
-  '.bz2',
-  '.cab',
-  '.cpio',
-  '.gz',
-  '.gzip',
-  '.lha',
-  '.lzh',
-  '.lz',
-  '.lz4',
-  '.lzma',
-  '.rar',
-  '.tar',
-  '.taz',
-  '.tbz',
-  '.tgz',
-  '.tlz',
-  '.txz',
-  '.tzst',
-  '.xz',
-  '.zip',
-  '.zst'
-] as const
-
 type ExtractArchiveOptions = {
   archivePath: string
   destinationName: string
   password?: string
+  rootPath?: string
   selectedPaths: string[]
   onBeforePathCreated?: (path: string) => void
 }
@@ -75,22 +41,6 @@ function getArchiveCommandError(
   }
 
   return new Error(commandOutput || fallbackMessage)
-}
-
-function getArchiveExtension(fileName: string): string | undefined {
-  const normalizedFileName = fileName.toLowerCase()
-  return ARCHIVE_EXTENSIONS.find((extension) =>
-    normalizedFileName.endsWith(extension)
-  )
-}
-
-function getArchiveTitle(fileName: string): string {
-  const archiveExtension = getArchiveExtension(fileName)
-  if (!archiveExtension) {
-    return fileName
-  }
-
-  return fileName.slice(0, -archiveExtension.length) || fileName
 }
 
 function normalizeArchiveEntryPath(entryPath: string): string {
@@ -216,21 +166,37 @@ function validateDestinationName(destinationName: string): string {
   return normalizedName
 }
 
+async function deleteLocalLibraryArchive(archivePath: string): Promise<void> {
+  if (!getArchiveExtension(archivePath)) {
+    throw new Error('The selected path is not a supported archive')
+  }
+
+  const archiveStats = await fs.lstat(archivePath)
+  if (!archiveStats.isFile()) {
+    throw new Error('The selected archive path is not a file')
+  }
+
+  await fs.unlink(archivePath)
+}
+
 function expandSelectedPaths(
   entries: LocalLibraryArchiveEntry[],
   selectedPaths: string[]
-): Set<string> {
+): { paths: Set<string>; hasMatchingEntry: boolean } {
   const entriesByPath = new Map(entries.map((entry) => [entry.path, entry]))
   const selected = new Set<string>()
+  let hasMatchingEntry = false
 
   for (const selectedPath of selectedPaths) {
     const normalizedPath = normalizeArchiveEntryPath(selectedPath)
     const selectedEntry = entriesByPath.get(normalizedPath)
-    if (!selectedEntry) {
-      throw new Error(`Archive entry no longer exists: ${selectedPath}`)
-    }
 
     selected.add(normalizedPath)
+    if (!selectedEntry) {
+      continue
+    }
+
+    hasMatchingEntry = true
     if (selectedEntry.isDirectory) {
       for (const entry of entries) {
         if (entry.path.startsWith(`${normalizedPath}/`)) {
@@ -249,7 +215,24 @@ function expandSelectedPaths(
     }
   }
 
-  return selected
+  return { paths: selected, hasMatchingEntry }
+}
+
+function validateExtractionRoot(
+  entries: LocalLibraryArchiveEntry[],
+  rootPath?: string
+): string | undefined {
+  if (!rootPath) {
+    return
+  }
+
+  const normalizedRootPath = normalizeArchiveEntryPath(rootPath)
+  const rootEntry = entries.find((entry) => entry.path === normalizedRootPath)
+  if (!rootEntry?.isDirectory) {
+    throw new Error('The selected final folder is not a directory')
+  }
+
+  return normalizedRootPath
 }
 
 async function pruneExtractedTree(
@@ -280,14 +263,38 @@ async function pruneExtractedTree(
 
 async function moveExtractionResult(
   stagingPath: string,
-  destinationPath: string
+  destinationPath: string,
+  archivePath: string,
+  rootPath?: string
 ): Promise<void> {
+  if (rootPath) {
+    await fs.rename(join(stagingPath, ...rootPath.split('/')), destinationPath)
+    await fs.rm(stagingPath, { recursive: true, force: true }).catch(() => {})
+    return
+  }
+
   const topLevelEntries = await fs.readdir(stagingPath, {
     withFileTypes: true
   })
 
   if (topLevelEntries.length === 1 && topLevelEntries[0].isDirectory()) {
-    await fs.rename(join(stagingPath, topLevelEntries[0].name), destinationPath)
+    let extractionRoot = join(stagingPath, topLevelEntries[0].name)
+    const archiveTitle = getArchiveTitle(basename(archivePath))
+
+    if (
+      topLevelEntries[0].name.localeCompare(archiveTitle, undefined, {
+        sensitivity: 'accent'
+      }) === 0
+    ) {
+      const wrapperEntries = await fs.readdir(extractionRoot, {
+        withFileTypes: true
+      })
+      if (wrapperEntries.length === 1 && wrapperEntries[0].isDirectory()) {
+        extractionRoot = join(extractionRoot, wrapperEntries[0].name)
+      }
+    }
+
+    await fs.rename(extractionRoot, destinationPath)
     await fs.rm(stagingPath, { recursive: true, force: true }).catch(() => {})
     return
   }
@@ -299,13 +306,31 @@ async function extractLocalLibraryArchive({
   archivePath,
   destinationName,
   password,
+  rootPath,
   selectedPaths,
   onBeforePathCreated
 }: ExtractArchiveOptions): Promise<{ folderPath: string; title: string }> {
   const entries = await listLocalLibraryArchive(archivePath, password)
-  const selected = expandSelectedPaths(entries, selectedPaths)
+  const { paths: selected, hasMatchingEntry } = expandSelectedPaths(
+    entries,
+    selectedPaths
+  )
+  const normalizedRootPath = validateExtractionRoot(entries, rootPath)
   if (selected.size === 0) {
     throw new Error('Select at least one file or directory to extract')
+  }
+  if (!hasMatchingEntry) {
+    throw new Error('The selected archive entries no longer exist')
+  }
+  if (
+    normalizedRootPath &&
+    ![...selected].some(
+      (selectedPath) =>
+        selectedPath === normalizedRootPath ||
+        selectedPath.startsWith(`${normalizedRootPath}/`)
+    )
+  ) {
+    throw new Error('Select at least one item inside the final folder')
   }
 
   const normalizedDestinationName = validateDestinationName(destinationName)
@@ -359,7 +384,12 @@ async function extractLocalLibraryArchive({
     }
 
     await pruneExtractedTree(stagingPath, selected)
-    await moveExtractionResult(stagingPath, destinationPath)
+    await moveExtractionResult(
+      stagingPath,
+      destinationPath,
+      archivePath,
+      normalizedRootPath
+    )
 
     return {
       folderPath: destinationPath,
@@ -372,6 +402,7 @@ async function extractLocalLibraryArchive({
 }
 
 export {
+  deleteLocalLibraryArchive,
   extractLocalLibraryArchive,
   getArchiveExtension,
   getArchiveTitle,
