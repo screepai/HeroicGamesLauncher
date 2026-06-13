@@ -12,9 +12,8 @@
 Heroic is an Open Source Game Launcher for Linux, Windows and macOS.  
 Right now it supports launching games from the Epic Games Store using [Legendary](https://github.com/derrod/legendary), GOG Games using our custom implementation with [gogdl](https://github.com/Heroic-Games-Launcher/heroic-gogdl) and Amazon Games using [Nile](https://github.com/imLinguin/nile).
 
-[!IMPORTANT]
-
-This fork is primarily designed for local visual novel usage. Please note that compatibility with other standard launcher games is untested and cannot be guaranteed.
+> [!IMPORTANT]
+> This fork is primarily designed for local visual novel usage. Please note that compatibility with other standard launcher games is untested and cannot be guaranteed.
 
 Heroic is built with Web Technologies:  
 [![Typescript](https://img.shields.io/badge/Typescript-3178c6?style=for-the-badge&logo=typescript&labelColor=gray)](https://www.typescriptlang.org/)
