@@ -18,7 +18,7 @@ type Props = {
 
 function getSharedValue(
   settings: GameSettings[],
-  key: 'isVisualNovel' | 'jpLocale'
+  key: 'jpLocale'
 ): BulkSettingValue {
   const values = new Set(settings.map((gameSettings) => gameSettings[key]))
   return values.size === 1 ? (settings[0]?.[key] ?? false) : null
@@ -44,7 +44,12 @@ export default function BulkGameOptionsDialog({ games, onClose }: Props) {
           )
         )
 
-        setIsVisualNovel(getSharedValue(settings, 'isVisualNovel'))
+        const visualNovelValues = new Set(
+          games.map((game) => Boolean(game.isVisualNovel))
+        )
+        setIsVisualNovel(
+          visualNovelValues.size === 1 ? Boolean(games[0]?.isVisualNovel) : null
+        )
         setJpLocale(getSharedValue(settings, 'jpLocale'))
       } catch {
         setError(true)
@@ -57,17 +62,20 @@ export default function BulkGameOptionsDialog({ games, onClose }: Props) {
   }, [games])
 
   function applySettings() {
-    const uniqueAppNames = [...new Set(games.map((game) => game.app_name))]
-
-    for (const appName of uniqueAppNames) {
+    for (const game of games) {
       if (isVisualNovel !== null) {
-        window.api.setSetting({
-          appName,
-          key: 'isVisualNovel',
-          value: isVisualNovel
+        window.api.setGameMetadataOverride({
+          appName: game.app_name,
+          title: game.overrides?.title,
+          art_cover: game.overrides?.art_cover,
+          art_square: game.overrides?.art_square,
+          isVisualNovel
         })
       }
+    }
 
+    const uniqueAppNames = [...new Set(games.map((game) => game.app_name))]
+    for (const appName of uniqueAppNames) {
       if (jpLocale !== null) {
         window.api.setSetting({
           appName,

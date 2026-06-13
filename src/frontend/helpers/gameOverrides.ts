@@ -15,6 +15,10 @@ export const attachGameOverrides = (
       delete copy.overrides
       return copy
     }
-    return { ...game, overrides: override }
+    return {
+      ...game,
+      isVisualNovel: override.isVisualNovel ?? game.isVisualNovel ?? false,
+      overrides: override
+    }
   })
 }

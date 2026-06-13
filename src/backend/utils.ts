@@ -72,6 +72,7 @@ import { configStore, tsStore } from './constants/key_value_stores'
 import { GITHUB_API } from './constants/urls'
 import { isLinux, isMac, isIntelMac, isWindows } from './constants/environment'
 import { getVndbGameMatch } from './vndb'
+import { attachOverrides } from './game_overrides'
 import {
   configPath,
   fixAsarPath,
@@ -605,6 +606,7 @@ async function getSteamRuntime(
 }
 
 function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
+  gameInfo = attachOverrides(gameInfo)
   const client = new discordClient({
     clientId: '852942976564723722'
   })
@@ -638,7 +640,9 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
   }
 
   const updateActivity = async () => {
-    const vndbMatch = getVndbGameMatch(gameInfo.app_name, gameInfo.runner)
+    const vndbMatch = gameInfo.isVisualNovel
+      ? getVndbGameMatch(gameInfo.app_name, gameInfo.runner)
+      : null
     const activityTitle = vndbMatch?.vndbTitle ?? title
     const activityDetails = getVndbRichPresenceDetails(vndbMatch)
     const vndbButtons = getVndbRichPresenceButtons(vndbMatch)

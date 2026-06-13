@@ -112,7 +112,11 @@ function getDisplayTitle(game: GameInfo): string {
 }
 
 function isMatchableGame(game: GameInfo): boolean {
-  return Boolean(getDisplayTitle(game).trim()) && !game.install.is_dlc
+  return (
+    Boolean(game.isVisualNovel) &&
+    Boolean(getDisplayTitle(game).trim()) &&
+    !game.install.is_dlc
+  )
 }
 
 function getVndbUserDataSyncTarget(game: GameInfo): VndbUserDataSyncTarget {

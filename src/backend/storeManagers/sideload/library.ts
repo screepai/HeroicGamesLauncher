@@ -21,7 +21,8 @@ export default class SideloadLibraryManager implements LibraryManager {
     is_installed = true,
     description,
     customUserAgent,
-    launchFullScreen
+    launchFullScreen,
+    isVisualNovel
   }: GameInfo): void {
     const current = libraryStore.get('games', [])
     const gameIndex = current.findIndex((value) => value.app_name === app_name)
@@ -47,7 +48,8 @@ export default class SideloadLibraryManager implements LibraryManager {
       browserUrl,
       description,
       customUserAgent,
-      launchFullScreen
+      launchFullScreen,
+      isVisualNovel
     }
 
     if (isMac && executable?.endsWith('.app')) {

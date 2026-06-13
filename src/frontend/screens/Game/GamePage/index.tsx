@@ -322,6 +322,11 @@ export default React.memo(function GamePage(): JSX.Element | null {
   }, [appName])
 
   useEffect(() => {
+    if (!gameInfo.isVisualNovel) {
+      setVndbMatch(null)
+      return
+    }
+
     let isMounted = true
 
     window.api.vndb
@@ -341,10 +346,14 @@ export default React.memo(function GamePage(): JSX.Element | null {
     return () => {
       isMounted = false
     }
-  }, [appName, runner])
+  }, [appName, gameInfo.isVisualNovel, runner])
 
   useEffect(() => {
-    if (!vndbMatch || !vndbMatchNeedsGamePageDetails(vndbMatch)) {
+    if (
+      !gameInfo.isVisualNovel ||
+      !vndbMatch ||
+      !vndbMatchNeedsGamePageDetails(vndbMatch)
+    ) {
       return
     }
 
@@ -426,13 +435,13 @@ export default React.memo(function GamePage(): JSX.Element | null {
     return () => {
       isMounted = false
     }
-  }, [vndbMatch])
+  }, [gameInfo.isVisualNovel, vndbMatch])
 
   useEffect(() => {
-    if (currentTab === 'vndb' && !vndbMatch) {
+    if (currentTab === 'vndb' && (!gameInfo.isVisualNovel || !vndbMatch)) {
       setCurrentTab('info')
     }
-  }, [currentTab, vndbMatch])
+  }, [currentTab, gameInfo.isVisualNovel, vndbMatch])
 
   useEffect(() => {
     // when the user clicks the Play button, we disable it so the user can't click it again
@@ -689,7 +698,7 @@ export default React.memo(function GamePage(): JSX.Element | null {
                               icon={<Star className="gameInfoTabsIcon" />}
                             />
                           )}
-                          {vndbMatch && (
+                          {gameInfo.isVisualNovel && vndbMatch && (
                             <Tab
                               className="tabButton"
                               value={'vndb'}
@@ -724,7 +733,22 @@ export default React.memo(function GamePage(): JSX.Element | null {
                           className="infoTab"
                         >
                           <DownloadSizeInfo gameInfo={gameInfo} />
-                          <InstalledInfo gameInfo={gameInfo} />
+                          <InstalledInfo
+                            gameInfo={gameInfo}
+                            onIsVisualNovelChange={(isVisualNovel) => {
+                              setGameInfo((currentGameInfo) => ({
+                                ...currentGameInfo,
+                                isVisualNovel,
+                                overrides: {
+                                  ...currentGameInfo.overrides,
+                                  isVisualNovel
+                                }
+                              }))
+                              if (!isVisualNovel) {
+                                setVndbMatch(null)
+                              }
+                            }}
+                          />
                           <CloudSavesSync gameInfo={gameInfo} />
                         </TabPanel>
 
@@ -739,17 +763,19 @@ export default React.memo(function GamePage(): JSX.Element | null {
                           <AppleWikiInfo gameInfo={gameInfo} />
                         </TabPanel>
 
-                        <TabPanel
-                          value={currentTab}
-                          index="vndb"
-                          className="vndbTab"
-                        >
-                          <VndbInfo
-                            gameInfo={gameInfo}
-                            match={vndbMatch}
-                            onMatchChange={setVndbMatch}
-                          />
-                        </TabPanel>
+                        {gameInfo.isVisualNovel && vndbMatch && (
+                          <TabPanel
+                            value={currentTab}
+                            index="vndb"
+                            className="vndbTab"
+                          >
+                            <VndbInfo
+                              gameInfo={gameInfo}
+                              match={vndbMatch}
+                              onMatchChange={setVndbMatch}
+                            />
+                          </TabPanel>
+                        )}
 
                         <TabPanel
                           className="tabPanelRequirements"

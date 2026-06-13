@@ -140,6 +140,7 @@ interface SyncIPCFunctions {
     title?: string
     art_cover?: string
     art_square?: string
+    isVisualNovel?: boolean
   }) => void
 }
 
@@ -444,7 +445,12 @@ interface FrontendMessages {
   metadataChanged: (
     overrides: Record<
       string,
-      { title?: string; art_cover?: string; art_square?: string }
+      {
+        title?: string
+        art_cover?: string
+        art_square?: string
+        isVisualNovel?: boolean
+      }
     >
   ) => void
 

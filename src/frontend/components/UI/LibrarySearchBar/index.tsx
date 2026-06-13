@@ -46,9 +46,9 @@ export default function LibrarySearchBar() {
       .filter(Boolean)
       .filter((el) => {
         const title = el.overrides?.title || el.title
-        const vndbSearchNames = getVndbSearchNames(
-          vndbMatches[getGameVndbMatchKey(el)]
-        )
+        const vndbSearchNames = el.isVisualNovel
+          ? getVndbSearchNames(vndbMatches[getGameVndbMatchKey(el)])
+          : []
         return (
           !el.install.is_dlc &&
           [title, ...vndbSearchNames].some((title) =>

@@ -543,7 +543,9 @@ const GameCard = ({
   const showSettingsButton = isInstalled && !isUninstalling && !isBrowserGame
   const showUpdateBadge =
     hasUpdate && !isUpdating && !isQueued && activeController
-  const showVndbSyncButton = !gameInfo.install.is_dlc
+  const showVndbSyncButton =
+    Boolean(gameInfoFromProps.isVisualNovel) &&
+    !gameInfoFromProps.install.is_dlc
 
   return (
     <div>
@@ -657,7 +659,7 @@ const GameCard = ({
                 </>
               )}
               {showVndbSyncButton && (
-                <VndbSyncButton list={[gameInfo]} variant="icon" />
+                <VndbSyncButton list={[gameInfoFromProps]} variant="icon" />
               )}
               {renderIcon()}
             </span>

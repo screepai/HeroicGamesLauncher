@@ -102,7 +102,8 @@ export default function SideloadDialog({
           title,
           browserUrl,
           customUserAgent,
-          launchFullScreen
+          launchFullScreen,
+          isVisualNovel
         } = info
 
         if (executable && platform) {
@@ -122,6 +123,7 @@ export default function SideloadDialog({
           setLaunchFullScreen(launchFullScreen)
         }
 
+        setIsVisualNovel(isVisualNovel ?? false)
         setTitle(title)
         setImageUrl(art_square || '')
         setHeroUrl(art_cover && art_cover !== art_square ? art_cover : '')
@@ -129,7 +131,6 @@ export default function SideloadDialog({
 
       void getGameSettings(appName, 'sideload').then((settings) => {
         if (settings) {
-          setIsVisualNovel(settings.isVisualNovel)
           setJpLocale(settings.jpLocale)
         }
       })
@@ -226,14 +227,18 @@ export default function SideloadDialog({
       canRunOffline: true,
       browserUrl: gameUrl,
       customUserAgent,
-      launchFullScreen
+      launchFullScreen,
+      isVisualNovel
     })
 
-    window.api.setSetting({
+    window.api.setGameMetadataOverride({
       appName: app_name,
-      key: 'isVisualNovel',
-      value: isVisualNovel
+      title: gameInfo.overrides?.title,
+      art_cover: gameInfo.overrides?.art_cover,
+      art_square: gameInfo.overrides?.art_square,
+      isVisualNovel
     })
+
     window.api.setSetting({
       appName: app_name,
       key: 'jpLocale',

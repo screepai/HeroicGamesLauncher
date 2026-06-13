@@ -208,6 +208,7 @@ export interface GameInfo {
   thirdPartyManagedApp?: string
   isEAManaged?: boolean
   isUbisoftManaged?: boolean
+  isVisualNovel?: boolean
   is_mac_native?: boolean
   is_linux_native?: boolean
   browserUrl?: string
@@ -221,6 +222,7 @@ export interface GameInfo {
     title?: string
     art_cover?: string
     art_square?: string
+    isVisualNovel?: boolean
   }
 }
 
@@ -243,7 +245,6 @@ export interface GameSettings {
   gamescope: GameScopeSettings
   enviromentOptions: EnviromentVariable[]
   ignoreGameUpdates: boolean
-  isVisualNovel: boolean
   jpLocale: boolean
   language: string
   launcherArgs: string

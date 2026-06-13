@@ -12,6 +12,7 @@ import useSetting from 'frontend/hooks/useSetting'
 
 interface Props {
   gameInfo: GameInfo
+  onIsVisualNovelChange: (value: boolean) => void
 }
 
 function getUniqueSortedValues(values: string[]): string[] {
@@ -44,11 +45,10 @@ function getLanguageList(languages: string[], locale: string): string {
     .join(', ')
 }
 
-const InstalledInfo = ({ gameInfo }: Props) => {
+const InstalledInfo = ({ gameInfo, onIsVisualNovelChange }: Props) => {
   const { t, i18n } = useTranslation('gamepage')
   const { t: t2 } = useTranslation()
   const { gameSettings, runner, is, vndbMatch } = useContext(GameContext)
-  const [isVisualNovel, setIsVisualNovel] = useSetting('isVisualNovel', false)
   const [jpLocale, setJpLocale] = useSetting('jpLocale', false)
 
   if (!gameInfo.is_installed) {
@@ -64,8 +64,18 @@ const InstalledInfo = ({ gameInfo }: Props) => {
   const visualNovelSetting = !isThirdParty ? (
     <ToggleSwitch
       htmlId="is-visual-novel"
-      value={isVisualNovel}
-      handleChange={() => setIsVisualNovel(!isVisualNovel)}
+      value={gameInfo.isVisualNovel}
+      handleChange={() => {
+        const isVisualNovel = !gameInfo.isVisualNovel
+        window.api.setGameMetadataOverride({
+          appName: gameInfo.app_name,
+          title: gameInfo.overrides?.title,
+          art_cover: gameInfo.overrides?.art_cover,
+          art_square: gameInfo.overrides?.art_square,
+          isVisualNovel
+        })
+        onIsVisualNovelChange(isVisualNovel)
+      }}
       title={t('sideload.info.is-visual-novel', 'Is Visual Novel')}
       description={t(
         'sideload.info.is-visual-novel-description',

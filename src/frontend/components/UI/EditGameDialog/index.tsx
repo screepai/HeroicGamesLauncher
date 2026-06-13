@@ -56,7 +56,8 @@ export default function EditGameDialog({ gameInfo, backdropClick }: Props) {
       appName: gameInfo.app_name,
       title: title === gameInfo.title ? '' : title,
       art_cover: artCover === gameInfo.art_cover ? '' : artCover,
-      art_square: artSquare === gameInfo.art_square ? '' : artSquare
+      art_square: artSquare === gameInfo.art_square ? '' : artSquare,
+      isVisualNovel: gameInfo.isVisualNovel
     })
     backdropClick()
   }
@@ -79,7 +80,7 @@ export default function EditGameDialog({ gameInfo, backdropClick }: Props) {
   }
 
   const openSgdbPicker = (target: 'cover' | 'square') => {
-    if (!hasSgdbKey) return
+    if (!hasSgdbKey && !(gameInfo.isVisualNovel && target === 'square')) return
     setSgdbTarget(target)
   }
 
@@ -153,6 +154,10 @@ export default function EditGameDialog({ gameInfo, backdropClick }: Props) {
               <SteamGridDBPicker
                 initialTitle={title}
                 mode={sgdbTarget === 'cover' ? 'heroes' : 'grids'}
+                enableSteamGridDb={hasSgdbKey}
+                includeVndb={
+                  Boolean(gameInfo.isVisualNovel) && sgdbTarget === 'square'
+                }
                 onClose={() => setSgdbTarget(null)}
                 onSelect={(url: string) => {
                   if (sgdbTarget === 'cover') setArtCover(url)
@@ -187,7 +192,9 @@ export default function EditGameDialog({ gameInfo, backdropClick }: Props) {
                 {t('edit-game.square', 'Square Art')}
               </span>
               <div
-                className={classNames('appImageContainer', { hasSgdbKey })}
+                className={classNames('appImageContainer', {
+                  hasSgdbKey: hasSgdbKey || gameInfo.isVisualNovel
+                })}
                 onClick={() => openSgdbPicker('square')}
               >
                 <CachedImage
@@ -199,7 +206,7 @@ export default function EditGameDialog({ gameInfo, backdropClick }: Props) {
                     fallbackImage
                   }
                 />
-                {hasSgdbKey && (
+                {(hasSgdbKey || gameInfo.isVisualNovel) && (
                   <div className="imageHoverOverlay">
                     <FontAwesomeIcon icon={faSearch} size="3x" />
                   </div>

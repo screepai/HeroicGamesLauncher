@@ -702,9 +702,9 @@ export default React.memo(function Library(): JSX.Element {
       const searchableLibrary: SearchableGame[] = filteredLibrary.map(
         (game) => {
           const title = game.overrides?.title || game.title
-          const vndbSearchNames = getVndbSearchNames(
-            vndbMatches[getGameVndbMatchKey(game)]
-          )
+          const vndbSearchNames = game.isVisualNovel
+            ? getVndbSearchNames(vndbMatches[getGameVndbMatchKey(game)])
+            : []
           return {
             original: game,
             normalizedSearchNames: [title, ...vndbSearchNames].map(

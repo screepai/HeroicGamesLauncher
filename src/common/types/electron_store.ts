@@ -121,6 +121,7 @@ export interface StoreStructure {
         title?: string
         art_cover?: string
         art_square?: string
+        isVisualNovel?: boolean
       }
     >
   }

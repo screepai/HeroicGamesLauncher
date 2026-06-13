@@ -72,7 +72,12 @@ export function setGameOverrides(
     >
 
     // If override is empty, remove it and drop any stored image files.
-    if (!override.title && !override.art_cover && !override.art_square) {
+    if (
+      !override.title &&
+      !override.art_cover &&
+      !override.art_square &&
+      override.isVisualNovel === undefined
+    ) {
       delete currentOverrides[appName]
       removeImagesForApp(appName)
     } else {
@@ -98,5 +103,9 @@ export function attachOverrides(gameInfo: GameInfo): GameInfo {
   if (!overrides) {
     return gameInfo
   }
-  return { ...gameInfo, overrides }
+  return {
+    ...gameInfo,
+    isVisualNovel: overrides.isVisualNovel ?? gameInfo.isVisualNovel ?? false,
+    overrides
+  }
 }

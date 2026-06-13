@@ -10,6 +10,7 @@ export interface GameMetadataOverride {
   title?: string
   art_cover?: string
   art_square?: string
+  isVisualNovel?: boolean
 }
 
 export const gameOverridesStore = new TypeCheckedStoreBackend(

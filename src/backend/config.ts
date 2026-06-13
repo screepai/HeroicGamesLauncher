@@ -372,7 +372,6 @@ class GlobalConfigV0 extends GlobalConfig {
       verboseLogs: true,
       downloadProtonToSteam: false,
       advertiseAvxForRosetta: isMac && defaultWine.type === 'toolkit',
-      isVisualNovel: false,
       jpLocale: false,
       noTrayIcon: false,
       showValveProton: false,
