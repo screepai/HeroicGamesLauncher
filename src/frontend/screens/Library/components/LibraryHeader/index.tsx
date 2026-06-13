@@ -61,8 +61,10 @@ export default memo(function LibraryHeader({
   }, [list])
 
   const selectArchive = async () => {
+    const { localLibrarySyncPath } = await window.api.requestAppSettings()
     const archivePath = await window.api.openDialog({
       buttonLabel: t('box.extract', 'Extract'),
+      defaultPath: localLibrarySyncPath || undefined,
       properties: ['openFile'],
       title: t('box.extract-archive', 'Extract Archive'),
       filters: [

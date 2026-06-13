@@ -35,13 +35,16 @@ import {
   sortVndbItemsByDate,
   sortVndbReleasesByDate
 } from 'frontend/helpers/vndb'
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 type Props = {
   list: GameInfo[]
   variant?: 'header' | 'icon'
   onMatchesChange?: (matches: Record<string, VndbGameMatch>) => void
+  autoOpen?: boolean
+  hideTrigger?: boolean
+  onClose?: () => void
 }
 
 type MatchState = Record<string, VndbSearchResult | null>
@@ -511,7 +514,10 @@ function VndbResultCard({
 export default function VndbSyncButton({
   list,
   variant = 'header',
-  onMatchesChange
+  onMatchesChange,
+  autoOpen = false,
+  hideTrigger = false,
+  onClose
 }: Props) {
   const { t, i18n } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -525,6 +531,7 @@ export default function VndbSyncButton({
   const [pickerResults, setPickerResults] = useState<VndbSearchResult[]>([])
   const [pickerLoading, setPickerLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const autoOpenStarted = useRef(false)
 
   const matchableGames = useMemo(() => list.filter(isMatchableGame), [list])
   const matchableGamesByKey = useMemo(
@@ -533,7 +540,7 @@ export default function VndbSyncButton({
     [matchableGames]
   )
 
-  async function loadMatches() {
+  const loadMatches = useCallback(async () => {
     setOpen(true)
     setLoadingMatches(true)
     setError(null)
@@ -585,6 +592,18 @@ export default function VndbSyncButton({
     } finally {
       setLoadingMatches(false)
     }
+  }, [matchableGames, t])
+
+  useEffect(() => {
+    if (autoOpen && !autoOpenStarted.current && matchableGames.length) {
+      autoOpenStarted.current = true
+      void loadMatches()
+    }
+  }, [autoOpen, loadMatches, matchableGames.length])
+
+  function closeDialog() {
+    setOpen(false)
+    onClose?.()
   }
 
   async function searchPicker(queryOverride?: string) {
@@ -745,7 +764,7 @@ export default function VndbSyncButton({
         matchableGames.map(getVndbUserDataSyncTarget)
       )
       onMatchesChange?.(updatedMatches)
-      setOpen(false)
+      closeDialog()
     } catch (err) {
       console.error(err)
       setError(t('vndb.sync.error.save', 'Unable to sync VNDB matches.'))
@@ -795,21 +814,23 @@ export default function VndbSyncButton({
 
   return (
     <>
-      <button
-        className={
-          variant === 'icon' ? 'svg-button vndbSyncIcon' : 'vndbSyncButton'
-        }
-        title={t('vndb.sync.title', 'Sync VNDB Titles')}
-        onClick={() => void loadMatches()}
-        disabled={!matchableGames.length}
-      >
-        <FontAwesomeIcon icon={variant === 'icon' ? faSyncAlt : faSearch} />
-        {variant === 'header' && t('vndb.sync.button', 'VNDB')}
-      </button>
+      {!hideTrigger && (
+        <button
+          className={
+            variant === 'icon' ? 'svg-button vndbSyncIcon' : 'vndbSyncButton'
+          }
+          title={t('vndb.sync.title', 'Sync VNDB Titles')}
+          onClick={() => void loadMatches()}
+          disabled={!matchableGames.length}
+        >
+          <FontAwesomeIcon icon={variant === 'icon' ? faSyncAlt : faSearch} />
+          {variant === 'header' && t('vndb.sync.button', 'VNDB')}
+        </button>
+      )}
 
       {open && (
         <Dialog
-          onClose={() => setOpen(false)}
+          onClose={closeDialog}
           showCloseButton
           className="VndbSyncDialog"
         >
@@ -1064,7 +1085,7 @@ export default function VndbSyncButton({
             </button>
             <button
               className="button is-secondary"
-              onClick={() => setOpen(false)}
+              onClick={closeDialog}
               disabled={syncing || refreshingMatches}
             >
               {t('button.cancel', 'Cancel')}

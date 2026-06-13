@@ -136,4 +136,11 @@
     flex-wrap: wrap;
     gap: var(--space-xs);
   }
+
+  .categoriesButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
+  }
 }

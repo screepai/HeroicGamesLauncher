@@ -19,7 +19,13 @@ import {
   removeSpecialcharacters,
   writeConfig
 } from 'frontend/helpers'
-import React, { useCallback, useContext, useEffect, useState } from 'react'
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState
+} from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { AvailablePlatforms } from '..'
 import fallbackImage from 'frontend/assets/heroic_card.jpg'
@@ -29,6 +35,9 @@ import axios from 'axios'
 import { NavLink, useNavigate } from 'react-router-dom'
 import TextInputWithIconField from 'frontend/components/UI/TextInputWithIconField'
 import Folder from '@mui/icons-material/Folder'
+import List from '@mui/icons-material/List'
+import VndbSyncButton from '../../LibraryHeader/VndbSyncButton'
+import CategoriesManager from '../../CategoriesManager'
 
 type Props = {
   availablePlatforms: AvailablePlatforms
@@ -70,11 +79,34 @@ export default function SideloadDialog({
   const [runningSetup, setRunningSetup] = useState(false)
   const [gameInfo, setGameInfo] = useState<Partial<GameInfo>>({})
   const [addingApp, setAddingApp] = useState(false)
+  const [vndbSyncGame, setVndbSyncGame] = useState<GameInfo | null>(null)
+  const [showCategories, setShowCategories] = useState(false)
   const [sgdbTarget, setSgdbTarget] = useState<'cover' | 'square' | null>(null)
   const [hasSgdbKey, setHasSgdbKey] = useState(false)
   const editMode = Boolean(appName)
 
-  const { refreshLibrary, platform } = useContext(ContextProvider)
+  const { customCategories, refreshLibrary, platform } =
+    useContext(ContextProvider)
+  const appNameRef = useRef(app_name)
+  const gameSavedRef = useRef(editMode)
+  const customCategoriesRef = useRef(customCategories)
+  appNameRef.current = app_name
+  customCategoriesRef.current = customCategories
+
+  useEffect(
+    () => () => {
+      if (gameSavedRef.current || !appNameRef.current) {
+        return
+      }
+
+      const gameId = `${appNameRef.current}_sideload`
+      for (const category of customCategoriesRef.current.listCategories()) {
+        customCategoriesRef.current.removeFromGame(category, gameId)
+      }
+    },
+    []
+  )
+
   const navigate = useNavigate()
   const goToAdvancedSettings = () => {
     backdropClick()
@@ -213,9 +245,8 @@ export default function SideloadDialog({
     else setImageUrl(`file://${path}`)
   }
 
-  async function handleInstall(): Promise<void> {
-    setAddingApp(true)
-    window.api.addNewApp({
+  function getSideloadGameInfo(): GameInfo {
+    return {
       runner: 'sideload',
       app_name,
       title,
@@ -231,7 +262,14 @@ export default function SideloadDialog({
       customUserAgent,
       launchFullScreen,
       isVisualNovel
-    })
+    }
+  }
+
+  async function handleInstall(): Promise<void> {
+    setAddingApp(true)
+    const newGame = getSideloadGameInfo()
+    window.api.addNewApp(newGame)
+    gameSavedRef.current = true
 
     window.api.setGameMetadataOverride({
       appName: app_name,
@@ -255,6 +293,12 @@ export default function SideloadDialog({
       checkForUpdates: true
     })
     setAddingApp(false)
+
+    if (isVisualNovel) {
+      setVndbSyncGame(newGame)
+      return
+    }
+
     return backdropClick()
   }
 
@@ -483,6 +527,15 @@ export default function SideloadDialog({
                     )}
                   />
                 )}
+                <button
+                  type="button"
+                  className="button is-secondary categoriesButton"
+                  disabled={!app_name}
+                  onClick={() => setShowCategories(true)}
+                >
+                  <List />
+                  {t('submenu.categories', 'Categories')}
+                </button>
                 <details className="advancedFields">
                   <summary>{t('sideload.images.summary', 'Images')}</summary>
                   <TextInputWithIconField
@@ -632,6 +685,20 @@ export default function SideloadDialog({
           {!addingApp && t('button.finish', 'Finish')}
         </button>
       </DialogFooter>
+      {vndbSyncGame && (
+        <VndbSyncButton
+          list={[vndbSyncGame]}
+          autoOpen
+          hideTrigger
+          onClose={backdropClick}
+        />
+      )}
+      {showCategories && (
+        <CategoriesManager
+          games={[getSideloadGameInfo()]}
+          onClose={() => setShowCategories(false)}
+        />
+      )}
     </>
   )
 }
