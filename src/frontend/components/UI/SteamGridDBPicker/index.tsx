@@ -192,7 +192,10 @@ export default function SteamGridDBPicker({
               : t('steamgriddb.picker.title', 'SteamGridDB Covers')}
           </h3>
         </div>
-        <button className="button is-ghost" onClick={onClose}>
+        <button
+          className="button is-ghost SteamGridDBPicker__close"
+          onClick={onClose}
+        >
           <FontAwesomeIcon icon={faTimes} />
         </button>
       </div>

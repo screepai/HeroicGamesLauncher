@@ -20,6 +20,10 @@
   z-index: 1;
 }
 
+.InstallModal__dialog .SteamGridDBPicker__close {
+  margin-inline-end: 40px;
+}
+
 .InstallModal__dialog > .anticheatInfo {
   display: flex;
   padding: var(--space-xs) var(--space-md);

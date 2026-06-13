@@ -11,6 +11,17 @@
     min-width: 0;
     overflow-y: auto;
     max-height: 70vh;
+
+    .SteamGridDBPicker {
+      height: 70vh;
+    }
+
+    .SteamGridDBPicker__grids {
+      flex: 1;
+      min-height: 0;
+      max-height: none;
+      overflow-y: auto;
+    }
   }
 
   .textInputFieldWrapper.Field .selectFieldWrapper.Field {
