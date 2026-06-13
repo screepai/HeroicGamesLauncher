@@ -36,6 +36,16 @@ import {
   wineDownloaderInfoStore
 } from './wine/manager/utils'
 
+function parseJsonObject(json: string): Record<string, unknown> {
+  const parsed: unknown = JSON.parse(json)
+
+  if (typeof parsed !== 'object' || parsed === null) {
+    throw new Error('Expected config file to contain a JSON object')
+  }
+
+  return parsed as Record<string, unknown>
+}
+
 function getSteamCompatFolder() {
   // Paths are from https://savelocation.net/steam-game-folder
   if (isWindows) {
@@ -99,7 +109,8 @@ abstract class GlobalConfig {
     else {
       // Check version field in the config.
       try {
-        version = JSON.parse(readFileSync(configPath, 'utf-8'))['version']
+        const config = parseJsonObject(readFileSync(configPath, 'utf-8'))
+        version = config['version'] as GlobalConfigVersion
       } catch (error) {
         logError(
           [`Config file is corrupted, please check ${configPath}:`, error],
@@ -299,8 +310,8 @@ class GlobalConfigV0 extends GlobalConfig {
       return this.getFactoryDefaults()
     }
 
-    let settings = JSON.parse(readFileSync(configPath, 'utf-8'))
-    const defaultSettings = settings.defaultSettings as AppSettings
+    const settings = parseJsonObject(readFileSync(configPath, 'utf-8'))
+    const defaultSettings = settings['defaultSettings'] as AppSettings
 
     // keep old setting value for backwards compatibility, always use defaultWinePrefixDir in new code
     if (!defaultSettings.defaultWinePrefixDir)
@@ -311,13 +322,11 @@ class GlobalConfigV0 extends GlobalConfig {
       ? defaultSettings?.winePrefix?.replace('~', userHome)
       : ''
 
-    settings = {
+    return {
       ...this.getFactoryDefaults(),
       ...defaultSettings,
       winePrefix
     } as AppSettings
-
-    return settings
   }
 
   public getFactoryDefaults(): AppSettings {
@@ -340,7 +349,9 @@ class GlobalConfigV0 extends GlobalConfig {
       customWinePaths: [],
       defaultInstallPath: heroicInstallPath,
       libraryTopSection: 'disabled',
+      localLibrarySyncExclusions: [],
       localeEmulatorPath: '',
+      localLibrarySyncPath: '',
       defaultSteamPath: getSteamCompatFolder(),
       defaultWinePrefix: defaultWinePrefixDir,
       defaultWinePrefixDir: defaultWinePrefixDir,

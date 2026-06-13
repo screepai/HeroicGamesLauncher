@@ -22,6 +22,7 @@ import { TourProvider } from './state/TourContext'
 import { InstallGameWrapper } from './screens/Library/components/InstallModal'
 import { SettingsModalWrapper } from './screens/Settings/components/SettingsModal'
 import AnalyticsDialog from './screens/Settings/components/AnalyticsDialog'
+import LocalLibraryWatcherHandler from './components/LocalLibraryWatcherHandler'
 
 function Root() {
   const {
@@ -91,6 +92,7 @@ function Root() {
             <Sidebar />
             <main className="content">
               <DialogHandler />
+              <LocalLibraryWatcherHandler />
               <InstallGameWrapper />
               <SettingsModalWrapper />
               <ExternalLinkDialog />

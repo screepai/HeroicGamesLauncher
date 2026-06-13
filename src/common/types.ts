@@ -126,7 +126,9 @@ export interface AppSettings extends GameSettings {
   hideChangelogsOnStartup: boolean
   hideWindowOnProtocolLaunch: boolean
   libraryTopSection: LibraryTopSectionOptions
+  localLibrarySyncExclusions: string[]
   localeEmulatorPath: string
+  localLibrarySyncPath: string
   maxRecentGames: number
   maxWorkers: number
   minimizeOnLaunch: boolean
@@ -862,6 +864,19 @@ export interface RunnerCommandStub {
   response?: Promise<ExecResult>
   stdout?: string
   stderr?: string
+}
+
+export interface LocalLibraryArchiveEntry {
+  path: string
+  isDirectory: boolean
+  size: number
+  isEncrypted?: boolean
+}
+
+export interface LocalLibraryWatchEntry {
+  folderPath: string
+  isArchive: boolean
+  title: string
 }
 
 export interface SGDBGrid {

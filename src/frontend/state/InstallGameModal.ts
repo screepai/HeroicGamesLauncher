@@ -7,6 +7,7 @@ interface InstallGameModalState {
   runner?: Runner
   gameInfo: GameInfo | null
   action?: 'install' | 'import'
+  sideloadTitle?: string
 }
 
 export const useInstallGameModal = create<InstallGameModalState>()(() => ({
@@ -20,24 +21,28 @@ interface OpenInstallGameModalParams {
   runner: Runner
   gameInfo: GameInfo | null
   action?: 'install' | 'import'
+  sideloadTitle?: string
 }
 export const openInstallGameModal = ({
   appName,
   runner,
   gameInfo,
-  action = 'install'
+  action = 'install',
+  sideloadTitle
 }: OpenInstallGameModalParams) => {
   useInstallGameModal.setState({
     isOpen: true,
     appName,
     runner,
     gameInfo,
-    action
+    action,
+    sideloadTitle
   })
 }
 
 export const closeInstallGameModal = () => {
   useInstallGameModal.setState({
-    isOpen: false
+    isOpen: false,
+    sideloadTitle: undefined
   })
 }

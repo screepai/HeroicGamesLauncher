@@ -27,7 +27,7 @@ import { existsSync, watch, readdirSync, readFileSync } from 'graceful-fs'
 import 'source-map-support/register'
 
 import Backend from 'i18next-fs-backend'
-import i18next from 'i18next'
+import { changeLanguage, t, use } from 'i18next'
 import { join } from 'path'
 import { DXVK, Winetricks } from './tools'
 import { GameConfig } from './game_config'
@@ -149,10 +149,12 @@ import {
 } from './constants/paths'
 import { supportedLanguages } from 'common/languages'
 import MigrationSystem from './migration'
+import { initLocalLibraryWatcher } from './local_library_watcher'
+import './local_library_archive_ipc'
 
 if (isLinux) app.commandLine?.appendSwitch('--gtk-version', '3')
 
-async function initializeWindow(): Promise<BrowserWindow> {
+function initializeWindow(): BrowserWindow {
   createNecessaryFolders()
   configStore.set('userHome', userHome)
   const mainWindow = createMainWindow()
@@ -187,13 +189,13 @@ async function initializeWindow(): Promise<BrowserWindow> {
 
     void DXVK.getLatest()
 
-    Winetricks.download()
+    void Winetricks.download()
     if (shouldDownloadWine) {
-      downloadDefaultWine()
+      void downloadDefaultWine()
     }
 
     if (isMac) {
-      checkRosettaInstall()
+      void checkRosettaInstall()
     }
   }, 2500)
 
@@ -210,7 +212,7 @@ async function initializeWindow(): Promise<BrowserWindow> {
   mainWindow.on('leave-full-screen', () =>
     sendFrontendMessage('fullscreen', false)
   )
-  mainWindow.on('close', async (e) => {
+  mainWindow.on('close', (e) => {
     e.preventDefault()
 
     if (!isCLIFullscreen && !isSteamDeckGameMode) {
@@ -228,7 +230,7 @@ async function initializeWindow(): Promise<BrowserWindow> {
       return mainWindow.hide()
     }
 
-    handleExit()
+    void handleExit()
   })
 
   detectVCRedist(mainWindow)
@@ -240,17 +242,17 @@ async function initializeWindow(): Promise<BrowserWindow> {
     const devUrl = startHash
       ? `${process.env.ELECTRON_RENDERER_URL}#${startHash}`
       : process.env.ELECTRON_RENDERER_URL
-    mainWindow.loadURL(devUrl)
+    void mainWindow.loadURL(devUrl)
     // Open the DevTools.
     mainWindow.webContents.openDevTools()
   } else {
     Menu.setApplicationMenu(null)
-    mainWindow.loadFile(
+    void mainWindow.loadFile(
       join(publicDir, 'index.html'),
       startHash ? { hash: startHash } : undefined
     )
     if (globalConf.checkForUpdatesOnStartup) {
-      autoUpdater.checkForUpdates()
+      void autoUpdater.checkForUpdates()
     }
   }
 
@@ -259,7 +261,7 @@ async function initializeWindow(): Promise<BrowserWindow> {
     const pattern = app.isPackaged ? publicDir : 'localhost:5173'
     if (!url.match(pattern)) {
       event.preventDefault()
-      openUrlOrFile(url)
+      void openUrlOrFile(url)
     }
   })
 
@@ -268,10 +270,10 @@ async function initializeWindow(): Promise<BrowserWindow> {
     return { action: !details.url.match(pattern) ? 'allow' : 'deny' }
   })
 
-  addListener('setZoomFactor', async (event, zoomFactor) => {
+  addListener('setZoomFactor', (event, zoomFactor) => {
     const factor = processZoomForScreen(parseFloat(zoomFactor))
     mainWindow.webContents.setZoomLevel(factor)
-    mainWindow.webContents.setVisualZoomLevelLimits(1, 1)
+    void mainWindow.webContents.setVisualZoomLevelLimits(1, 1)
   })
 
   function applyZoom() {
@@ -279,7 +281,7 @@ async function initializeWindow(): Promise<BrowserWindow> {
       configStore.get('zoomPercent', 100) / 100
     )
     mainWindow.webContents.setZoomLevel(zoomFactor)
-    mainWindow.webContents.setVisualZoomLevelLimits(1, 1)
+    void mainWindow.webContents.setVisualZoomLevelLimits(1, 1)
   }
 
   mainWindow.on('maximize', applyZoom)
@@ -319,15 +321,15 @@ if (!gotTheLock) {
       mainWindow?.show()
     }
 
-    handleProtocol(argv)
+    void handleProtocol(argv)
   })
-  app.whenReady().then(async () => {
+  void app.whenReady().then(async () => {
     initLogger()
 
     await MigrationSystem.get().applyMigrations()
 
     initOnlineMonitor()
-    initStoreManagers()
+    void initStoreManagers()
     initImagesCache()
 
     // Add User-Agent Client hints to behave like Windows
@@ -345,7 +347,7 @@ if (!gotTheLock) {
       app.setAppUserModelId('Heroic Games Launcher')
     }
 
-    runOnceWhenOnline(async () => {
+    runOnceWhenOnline(() => {
       const isLoggedIn = LegendaryUser.isLoggedIn()
 
       if (!isLoggedIn) {
@@ -358,14 +360,14 @@ if (!gotTheLock) {
 
       // Update user details
       if (GOGUser.isLoggedIn()) {
-        GOGUser.getUserDetails()
+        void GOGUser.getUserDetails()
       }
     })
 
     const settings = GlobalConfig.get().getSettings()
 
     if (settings && settings.analyticsOptIn === true) {
-      startPlausible()
+      void startPlausible()
     }
 
     if (settings?.disableSmoothScrolling) {
@@ -382,7 +384,7 @@ if (!gotTheLock) {
       })
     }
     runOnceWhenOnline(gogPresence.setPresence)
-    await i18next.use(Backend).init({
+    await use(Backend).init({
       backend: {
         addPath: path.join(publicDir, 'locales', '{{lng}}', '{{ns}}'),
         allowMultiLoading: false,
@@ -396,10 +398,10 @@ if (!gotTheLock) {
       supportedLngs: supportedLanguages
     })
 
-    const mainWindow = await initializeWindow()
+    const mainWindow = initializeWindow()
 
     protocol.handle('heroic', (request) => {
-      handleProtocol([request.url])
+      void handleProtocol([request.url])
       return new Response('Operation initiated.', { status: 201 })
     })
     if (process.env.CI !== 'e2e' && !app.isDefaultProtocolClient('heroic')) {
@@ -445,12 +447,12 @@ if (!gotTheLock) {
       )
 
       mainWindow.webContents.setZoomLevel(zoomFactor)
-      mainWindow.webContents.setVisualZoomLevelLimits(1, 1)
+      void mainWindow.webContents.setVisualZoomLevelLimits(1, 1)
     }, 200)
 
     addListener('changeLanguage', async (event, language) => {
       logInfo(['Changing Language to:', language], LogPrefix.Backend)
-      await i18next.changeLanguage(language)
+      await changeLanguage(language)
       gameInfoStore.clear()
       GlobalConfig.get().setSetting('language', language)
       backendEvents.emit('languageChanged')
@@ -458,7 +460,7 @@ if (!gotTheLock) {
 
     fetchLastestReleases()
 
-    initTrayIcon(mainWindow)
+    void initTrayIcon(mainWindow)
 
     return
   })
@@ -468,17 +470,18 @@ addListener('notify', (event, args) => notify(args))
 
 addOneTimeListener('frontendReady', () => {
   logInfo('Frontend Ready', LogPrefix.Backend)
-  handleProtocol([openUrlArgument, ...process.argv])
+  initLocalLibraryWatcher()
+  void handleProtocol([openUrlArgument, ...process.argv])
 
   if (isSnap) {
     const snapWarning: Electron.MessageBoxOptions = {
-      title: i18next.t('box.warning.snap.title', 'Heroic is running as a Snap'),
-      message: i18next.t('box.warning.snap.message', {
+      title: t('box.warning.snap.title', 'Heroic is running as a Snap'),
+      message: t('box.warning.snap.message', {
         defaultValue:
           'Some features are not available in the Snap version of the app for now and we are trying to fix it.{{newLine}}Current limitations are: {{newLine}}Heroic will not be able to find Proton from Steam or Wine from Lutris.{{newLine}}{{newLine}}Gamescope, GameMode and MangoHud will also not work since Heroic cannot have access to them.{{newLine}}{{newLine}}To have access to this feature please install Heroic as a Flatpak, DEB or from the AppImage.',
         newLine: '\n'
       }),
-      checkboxLabel: i18next.t('box.warning.snap.checkbox', {
+      checkboxLabel: t('box.warning.snap.checkbox', {
         defaultValue: 'Do not show this message again'
       }),
       checkboxChecked: false
@@ -487,7 +490,7 @@ addOneTimeListener('frontendReady', () => {
     const showSnapWarning = configStore.get('showSnapWarning', true)
 
     if (showSnapWarning) {
-      dialog
+      void dialog
         .showMessageBox({
           ...snapWarning
         })
@@ -506,12 +509,12 @@ addOneTimeListener('frontendReady', () => {
 
   setTimeout(() => {
     logInfo('Starting the Download Queue', LogPrefix.Backend)
-    initQueue()
+    void initQueue()
   }, 5000)
 })
 
 // Maybe this can help with white screens
-process.on('uncaughtException', async (err) => {
+process.on('uncaughtException', (err) => {
   logError(err, LogPrefix.Backend)
 
   // We might get "object has been destroyed" exceptions in CI, since we start
@@ -520,11 +523,11 @@ process.on('uncaughtException', async (err) => {
   if (process.env.CI === 'e2e') return
 
   showDialogBoxModalAuto({
-    title: i18next.t(
+    title: t(
       'box.error.uncaught-exception.title',
       'Uncaught Exception occured!'
     ),
-    message: i18next.t('box.error.uncaught-exception.message', {
+    message: t('box.error.uncaught-exception.message', {
       defaultValue:
         'A uncaught exception occured:{{newLine}}{{error}}{{newLine}}{{newLine}} Report the exception on our Github repository.',
       newLine: '\n',
@@ -609,7 +612,7 @@ app.on('open-url', (event, url) => {
   const mainWindow = getMainWindow()
 
   if (mainWindow) {
-    handleProtocol([url])
+    void handleProtocol([url])
   } else {
     openUrlArgument = url
   }
@@ -642,7 +645,7 @@ addListener('showConfigFileInFolder', async (event, appName) => {
   return openUrlOrFile(path.join(gamesConfigPath, `${appName}.json`))
 })
 
-addListener('removeFolder', async (e, [path, folderName]) => {
+addListener('removeFolder', (e, [path, folderName]) => {
   removeFolder(path, folderName)
 })
 
@@ -701,13 +704,10 @@ addListener('clearCache', (event, showDialog, fromVersionChange = false) => {
   if (showDialog) {
     showDialogBoxModalAuto({
       event,
-      title: i18next.t('box.cache-cleared.title', 'Cache Cleared'),
-      message: i18next.t(
-        'box.cache-cleared.message',
-        'Heroic Cache Was Cleared!'
-      ),
+      title: t('box.cache-cleared.title', 'Cache Cleared'),
+      message: t('box.cache-cleared.message', 'Heroic Cache Was Cleared!'),
       type: 'MESSAGE',
-      buttons: [{ text: i18next.t('box.ok', 'Ok') }]
+      buttons: [{ text: t('box.ok', 'Ok') }]
     })
   }
 })
@@ -723,7 +723,7 @@ addListener('clearAchievementCache', (event, appName: string) => {
 addListener('resetHeroic', () => resetHeroic())
 
 addListener('createNewWindow', (e, url) => {
-  new BrowserWindow({ height: 700, width: 1200 }).loadURL(url)
+  void new BrowserWindow({ height: 700, width: 1200 }).loadURL(url)
 })
 
 addHandler('isGameAvailable', async (e, args) => {
@@ -731,7 +731,7 @@ addHandler('isGameAvailable', async (e, args) => {
   return gameManagerMap[runner].isGameAvailable(appName)
 })
 
-addHandler('getGameInfo', async (event, appName, runner) => {
+addHandler('getGameInfo', (event, appName, runner) => {
   // Fastpath since we sometimes have to request info for a GOG game as Legendary because we don't know it's a GOG game yet
   if (
     runner === 'legendary' &&
@@ -806,7 +806,7 @@ addHandler(
   }
 )
 
-addHandler('getUserInfo', async () => {
+addHandler('getUserInfo', () => {
   return LegendaryUser.getUserInfo()
 })
 
@@ -936,7 +936,7 @@ addHandler('openDialog', async (e, args) => {
   return false
 })
 
-addListener('showItemInFolder', async (e, item) => showItemInFolder(item))
+addListener('showItemInFolder', (e, item) => showItemInFolder(item))
 
 addHandler('uninstall', uninstallGameCallback)
 
@@ -962,11 +962,11 @@ addHandler('repair', async (event, appName, runner) => {
   } catch (error) {
     notify({
       title,
-      body: i18next.t('notify.error.reparing', 'Error Repairing')
+      body: t('notify.error.reparing', 'Error Repairing')
     })
     logError(error, LogPrefix.Backend)
   }
-  notify({ title, body: i18next.t('notify.finished.reparing') })
+  notify({ title, body: t('notify.finished.reparing') })
   logInfo('Finished repairing', LogPrefix.Backend)
 
   sendGameStatusUpdate({
@@ -986,13 +986,13 @@ addHandler(
     })
 
     const { title } = gameManagerMap[runner].getGameInfo(appName)
-    notify({ title, body: i18next.t('notify.moving', 'Moving Game') })
+    notify({ title, body: t('notify.moving', 'Moving Game') })
 
     const moveRes = await gameManagerMap[runner].moveInstall(appName, path)
     if (moveRes.status === 'error') {
       notify({
         title,
-        body: i18next.t('notify.error.move', 'Error Moving Game')
+        body: t('notify.error.move', 'Error Moving Game')
       })
       logError(
         `Error while moving ${appName} to ${path}: ${moveRes.error} `,
@@ -1001,8 +1001,8 @@ addHandler(
 
       showDialogBoxModalAuto({
         event,
-        title: i18next.t('box.error.title', 'Error'),
-        message: i18next.t('box.error.moving', 'Error Moving Game {{error}}', {
+        title: t('box.error.title', 'Error'),
+        message: t('box.error.moving', 'Error Moving Game {{error}}', {
           error: moveRes.error
         }),
         type: 'ERROR'
@@ -1010,7 +1010,7 @@ addHandler(
     }
 
     if (moveRes.status === 'done') {
-      notify({ title, body: i18next.t('notify.moved') })
+      notify({ title, body: t('notify.moved') })
       logInfo(`Finished moving ${appName} to ${path}.`, LogPrefix.Backend)
     }
 
@@ -1041,8 +1041,8 @@ addHandler(
       if (epicOffline) {
         showDialogBoxModalAuto({
           event,
-          title: i18next.t('box.warning.title', 'Warning'),
-          message: i18next.t(
+          title: t('box.warning.title', 'Warning'),
+          message: t(
             'box.warning.epic.import',
             'Epic Servers are having major outage right now, the game cannot be imported!'
           ),
@@ -1062,7 +1062,7 @@ addHandler(
     const abortMessage = () => {
       notify({
         title,
-        body: i18next.t('notify.import.failed', 'Importing Failed')
+        body: t('notify.import.failed', 'Importing Failed')
       })
       sendGameStatusUpdate({
         appName,
@@ -1099,7 +1099,7 @@ addHandler(
 
     notify({
       title,
-      body: i18next.t('notify.install.imported', 'Game Imported')
+      body: t('notify.install.imported', 'Game Imported')
     })
     sendGameStatusUpdate({
       appName,
@@ -1147,7 +1147,7 @@ addHandler('getLaunchOptions', async (event, appName, runner) => {
     )
   ) {
     availableLaunchOptions.unshift({
-      name: i18next.t('launch.default', 'Default', {
+      name: t('launch.default', 'Default', {
         ns: 'gamepage'
       }),
       parameters: '',
@@ -1186,7 +1186,7 @@ addHandler(
 )
 
 // Simulate keyboard and mouse actions as if the real input device is used
-addHandler('gamepadAction', async (event, args) => {
+addHandler('gamepadAction', (event, args) => {
   // we can only receive gamepad events if the main window exists
   const mainWindow = getMainWindow()!
 
@@ -1322,7 +1322,7 @@ addHandler('clipboardReadText', () => clipboard.readText())
 
 addListener('clipboardWriteText', (e, text) => clipboard.writeText(text))
 
-addHandler('getCustomThemes', async () => {
+addHandler('getCustomThemes', () => {
   const { customThemesPath } = GlobalConfig.get().getSettings()
 
   if (!existsSync(customThemesPath)) {
@@ -1334,7 +1334,7 @@ addHandler('getCustomThemes', async () => {
   )
 })
 
-addHandler('getThemeCSS', async (event, theme) => {
+addHandler('getThemeCSS', (event, theme) => {
   const { customThemesPath = '' } = GlobalConfig.get().getSettings()
 
   const cssPath = path.join(customThemesPath, theme)
@@ -1346,7 +1346,7 @@ addHandler('getThemeCSS', async (event, theme) => {
   return readFileSync(cssPath, 'utf-8')
 })
 
-addHandler('getCustomCSS', async () => {
+addHandler('getCustomCSS', () => {
   return GlobalConfig.get().getSettings().customCSS
 })
 
@@ -1373,11 +1373,11 @@ addListener('setGameMetadataOverride', (e, args) => {
   sendFrontendMessage('metadataChanged', getAllGameOverrides())
 })
 
-addHandler('getGameMetadataOverride', async (_e, appName) => {
+addHandler('getGameMetadataOverride', (_e, appName) => {
   return getGameOverrides(appName)
 })
 
-addHandler('getAllGameOverrides', async () => {
+addHandler('getAllGameOverrides', () => {
   return getAllGameOverrides()
 })
 
@@ -1385,11 +1385,11 @@ addHandler('isNative', (e, { appName, runner }) => {
   return gameManagerMap[runner].isNative(appName)
 })
 
-addHandler('pathExists', async (e, path: string) => {
+addHandler('pathExists', (e, path: string) => {
   return existsSync(path)
 })
 
-addListener('processShortcut', async (e, combination: string) => {
+addListener('processShortcut', (e, combination: string) => {
   const mainWindow = getMainWindow()
 
   switch (combination) {
@@ -1399,7 +1399,7 @@ addListener('processShortcut', async (e, combination: string) => {
       break
     // hotkey to quit the app
     case 'ctrl+q':
-      handleExit()
+      void handleExit()
       break
     // hotkey to open the settings on frontend
     case 'ctrl+k':
@@ -1444,7 +1444,7 @@ addHandler('setPrivateBranchPassword', (e, appName, password) =>
 addHandler('getAvailableCyberpunkMods', async () =>
   gameManagerMap['gog'].getCyberpunkMods()
 )
-addHandler('setCyberpunkModConfig', async (e, props) =>
+addHandler('setCyberpunkModConfig', (e, props) =>
   libraryManagerMap['gog'].setCyberpunkModConfig(props)
 )
 

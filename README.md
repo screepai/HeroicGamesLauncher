@@ -11,7 +11,9 @@
 
 Heroic is an Open Source Game Launcher for Linux, Windows and macOS.  
 Right now it supports launching games from the Epic Games Store using [Legendary](https://github.com/derrod/legendary), GOG Games using our custom implementation with [gogdl](https://github.com/Heroic-Games-Launcher/heroic-gogdl) and Amazon Games using [Nile](https://github.com/imLinguin/nile).
-This fork is modified mainly for local visual novel usage.
+
+[!IMPORTANT]
+This fork is primarily designed for local visual novel usage. Please note that compatibility with other standard launcher games is untested and cannot be guaranteed.
 
 Heroic is built with Web Technologies:  
 [![Typescript](https://img.shields.io/badge/Typescript-3178c6?style=for-the-badge&logo=typescript&labelColor=gray)](https://www.typescriptlang.org/)
@@ -76,8 +78,8 @@ Heroic is built with Web Technologies:
 - Sync game library with VNDB library
 - Library layout grouped by categories that follow your custom drag-and-drop order
 - Enhanced Discord Rich Presence including session time, total playtime tracking and buttons
-- Local storage sync with customizable exclusion rules (planned)
-- Automatic VNDB synchronization for newly added visual novels from local storage (planned)
+- Local storage sync with customizable exclusion rules
+- Automatic VNDB synchronization for newly added visual novels from local storage
 - Dedicated VNDB tab to seamlessly view information, modify labels, and cast votes
 - Cover image search integration supporting both VNDB and SteamGridDB
 - One-click Locale Emulator (or just locale flags for Linux) setup for visual novels [Windows, for now]

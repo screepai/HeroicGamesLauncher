@@ -25,6 +25,8 @@ import type {
   KnowFixesInfo,
   LaunchOption,
   LaunchParams,
+  LocalLibraryArchiveEntry,
+  LocalLibraryWatchEntry,
   MoveGameArgs,
   RecentGame,
   Release,
@@ -161,6 +163,16 @@ interface TestSyncIPCFunctions {
 
 // ts-prune-ignore-next
 interface AsyncIPCFunctions {
+  listLocalLibraryArchive: (args: {
+    archivePath: string
+    password?: string
+  }) => Promise<LocalLibraryArchiveEntry[]>
+  extractLocalLibraryArchive: (args: {
+    archivePath: string
+    destinationName: string
+    password?: string
+    selectedPaths: string[]
+  }) => Promise<{ folderPath: string; title: string }>
   kill: (appName: string, runner: Runner) => Promise<void>
   checkDiskSpace: (folder: string) => Promise<DiskSpaceData>
   callTool: (args: Tools) => Promise<void>
@@ -409,6 +421,7 @@ interface AsyncIPCFunctions {
 
 interface FrontendMessages {
   gameStatusUpdate: (status: GameStatus) => void
+  localLibraryFolderAdded: (folder: LocalLibraryWatchEntry) => void
   wineVersionsUpdated: () => void
   showDialog: (
     title: string,

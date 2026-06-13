@@ -1,0 +1,75 @@
+.ArchiveExtractionDialog {
+  width: min(760px, 90vw);
+}
+
+.archiveExtractionContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: min(620px, 75vw);
+}
+
+.archivePath {
+  overflow-wrap: anywhere;
+}
+
+.archiveExtractionLoading {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  justify-content: center;
+  min-height: 220px;
+}
+
+.archiveSelectionActions {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.archiveTree {
+  background: var(--background-darker);
+  border: 1px solid var(--text-default);
+  border-radius: var(--space-xs);
+  max-height: 360px;
+  overflow: auto;
+  padding: var(--space-sm);
+}
+
+.archiveTree ul {
+  list-style: none;
+  margin: 0;
+  padding-inline-start: var(--space-lg);
+}
+
+.archiveTree > ul {
+  padding-inline-start: 0;
+}
+
+.archiveTreeLabel.MuiFormControlLabel-root {
+  margin: 0;
+  min-height: 32px;
+}
+
+.archiveTreeCheckbox.MuiCheckbox-root {
+  color: var(--text-default);
+}
+
+.archiveTreeCheckbox.MuiCheckbox-root.Mui-checked,
+.archiveTreeCheckbox.MuiCheckbox-root.MuiCheckbox-indeterminate {
+  color: var(--accent, var(--success));
+}
+
+.archiveTreeEntry {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-xs);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .archiveExtractionContent {
+    min-width: 0;
+  }
+}

@@ -42,6 +42,7 @@
         "title": "This game includes anticheat software"
     },
     "box": {
+        "add": "Add",
         "cache-cleared": {
             "message": "Heroic cache cleared.",
             "title": "Cache cleared"
@@ -107,6 +108,8 @@
                 "title": "Winetricks error"
             }
         },
+        "extract": "Extract",
+        "extract-selected": "Extract Selected",
         "info": {
             "update": {
                 "detail": "Do you want to download the update in the background?",
@@ -117,6 +120,26 @@
                 "title-finished": "Update Finished"
             }
         },
+        "local-library-archive": {
+            "contents-title": "Choose archive contents",
+            "extract-error": "Unable to extract the archive.",
+            "extracting": "Extracting selected contents...",
+            "folder-name": "Final folder name",
+            "invalid-folder-name": "Enter a valid folder name.",
+            "message": "The archive \"{{title}}\" was added to your watched local library. Do you want to extract it before adding the game?",
+            "password": "Archive password",
+            "password-error": "Enter the archive password and try again.",
+            "read-error": "Unable to read the archive.",
+            "reading": "Reading archive contents...",
+            "selected-count_one": "{{count}} selected",
+            "selected-count_other": "{{count}} selected",
+            "title": "Compressed archive detected"
+        },
+        "local-library-folder-added": {
+            "message": "The folder \"{{title}}\" was added to your watched local library.\n\n{{folderPath}}\n\nDo you want to add it as a game?",
+            "title": "New game folder found"
+        },
+        "local-library-sync-path": "Select local library folder",
         "locale-emulator-path": "Select Locale Emulator executable",
         "no": "NO",
         "ok": "OK",
@@ -144,6 +167,7 @@
             "exe": "Select EXE",
             "script": "Select script ..."
         },
+        "select-all": "Select All",
         "shortcuts": {
             "message": "Shortcuts were created on Desktop and Start Menu",
             "message-mac": "Shortcuts were created on the Applications folder",
@@ -155,6 +179,7 @@
             "error": "Invalid Path",
             "title": "Choose the saves directory"
         },
+        "unselect-all": "Unselect All",
         "update": "Update",
         "vcruntime": {
             "install": {
@@ -203,6 +228,7 @@
         "done": "Done",
         "go_to_library": "Go to Library",
         "login": "Log in",
+        "retry": "Retry",
         "search": "Search"
     },
     "categories-manager": {
@@ -867,6 +893,12 @@
             "recently_played_installed": "Recently Played Games (Only Installed)"
         },
         "library_top_section": "Library Top Section",
+        "local-library-sync-exclusions": "Excluded folder patterns",
+        "local-library-sync-exclusions-help": "Rules match top-level folder names and ignore letter case. Use * for any text and ? for one character.",
+        "local-library-sync-exclusions-placeholder": "Folder name or wildcard pattern",
+        "local-library-sync-path": "Watched local library folder",
+        "local-library-sync-path-help": "New top-level folders will prompt you to add a game. Existing folders are ignored.",
+        "local-library-sync-path-placeholder": "Select a folder to watch for new games...",
         "locale-emulator-path": "Locale Emulator executable",
         "locale-emulator-path-placeholder": "Select Locale Emulator executable...",
         "log": {

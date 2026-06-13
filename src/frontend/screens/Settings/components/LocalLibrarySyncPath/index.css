@@ -1,0 +1,38 @@
+.localLibraryExclusionInput {
+  margin-block-start: var(--space-xs);
+}
+
+.localLibraryExclusionInput .rightButton {
+  height: 40px;
+  margin-inline-start: var(--space-xs);
+}
+
+.localLibraryExclusionRules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-block: var(--space-xs) var(--space-md);
+}
+
+.localLibraryExclusionChip.MuiChip-root {
+  background-color: var(--input-background);
+  border-color: var(--text-secondary);
+  color: var(--text-default);
+}
+
+.localLibraryExclusionChip .MuiChip-label {
+  color: inherit;
+}
+
+.localLibraryExclusionChip .MuiChip-deleteIcon {
+  color: var(--text-secondary);
+}
+
+.localLibraryExclusionChip .MuiChip-deleteIcon:hover {
+  color: var(--danger);
+}
+
+.localLibraryExclusionHelp {
+  display: block;
+  margin-block-end: var(--space-md);
+}

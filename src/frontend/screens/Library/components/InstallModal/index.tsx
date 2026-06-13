@@ -32,6 +32,7 @@ type Props = {
   appName: string
   runner: Runner
   gameInfo?: GameInfo | null
+  sideloadTitle?: string
 }
 
 export type AvailablePlatforms = {
@@ -41,7 +42,12 @@ export type AvailablePlatforms = {
   icon: IconDefinition
 }[]
 
-function InstallModal({ appName, runner, gameInfo = null }: Props) {
+function InstallModal({
+  appName,
+  runner,
+  gameInfo = null,
+  sideloadTitle: suggestedSideloadTitle
+}: Props) {
   const { platform } = useContext(ContextProvider)
   const { t } = useTranslation('gamepage')
   const { action = 'install' } = useInstallGameModal()
@@ -51,7 +57,7 @@ function InstallModal({ appName, runner, gameInfo = null }: Props) {
   const [wineVersionList, setWineVersionList] = useState<WineInstallation[]>([])
   const [crossoverBottle, setCrossoverBottle] = useState('')
   const [sideloadTitle, setSideloadTitle] = useState(
-    t('sideload.field.title', 'Title')
+    suggestedSideloadTitle ?? t('sideload.field.title', 'Title')
   )
 
   const isLinuxNative = Boolean(gameInfo?.is_linux_native)
@@ -113,18 +119,14 @@ function InstallModal({ appName, runner, gameInfo = null }: Props) {
           await window.api.getAlternativeWine()
         setWineVersionList(newWineList)
         if (wineVersion?.bin) {
-          if (
-            !newWineList.some(
-              (newWine) => wineVersion && newWine.bin === wineVersion.bin
-            )
-          ) {
+          if (!newWineList.some((newWine) => newWine.bin === wineVersion.bin)) {
             setWineVersion(undefined)
           }
         }
       }
-      getWine()
+      void getWine()
     }
-  }, [hasWine])
+  }, [hasWine, wineVersion])
 
   function platformSelection() {
     const showPlatformSelection = availablePlatforms.length > 1
@@ -296,6 +298,7 @@ export function InstallGameWrapper() {
       appName={installGameModalState.appName!}
       runner={installGameModalState.runner!}
       gameInfo={installGameModalState.gameInfo}
+      sideloadTitle={installGameModalState.sideloadTitle}
     />
   )
 }
