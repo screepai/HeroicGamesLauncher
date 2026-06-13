@@ -105,16 +105,12 @@
           display: block;
           position: fixed;
           left: var(--sidebar-width);
-          top: 66px;
+          top: var(--submenu-top);
           background-color: var(--sidebar-background);
           padding: var(--space-2xs) 0;
 
           & span {
             display: block;
-          }
-
-          &.settings {
-            top: 114px;
           }
         }
       }

@@ -13,7 +13,7 @@ import {
   faTags
 } from '@fortawesome/free-solid-svg-icons'
 import { useLocation } from 'react-router-dom'
-import { useContext } from 'react'
+import { useContext, type SyntheticEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   faDiscord,
@@ -82,6 +82,13 @@ export default function SidebarLinks() {
     }
   }
 
+  function positionSubmenu(event: SyntheticEvent<HTMLDivElement>) {
+    event.currentTarget.style.setProperty(
+      '--submenu-top',
+      `${event.currentTarget.getBoundingClientRect().top}px`
+    )
+  }
+
   // By default, open Epic Store
   let defaultStore = 'epic'
   if (
@@ -128,7 +135,11 @@ export default function SidebarLinks() {
         />
       )}
 
-      <div className="SidebarItemWithSubmenu">
+      <div
+        className="SidebarItemWithSubmenu"
+        onMouseEnter={positionSubmenu}
+        onFocusCapture={positionSubmenu}
+      >
         <SidebarItem
           isActiveFallback={location.pathname.includes('store')}
           url={`/store/${defaultStore}`}
@@ -170,7 +181,11 @@ export default function SidebarLinks() {
         dataTour="sidebar-discounts"
       />
       <div className="divider" />
-      <div className="SidebarItemWithSubmenu">
+      <div
+        className="SidebarItemWithSubmenu"
+        onMouseEnter={positionSubmenu}
+        onFocusCapture={positionSubmenu}
+      >
         <SidebarItem
           isActiveFallback={location.pathname.includes('settings')}
           icon={faSlidersH}
