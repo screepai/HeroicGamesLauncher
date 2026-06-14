@@ -14,6 +14,7 @@ const initialContext: LibraryContextType = {
   platformsFilters: { win: true, linux: true, mac: true, browser: true },
   filterText: '',
   vndbMatches: {},
+  setVndbMatches: () => null,
   setStoresFilters: () => null,
   handleLayout: () => null,
   setPlatformsFilters: () => null,

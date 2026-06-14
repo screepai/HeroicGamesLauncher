@@ -914,6 +914,7 @@ export default React.memo(function Library(): JSX.Element {
         showNonAvailable,
         filterText,
         vndbMatches,
+        setVndbMatches,
         setStoresFilters,
         handleLayout: handleLayout,
         setPlatformsFilters,

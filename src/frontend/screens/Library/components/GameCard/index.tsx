@@ -55,6 +55,7 @@ import {
   OpenInNew,
   PlayArrow,
   PlaylistRemove,
+  Search,
   Settings,
   Upgrade,
   Visibility,
@@ -105,6 +106,7 @@ const GameCard = ({
 
   const [gameInfo, setGameInfo] = useState<GameInfo>(gameInfoFromProps)
   const [showUninstallModal, setShowUninstallModal] = useState(false)
+  const [showVndbSyncDialog, setShowVndbSyncDialog] = useState(false)
   const [isLaunching, setIsLaunching] = useState(false)
 
   const { t } = useTranslation('gamepage')
@@ -128,6 +130,7 @@ const GameCard = ({
 
   const {
     layout,
+    setVndbMatches,
     isSelectingGames,
     isGameSelected,
     startGameSelection,
@@ -375,6 +378,9 @@ const GameCard = ({
   }
 
   const isSideloaded = runner === 'sideload'
+  const showVndbSync =
+    Boolean(gameInfoFromProps.isVisualNovel) &&
+    !gameInfoFromProps.install.is_dlc
 
   const handleEdit = () => {
     if (isSideloaded) {
@@ -444,6 +450,12 @@ const GameCard = ({
         navigate(`/gamepage/${runner}/${appName}`, { state: { gameInfo } }),
       show: true,
       icon: <OpenInNew />
+    },
+    {
+      label: t2('vndb.sync.title', 'Sync VNDB Titles'),
+      onclick: () => setShowVndbSyncDialog(true),
+      show: showVndbSync,
+      icon: <Search />
     },
     {
       // settings
@@ -543,9 +555,6 @@ const GameCard = ({
   const showSettingsButton = isInstalled && !isUninstalling && !isBrowserGame
   const showUpdateBadge =
     hasUpdate && !isUpdating && !isQueued && activeController
-  const showVndbSyncButton =
-    Boolean(gameInfoFromProps.isVisualNovel) &&
-    !gameInfoFromProps.install.is_dlc
 
   return (
     <div>
@@ -555,6 +564,15 @@ const GameCard = ({
           runner={runner}
           isDlc={Boolean(gameInfo.install.is_dlc)}
           onClose={() => setShowUninstallModal(false)}
+        />
+      )}
+      {showVndbSyncDialog && (
+        <VndbSyncButton
+          list={[gameInfoFromProps]}
+          autoOpen
+          hideTrigger
+          onMatchesChange={setVndbMatches}
+          onClose={() => setShowVndbSyncDialog(false)}
         />
       )}
       <ContextMenu items={items} disabled={isSelectingGames}>
@@ -658,8 +676,12 @@ const GameCard = ({
                   </SvgButton>
                 </>
               )}
-              {showVndbSyncButton && (
-                <VndbSyncButton list={[gameInfoFromProps]} variant="icon" />
+              {showVndbSync && (
+                <VndbSyncButton
+                  list={[gameInfoFromProps]}
+                  variant="icon"
+                  onMatchesChange={setVndbMatches}
+                />
               )}
               {renderIcon()}
             </span>

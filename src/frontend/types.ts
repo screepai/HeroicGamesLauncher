@@ -233,6 +233,7 @@ export interface LibraryContextType {
   platformsFilters: PlatformsFilters
   filterText: string
   vndbMatches: Record<string, VndbGameMatch>
+  setVndbMatches: (matches: Record<string, VndbGameMatch>) => void
   setStoresFilters: (filters: StoresFilters) => void
   setPlatformsFilters: (filters: PlatformsFilters) => void
   handleLayout: (value: string) => void
