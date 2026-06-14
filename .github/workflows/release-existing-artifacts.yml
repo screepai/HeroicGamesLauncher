@@ -1,0 +1,56 @@
+name: Release Existing Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Failed workflow run ID'
+        required: true
+        type: string
+      tag:
+        description: 'Release tag, example: v2.22.0-vn'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts from old run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p release-artifacts
+          gh run download "${{ inputs.run_id }}" -D release-artifacts
+
+      - name: Show files
+        run: find release-artifacts -type f
+
+      - name: Create release and upload files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          TAG="${{ inputs.tag }}"
+
+          mapfile -d '' FILES < <(find release-artifacts -type f -print0)
+
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No files found."
+            exit 1
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${FILES[@]}" --clobber
+          else
+            gh release create "$TAG" "${FILES[@]}" \
+              --title "$TAG" \
+              --generate-notes \
+              --latest
+          fi
