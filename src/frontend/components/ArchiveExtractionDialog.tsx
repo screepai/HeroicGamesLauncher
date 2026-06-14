@@ -54,6 +54,25 @@ function isPasswordError(error: unknown): boolean {
   )
 }
 
+function isIncompleteArchiveError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.message ===
+      'The archive is incomplete. Add the remaining parts and try again.'
+  )
+}
+
+function isMissingArchivePartsError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.message.startsWith('Archive parts are missing:')
+  )
+}
+
+function isArchivePartsError(error: unknown): boolean {
+  return isIncompleteArchiveError(error) || isMissingArchivePartsError(error)
+}
+
 function buildArchiveTree(
   entries: LocalLibraryArchiveEntry[]
 ): ArchiveTreeNode[] {
@@ -261,14 +280,23 @@ export default function ArchiveExtractionDialog({
               'box.local-library-archive.password-error',
               'Enter the archive password and try again.'
             )
-          : loadError instanceof Error
-            ? loadError.message
-            : t(
-                'box.local-library-archive.read-error',
-                'Unable to read the archive.'
+          : isIncompleteArchiveError(loadError)
+            ? t(
+                'box.local-library-archive.incomplete',
+                'The archive is incomplete. Add the remaining parts and try again.'
               )
+            : loadError instanceof Error
+              ? loadError.message
+              : t(
+                  'box.local-library-archive.read-error',
+                  'Unable to read the archive.'
+                )
       )
-      setStage('prompt')
+      setStage(
+        archiveInfo?.isMultipart && isArchivePartsError(loadError)
+          ? 'multipart-waiting'
+          : 'prompt'
+      )
     }
   }
 
@@ -384,14 +412,23 @@ export default function ArchiveExtractionDialog({
               'box.local-library-archive.password-error',
               'Enter the archive password and try again.'
             )
-          : extractionError instanceof Error
-            ? extractionError.message
-            : t(
-                'box.local-library-archive.extract-error',
-                'Unable to extract the archive.'
+          : isIncompleteArchiveError(extractionError)
+            ? t(
+                'box.local-library-archive.incomplete',
+                'The archive is incomplete. Add the remaining parts and try again.'
               )
+            : extractionError instanceof Error
+              ? extractionError.message
+              : t(
+                  'box.local-library-archive.extract-error',
+                  'Unable to extract the archive.'
+                )
       )
-      setStage('selection')
+      setStage(
+        archiveInfo?.isMultipart && isArchivePartsError(extractionError)
+          ? 'multipart-waiting'
+          : 'selection'
+      )
     }
   }
 
@@ -478,7 +515,7 @@ export default function ArchiveExtractionDialog({
             <p>
               {t(
                 'box.local-library-archive.multipart-message',
-                'This archive has multiple parts. Do you want to wait for the remaining parts before reading it?'
+                'Heroic cannot tell from the filename whether more parts are still coming. Use the available parts to let 7-Zip verify the archive, or wait for more parts.'
               )}
             </p>
             <p>
@@ -497,7 +534,7 @@ export default function ArchiveExtractionDialog({
             <p>
               {t(
                 'box.local-library-archive.waiting-message',
-                'Wait for all archive parts to finish downloading, then choose Finish waiting.'
+                'Wait for all archive parts to finish downloading, then choose Check available parts.'
               )}
             </p>
             <p>
@@ -677,13 +714,19 @@ export default function ArchiveExtractionDialog({
               className="button is-secondary"
               onClick={() => void loadArchive(archiveInfo.archivePath)}
             >
-              {t('box.local-library-archive.extract-now', 'Extract now')}
+              {t(
+                'box.local-library-archive.use-available-parts',
+                'Use available parts'
+              )}
             </button>
             <button
               className="button is-success"
               onClick={() => setStage('multipart-waiting')}
             >
-              {t('box.local-library-archive.wait-for-parts', 'Wait for parts')}
+              {t(
+                'box.local-library-archive.wait-for-parts',
+                'Wait for more parts'
+              )}
             </button>
           </>
         )}
@@ -692,7 +735,10 @@ export default function ArchiveExtractionDialog({
             className="button is-success"
             onClick={() => void finishWaiting()}
           >
-            {t('box.local-library-archive.finish-waiting', 'Finish waiting')}
+            {t(
+              'box.local-library-archive.check-available-parts',
+              'Check available parts'
+            )}
           </button>
         )}
         {stage === 'selection' && (

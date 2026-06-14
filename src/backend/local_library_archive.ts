@@ -29,6 +29,8 @@ type ExtractArchiveOptions = {
 
 const PASSWORD_ERROR_PATTERN =
   /cannot open encrypted archive|wrong password|data error in encrypted file/i
+const INCOMPLETE_ARCHIVE_ERROR_PATTERN =
+  /unexpected end of archive|missing volume|cannot find volume/i
 
 function getArchivePasswordArgument(password?: string): string {
   return `-p${password ?? ''}`
@@ -40,8 +42,14 @@ function getArchiveCommandError(
   fallbackMessage: string
 ): Error {
   const commandOutput = stderr.trim() || stdout.trim()
-  if (PASSWORD_ERROR_PATTERN.test(commandOutput)) {
+  const combinedOutput = `${stdout}\n${stderr}`
+  if (PASSWORD_ERROR_PATTERN.test(combinedOutput)) {
     return new Error('Archive password is required or incorrect')
+  }
+  if (INCOMPLETE_ARCHIVE_ERROR_PATTERN.test(combinedOutput)) {
+    return new Error(
+      'The archive is incomplete. Add the remaining parts and try again.'
+    )
   }
 
   return new Error(commandOutput || fallbackMessage)

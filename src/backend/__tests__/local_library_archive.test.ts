@@ -175,6 +175,41 @@ Attributes = A
     }
   })
 
+  it('accepts a complete split archive that only has a first volume', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-single-volume-archive-')
+    )
+    const sourcePath = join(rootPath, 'small.txt')
+    const archiveBasePath = join(rootPath, 'Small Game.7z')
+    const firstPartPath = `${archiveBasePath}.001`
+
+    try {
+      await fs.writeFile(sourcePath, 'complete')
+      await execFileAsync(path7z, ['a', '-v1m', archiveBasePath, sourcePath], {
+        cwd: rootPath,
+        windowsHide: true
+      })
+      await fs.rm(sourcePath)
+
+      await expect(fs.readdir(rootPath)).resolves.toEqual(['Small Game.7z.001'])
+      await expect(inspectLocalLibraryArchive(firstPartPath)).resolves.toEqual({
+        archivePath: firstPartPath,
+        isMultipart: true,
+        missingParts: [],
+        partPaths: [firstPartPath]
+      })
+      await expect(listLocalLibraryArchive(firstPartPath)).resolves.toEqual([
+        {
+          path: 'small.txt',
+          isDirectory: false,
+          size: 8
+        }
+      ])
+    } finally {
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
   it('inspects, extracts, and deletes multipart archives from their first volume', async () => {
     const rootPath = await fs.mkdtemp(
       join(process.cwd(), '.tmp-heroic-multipart-archive-')
@@ -199,6 +234,14 @@ Attributes = A
       const firstPartPath = join(rootPath, partNames[0])
       const secondPartPath = join(rootPath, partNames[1])
       const lastPartPath = join(rootPath, partNames.at(-1)!)
+      const lastPartContents = await fs.readFile(lastPartPath)
+      await fs.rm(lastPartPath)
+
+      await expect(listLocalLibraryArchive(firstPartPath)).rejects.toThrow(
+        'The archive is incomplete. Add the remaining parts and try again.'
+      )
+
+      await fs.writeFile(lastPartPath, lastPartContents)
       const secondPartContents = await fs.readFile(secondPartPath)
       await fs.rm(secondPartPath)
 
