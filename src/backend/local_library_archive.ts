@@ -6,10 +6,14 @@ import { path7z } from '7zip-bin-full'
 import sanitizeFilename from 'sanitize-filename'
 
 import {
+  getArchivePart,
   getArchiveExtension,
   getArchiveTitle
 } from 'common/local_library_archive'
-import type { LocalLibraryArchiveEntry } from 'common/types'
+import type {
+  LocalLibraryArchiveEntry,
+  LocalLibraryArchiveInfo
+} from 'common/types'
 
 import { fixAsarPath } from './constants/paths'
 import { spawnAsync } from './utils'
@@ -41,6 +45,62 @@ function getArchiveCommandError(
   }
 
   return new Error(commandOutput || fallbackMessage)
+}
+
+async function inspectLocalLibraryArchive(
+  archivePath: string
+): Promise<LocalLibraryArchiveInfo> {
+  const archiveStats = await fs.stat(archivePath)
+  if (!archiveStats.isFile() || !getArchiveExtension(archivePath)) {
+    throw new Error('The selected path is not a supported archive')
+  }
+
+  const selectedPart = getArchivePart(basename(archivePath))
+  if (!selectedPart) {
+    return {
+      archivePath,
+      isMultipart: false,
+      missingParts: [],
+      partPaths: [archivePath]
+    }
+  }
+
+  const archiveDirectory = dirname(archivePath)
+  const directoryEntries = await fs.readdir(archiveDirectory, {
+    withFileTypes: true
+  })
+  const parts = directoryEntries
+    .filter((entry) => entry.isFile())
+    .map((entry) => ({
+      entry,
+      part: getArchivePart(entry.name)
+    }))
+    .filter(
+      (
+        candidate
+      ): candidate is {
+        entry: (typeof directoryEntries)[number]
+        part: NonNullable<ReturnType<typeof getArchivePart>>
+      } => candidate.part?.signature === selectedPart.signature
+    )
+    .sort((left, right) => left.part.partNumber - right.part.partNumber)
+
+  const highestPartNumber = parts.at(-1)?.part.partNumber ?? 0
+  const existingPartNumbers = new Set(parts.map(({ part }) => part.partNumber))
+  const missingParts = Array.from(
+    { length: highestPartNumber },
+    (_, index) => index + 1
+  ).filter((partNumber) => !existingPartNumbers.has(partNumber))
+  const firstPart = parts.find(({ part }) => part.partNumber === 1)
+
+  return {
+    archivePath: firstPart
+      ? join(archiveDirectory, firstPart.entry.name)
+      : archivePath,
+    isMultipart: true,
+    missingParts,
+    partPaths: parts.map(({ entry }) => join(archiveDirectory, entry.name))
+  }
 }
 
 function normalizeArchiveEntryPath(entryPath: string): string {
@@ -121,9 +181,11 @@ async function listLocalLibraryArchive(
   archivePath: string,
   password?: string
 ): Promise<LocalLibraryArchiveEntry[]> {
-  const archiveStats = await fs.stat(archivePath)
-  if (!archiveStats.isFile() || !getArchiveExtension(archivePath)) {
-    throw new Error('The selected path is not a supported archive')
+  const archiveInfo = await inspectLocalLibraryArchive(archivePath)
+  if (archiveInfo.missingParts.length > 0) {
+    throw new Error(
+      `Archive parts are missing: ${archiveInfo.missingParts.join(', ')}`
+    )
   }
 
   const { code, stdout, stderr } = await spawnAsync(
@@ -134,7 +196,7 @@ async function listLocalLibraryArchive(
       '-ba',
       getArchivePasswordArgument(password),
       '--',
-      archivePath
+      archiveInfo.archivePath
     ],
     { windowsHide: true }
   )
@@ -167,16 +229,10 @@ function validateDestinationName(destinationName: string): string {
 }
 
 async function deleteLocalLibraryArchive(archivePath: string): Promise<void> {
-  if (!getArchiveExtension(archivePath)) {
-    throw new Error('The selected path is not a supported archive')
-  }
-
-  const archiveStats = await fs.lstat(archivePath)
-  if (!archiveStats.isFile()) {
-    throw new Error('The selected archive path is not a file')
-  }
-
-  await fs.unlink(archivePath)
+  const archiveInfo = await inspectLocalLibraryArchive(archivePath)
+  await Promise.all(
+    archiveInfo.partPaths.map((partPath) => fs.unlink(partPath))
+  )
 }
 
 function expandSelectedPaths(
@@ -310,7 +366,9 @@ async function extractLocalLibraryArchive({
   selectedPaths,
   onBeforePathCreated
 }: ExtractArchiveOptions): Promise<{ folderPath: string; title: string }> {
-  const entries = await listLocalLibraryArchive(archivePath, password)
+  const archiveInfo = await inspectLocalLibraryArchive(archivePath)
+  const canonicalArchivePath = archiveInfo.archivePath
+  const entries = await listLocalLibraryArchive(canonicalArchivePath, password)
   const { paths: selected, hasMatchingEntry } = expandSelectedPaths(
     entries,
     selectedPaths
@@ -334,7 +392,7 @@ async function extractLocalLibraryArchive({
   }
 
   const normalizedDestinationName = validateDestinationName(destinationName)
-  const archiveDirectory = resolve(dirname(archivePath))
+  const archiveDirectory = resolve(dirname(canonicalArchivePath))
   const destinationPath = resolve(archiveDirectory, normalizedDestinationName)
   if (dirname(destinationPath) !== archiveDirectory) {
     throw new Error('The extraction folder must be beside the archive')
@@ -370,7 +428,7 @@ async function extractLocalLibraryArchive({
         getArchivePasswordArgument(password),
         `-o${stagingPath}`,
         '--',
-        archivePath
+        canonicalArchivePath
       ],
       { windowsHide: true }
     )
@@ -387,7 +445,7 @@ async function extractLocalLibraryArchive({
     await moveExtractionResult(
       stagingPath,
       destinationPath,
-      archivePath,
+      canonicalArchivePath,
       normalizedRootPath
     )
 
@@ -405,7 +463,9 @@ export {
   deleteLocalLibraryArchive,
   extractLocalLibraryArchive,
   getArchiveExtension,
+  getArchivePart,
   getArchiveTitle,
+  inspectLocalLibraryArchive,
   listLocalLibraryArchive,
   parseArchiveListing,
   validateDestinationName

@@ -70,9 +70,12 @@ export default memo(function LibraryHeader({
       filters: [
         {
           name: t('box.archive-files', 'Archive files'),
-          extensions: LOCAL_LIBRARY_ARCHIVE_EXTENSIONS.map((extension) =>
-            extension.slice(1)
-          )
+          extensions: [
+            ...LOCAL_LIBRARY_ARCHIVE_EXTENSIONS.map((extension) =>
+              extension.slice(1)
+            ),
+            '001'
+          ]
         }
       ]
     })

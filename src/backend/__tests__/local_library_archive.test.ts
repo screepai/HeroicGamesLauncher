@@ -1,4 +1,5 @@
 import { execFile } from 'child_process'
+import { randomBytes } from 'crypto'
 import { promises as fs } from 'fs'
 import { join } from 'path'
 import { promisify } from 'util'
@@ -32,6 +33,7 @@ jest.mock('../utils', () => ({
 import {
   deleteLocalLibraryArchive,
   extractLocalLibraryArchive,
+  inspectLocalLibraryArchive,
   listLocalLibraryArchive,
   parseArchiveListing,
   validateDestinationName
@@ -168,6 +170,82 @@ Attributes = A
       await expect(
         fs.readFile(join(result.folderPath, 'secret.txt'), 'utf8')
       ).resolves.toBe('classified')
+    } finally {
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it('inspects, extracts, and deletes multipart archives from their first volume', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-multipart-archive-')
+    )
+    const sourcePath = join(rootPath, 'payload.bin')
+    const archiveBasePath = join(rootPath, 'Multipart Game.7z')
+
+    try {
+      const payload = randomBytes(8 * 1024)
+      await fs.writeFile(sourcePath, payload)
+      await execFileAsync(path7z, ['a', '-v1k', archiveBasePath, sourcePath], {
+        cwd: rootPath,
+        windowsHide: true
+      })
+      await fs.rm(sourcePath)
+
+      const partNames = (await fs.readdir(rootPath))
+        .filter((name) => name.startsWith('Multipart Game.7z.'))
+        .sort()
+      expect(partNames.length).toBeGreaterThan(2)
+
+      const firstPartPath = join(rootPath, partNames[0])
+      const secondPartPath = join(rootPath, partNames[1])
+      const lastPartPath = join(rootPath, partNames.at(-1)!)
+      const secondPartContents = await fs.readFile(secondPartPath)
+      await fs.rm(secondPartPath)
+
+      await expect(
+        inspectLocalLibraryArchive(lastPartPath)
+      ).resolves.toMatchObject({
+        archivePath: firstPartPath,
+        isMultipart: true,
+        missingParts: [2]
+      })
+      await expect(listLocalLibraryArchive(firstPartPath)).rejects.toThrow(
+        'Archive parts are missing: 2'
+      )
+
+      await fs.writeFile(secondPartPath, secondPartContents)
+      const archiveInfo = await inspectLocalLibraryArchive(lastPartPath)
+      expect(archiveInfo).toEqual({
+        archivePath: firstPartPath,
+        isMultipart: true,
+        missingParts: [],
+        partPaths: partNames.map((name) => join(rootPath, name))
+      })
+
+      const entries = await listLocalLibraryArchive(lastPartPath)
+      expect(entries).toEqual([
+        {
+          path: 'payload.bin',
+          isDirectory: false,
+          size: payload.length
+        }
+      ])
+
+      const result = await extractLocalLibraryArchive({
+        archivePath: lastPartPath,
+        destinationName: 'Extracted Multipart Game',
+        selectedPaths: ['payload.bin']
+      })
+      await expect(
+        fs.readFile(join(result.folderPath, 'payload.bin'))
+      ).resolves.toEqual(payload)
+
+      await deleteLocalLibraryArchive(lastPartPath)
+      await Promise.all(
+        archiveInfo.partPaths.map((partPath) =>
+          expect(fs.access(partPath)).rejects.toMatchObject({ code: 'ENOENT' })
+        )
+      )
     } finally {
       await fs.rm(rootPath, { recursive: true, force: true })
     }

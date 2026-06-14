@@ -26,6 +26,7 @@ import type {
   LaunchOption,
   LaunchParams,
   LocalLibraryArchiveEntry,
+  LocalLibraryArchiveInfo,
   LocalLibraryWatchEntry,
   MoveGameArgs,
   RecentGame,
@@ -163,6 +164,9 @@ interface TestSyncIPCFunctions {
 
 // ts-prune-ignore-next
 interface AsyncIPCFunctions {
+  inspectLocalLibraryArchive: (
+    archivePath: string
+  ) => Promise<LocalLibraryArchiveInfo>
   listLocalLibraryArchive: (args: {
     archivePath: string
     password?: string

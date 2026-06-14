@@ -874,6 +874,13 @@ export interface LocalLibraryArchiveEntry {
   isEncrypted?: boolean
 }
 
+export interface LocalLibraryArchiveInfo {
+  archivePath: string
+  isMultipart: boolean
+  missingParts: number[]
+  partPaths: string[]
+}
+
 export interface LocalLibraryWatchEntry {
   folderPath: string
   isArchive: boolean

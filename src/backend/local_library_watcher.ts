@@ -4,7 +4,11 @@ import { basename, dirname, join, resolve } from 'path'
 import { backendEvents } from './backend_events'
 import { GlobalConfig } from './config'
 import { sendFrontendMessage } from './ipc'
-import { getArchiveExtension, getArchiveTitle } from './local_library_archive'
+import {
+  getArchiveExtension,
+  getArchivePart,
+  getArchiveTitle
+} from './local_library_archive'
 import { logWarning, LogPrefix } from './logger'
 
 type LocalLibraryFolder = {
@@ -21,7 +25,9 @@ function getLibraryEntryNames(entries: Dirent[]): Set<string> {
       .filter(
         (entry) =>
           entry.isDirectory() ||
-          (entry.isFile() && getArchiveExtension(entry.name) !== undefined)
+          (entry.isFile() &&
+            getArchiveExtension(entry.name) !== undefined &&
+            (getArchivePart(entry.name)?.partNumber ?? 1) === 1)
       )
       .map((entry) => entry.name)
   )

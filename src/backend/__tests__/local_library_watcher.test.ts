@@ -26,6 +26,7 @@ import {
   getAddedEntryNames,
   getArchiveExtension,
   getEntryTitle,
+  getLibraryEntryNames,
   LocalLibraryWatcher,
   matchesExclusionRule
 } from '../local_library_watcher'
@@ -44,6 +45,9 @@ describe('local library watcher', () => {
     ['Game.zip', '.zip', 'Game'],
     ['Game.RAR', '.rar', 'Game'],
     ['Game.7z', '.7z', 'Game'],
+    ['Game.part1.rar', '.rar', 'Game'],
+    ['Game-part02.zip', '.zip', 'Game'],
+    ['Game.7z.001', '.7z.001', 'Game'],
     ['Game.tar.gz', '.tar.gz', 'Game'],
     ['Game.tar.xz', '.tar.xz', 'Game'],
     ['Game.tzst', '.tzst', 'Game']
@@ -58,6 +62,26 @@ describe('local library watcher', () => {
   it('does not treat ordinary files as archives', () => {
     expect(getArchiveExtension('Game.exe')).toBeUndefined()
     expect(getEntryTitle('Game.exe')).toBe('Game.exe')
+  })
+
+  it('watches only the first volume of a multipart archive', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-multipart-watcher-')
+    )
+
+    try {
+      await fs.writeFile(join(rootPath, 'Game.part1.rar'), '')
+      await fs.writeFile(join(rootPath, 'Game.part2.rar'), '')
+      await fs.writeFile(join(rootPath, 'Other Game.7z.001'), '')
+      await fs.writeFile(join(rootPath, 'Other Game.7z.002'), '')
+
+      const entries = await fs.readdir(rootPath, { withFileTypes: true })
+      expect(getLibraryEntryNames(entries)).toEqual(
+        new Set(['Game.part1.rar', 'Other Game.7z.001'])
+      )
+    } finally {
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
   })
 
   it('matches exact and wildcard exclusion rules without treating names as regex', () => {

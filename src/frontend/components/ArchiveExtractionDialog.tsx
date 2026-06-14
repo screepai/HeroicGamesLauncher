@@ -6,8 +6,10 @@ import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutl
 
 import type {
   LocalLibraryArchiveEntry,
+  LocalLibraryArchiveInfo,
   LocalLibraryWatchEntry
 } from 'common/types'
+import { getArchivePart } from 'common/local_library_archive'
 import { TextInputField, WarningMessage } from 'frontend/components/UI'
 import {
   Dialog,
@@ -37,6 +39,8 @@ type ExtractedFolder = {
 
 type Stage =
   | 'prompt'
+  | 'multipart-prompt'
+  | 'multipart-waiting'
   | 'loading'
   | 'selection'
   | 'extracting'
@@ -220,18 +224,26 @@ export default function ArchiveExtractionDialog({
   const [folderName, setFolderName] = useState(archive.title)
   const [password, setPassword] = useState('')
   const [passwordRequired, setPasswordRequired] = useState(false)
+  const [archiveInfo, setArchiveInfo] =
+    useState<LocalLibraryArchiveInfo | null>(null)
   const [finalRootPath, setFinalRootPath] = useState<string | null>(null)
   const [extractedFolder, setExtractedFolder] =
     useState<ExtractedFolder | null>(null)
   const [error, setError] = useState('')
+  const archiveFileName =
+    archive.folderPath.split(/[\\/]/).pop() ?? archive.folderPath
+  const displayArchiveName =
+    archiveInfo?.isMultipart || getArchivePart(archiveFileName)
+      ? archive.title
+      : archive.folderPath
 
-  const loadArchive = async () => {
+  const loadArchive = async (archivePath: string) => {
     setStage('loading')
     setError('')
 
     try {
       const entries = await window.api.listLocalLibraryArchive({
-        archivePath: archive.folderPath,
+        archivePath,
         password: password || undefined
       })
       const archiveTree = buildArchiveTree(entries)
@@ -258,6 +270,65 @@ export default function ArchiveExtractionDialog({
       )
       setStage('prompt')
     }
+  }
+
+  const inspectArchive = async (): Promise<LocalLibraryArchiveInfo | null> => {
+    setStage('loading')
+    setError('')
+
+    try {
+      const info = await window.api.inspectLocalLibraryArchive(
+        archive.folderPath
+      )
+      setArchiveInfo(info)
+      return info
+    } catch (inspectionError) {
+      setError(
+        inspectionError instanceof Error
+          ? inspectionError.message
+          : t(
+              'box.local-library-archive.read-error',
+              'Unable to read the archive.'
+            )
+      )
+      setStage('prompt')
+      return null
+    }
+  }
+
+  const prepareArchive = async () => {
+    const info = await inspectArchive()
+    if (!info) {
+      return
+    }
+
+    if (info.isMultipart) {
+      setStage('multipart-prompt')
+      return
+    }
+
+    await loadArchive(info.archivePath)
+  }
+
+  const finishWaiting = async () => {
+    const info = await inspectArchive()
+    if (!info) {
+      return
+    }
+
+    if (info.missingParts.length > 0) {
+      setError(
+        t(
+          'box.local-library-archive.missing-parts',
+          'Archive parts are missing: {{parts}}',
+          { parts: info.missingParts.join(', ') }
+        )
+      )
+      setStage('multipart-waiting')
+      return
+    }
+
+    await loadArchive(info.archivePath)
   }
 
   const togglePaths = useCallback((paths: string[], selected: boolean) => {
@@ -295,7 +366,7 @@ export default function ArchiveExtractionDialog({
 
     try {
       const extractedFolder = await window.api.extractLocalLibraryArchive({
-        archivePath: archive.folderPath,
+        archivePath: archiveInfo?.archivePath ?? archive.folderPath,
         destinationName: folderName.trim(),
         password: password || undefined,
         rootPath: finalRootPath ?? undefined,
@@ -335,7 +406,9 @@ export default function ArchiveExtractionDialog({
     setError('')
 
     try {
-      await window.api.deleteLocalLibraryArchive(archive.folderPath)
+      await window.api.deleteLocalLibraryArchive(
+        archiveInfo?.archivePath ?? archive.folderPath
+      )
       finishExtraction()
     } catch (deletionError) {
       setError(
@@ -365,15 +438,20 @@ export default function ArchiveExtractionDialog({
       <DialogHeader>
         {stage === 'prompt'
           ? t('box.local-library-archive.title', 'Compressed archive detected')
-          : stage === 'delete-prompt' || stage === 'deleting'
+          : stage === 'multipart-prompt' || stage === 'multipart-waiting'
             ? t(
-                'box.local-library-archive.complete-title',
-                'Extraction complete'
+                'box.local-library-archive.multipart-title',
+                'Multipart archive detected'
               )
-            : t(
-                'box.local-library-archive.contents-title',
-                'Choose archive contents'
-              )}
+            : stage === 'delete-prompt' || stage === 'deleting'
+              ? t(
+                  'box.local-library-archive.complete-title',
+                  'Extraction complete'
+                )
+              : t(
+                  'box.local-library-archive.contents-title',
+                  'Choose archive contents'
+                )}
       </DialogHeader>
       <DialogContent className="archiveExtractionContent">
         {stage === 'prompt' && (
@@ -391,7 +469,45 @@ export default function ArchiveExtractionDialog({
                     archive
                   )}
             </p>
-            <code className="archivePath">{archive.folderPath}</code>
+            <code className="archivePath">{displayArchiveName}</code>
+          </>
+        )}
+
+        {stage === 'multipart-prompt' && archiveInfo && (
+          <>
+            <p>
+              {t(
+                'box.local-library-archive.multipart-message',
+                'This archive has multiple parts. Do you want to wait for the remaining parts before reading it?'
+              )}
+            </p>
+            <p>
+              {t(
+                'box.local-library-archive.parts-found',
+                '{{count}} part found',
+                { count: archiveInfo.partPaths.length }
+              )}
+            </p>
+            <code className="archivePath">{displayArchiveName}</code>
+          </>
+        )}
+
+        {stage === 'multipart-waiting' && archiveInfo && (
+          <>
+            <p>
+              {t(
+                'box.local-library-archive.waiting-message',
+                'Wait for all archive parts to finish downloading, then choose Finish waiting.'
+              )}
+            </p>
+            <p>
+              {t(
+                'box.local-library-archive.parts-found',
+                '{{count}} part found',
+                { count: archiveInfo.partPaths.length }
+              )}
+            </p>
+            <code className="archivePath">{displayArchiveName}</code>
           </>
         )}
 
@@ -505,12 +621,21 @@ export default function ArchiveExtractionDialog({
         {stage === 'delete-prompt' && (
           <>
             <p>
-              {t(
-                'box.local-library-archive.delete-message',
-                'Do you want to delete the original archive now that extraction is complete?'
-              )}
+              {archiveInfo?.isMultipart
+                ? t(
+                    'box.local-library-archive.delete-multipart-message',
+                    'Do you want to delete all {{count}} parts of "{{title}}" now that extraction is complete?',
+                    {
+                      count: archiveInfo.partPaths.length,
+                      title: archive.title
+                    }
+                  )
+                : t(
+                    'box.local-library-archive.delete-message',
+                    'Do you want to delete the original archive now that extraction is complete?'
+                  )}
             </p>
-            <code className="archivePath">{archive.folderPath}</code>
+            <code className="archivePath">{displayArchiveName}</code>
           </>
         )}
 
@@ -540,10 +665,34 @@ export default function ArchiveExtractionDialog({
         {stage === 'prompt' && (
           <button
             className="button is-success"
-            onClick={() => void loadArchive()}
+            onClick={() => void prepareArchive()}
             disabled={passwordMissing}
           >
             {error ? t('button.retry', 'Retry') : t('box.extract', 'Extract')}
+          </button>
+        )}
+        {stage === 'multipart-prompt' && archiveInfo && (
+          <>
+            <button
+              className="button is-secondary"
+              onClick={() => void loadArchive(archiveInfo.archivePath)}
+            >
+              {t('box.local-library-archive.extract-now', 'Extract now')}
+            </button>
+            <button
+              className="button is-success"
+              onClick={() => setStage('multipart-waiting')}
+            >
+              {t('box.local-library-archive.wait-for-parts', 'Wait for parts')}
+            </button>
+          </>
+        )}
+        {stage === 'multipart-waiting' && (
+          <button
+            className="button is-success"
+            onClick={() => void finishWaiting()}
+          >
+            {t('box.local-library-archive.finish-waiting', 'Finish waiting')}
           </button>
         )}
         {stage === 'selection' && (
