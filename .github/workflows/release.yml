@@ -15,13 +15,76 @@ permissions:
   contents: write
   actions: read
 
+env:
+  CSC_IDENTITY_AUTO_DISCOVERY: false
+
 jobs:
   build:
-    uses: ./.github/workflows/build-base.yml
-    with:
-      publish-snap: false
-    secrets:
-      workflowToken: ${{ secrets.GITHUB_TOKEN }}
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-2025
+            artifact: windows-x64
+            build: pnpm dist:win nsis portable --x64 --publish=never
+
+          - name: Windows ARM64
+            os: windows-11-arm
+            artifact: windows-arm64
+            build: pnpm dist:win nsis portable --arm64 --publish=never
+
+          - name: Linux
+            os: ubuntu-24.04
+            artifact: linux
+            build: pnpm dist:linux deb AppImage rpm pacman tar.xz --x64 --arm64 --publish=never
+
+          - name: macOS
+            os: macos-15
+            artifact: macos
+            build: pnpm dist:mac --x64 --arm64 --publish=never
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/install-deps
+
+      - name: Install Linux packaging dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libarchive-tools libopenjp2-tools rpm
+
+      - name: Build
+        run: ${{ matrix.build }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload build outputs
+        uses: actions/upload-artifact@v6
+        with:
+          name: heroic-${{ matrix.artifact }}
+          path: |
+            dist/Heroic*.exe
+            dist/Heroic*.exe.blockmap
+            dist/Heroic*.AppImage
+            dist/Heroic*.deb
+            dist/Heroic*.rpm
+            dist/Heroic*.pacman
+            dist/Heroic*.tar.xz
+            dist/Heroic*.dmg
+            dist/Heroic*.dmg.blockmap
+            dist/Heroic*.zip
+            dist/Heroic*.zip.blockmap
+            dist/*.yml
+          retention-days: 14
+          if-no-files-found: warn
+          compression-level: 3
 
   release:
     name: Create GitHub Release
@@ -36,7 +99,7 @@ jobs:
           merge-multiple: true
 
       - name: Show release files
-        run: find release-artifacts -type f
+        run: find release-artifacts -type f | sort
 
       - name: Create release and upload files
         env:
@@ -62,5 +125,6 @@ jobs:
             gh release create "$TAG" "${FILES[@]}" \
               --title "$TAG" \
               --generate-notes \
-              --latest
+              --latest \
+              --target "$GITHUB_SHA"
           fi
