@@ -168,11 +168,11 @@ export default memo(function LibraryHeader({
                 >
                   {t('box.extract-archive', 'Extract Archive')}
                 </button>
+                <VndbSyncButton
+                  list={list}
+                  onMatchesChange={onVndbMatchesChange}
+                />
               </span>
-              <VndbSyncButton
-                list={list}
-                onMatchesChange={onVndbMatchesChange}
-              />
             </span>
             <ActionIcons />
           </>

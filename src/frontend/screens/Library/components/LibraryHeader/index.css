@@ -22,12 +22,14 @@
 }
 
 .libraryManualActions {
+  align-items: center;
   display: inline-flex;
   gap: var(--space-sm);
   margin: 0 var(--space-lg);
 }
 
-.libraryManualActions .sideloadGameButton {
+.libraryManualActions .sideloadGameButton,
+.libraryManualActions .vndbSyncButton {
   margin: 0;
 }
 
