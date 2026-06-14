@@ -9,6 +9,10 @@ import {
   getArchivePart,
   getArchiveTitle
 } from './local_library_archive'
+import {
+  localLibraryWatcherState,
+  type LocalLibraryWatcherState
+} from './local_library_watcher_state'
 import { logWarning, LogPrefix } from './logger'
 
 type LocalLibraryFolder = {
@@ -74,7 +78,8 @@ class LocalLibraryWatcher {
   private revision = 0
 
   constructor(
-    private readonly onFolderAdded: (folder: LocalLibraryFolder) => void
+    private readonly onFolderAdded: (folder: LocalLibraryFolder) => void,
+    private readonly state: LocalLibraryWatcherState = localLibraryWatcherState
   ) {}
 
   setExclusionRules(exclusionRules: string[]): void {
@@ -114,7 +119,8 @@ class LocalLibraryWatcher {
     }
 
     this.rootPath = nextRootPath
-    this.knownEntries = getLibraryEntryNames(entries)
+    const currentEntries = getLibraryEntryNames(entries)
+    this.knownEntries = currentEntries
 
     try {
       this.watcher = watch(nextRootPath, () => this.scheduleReconcile())
@@ -135,6 +141,22 @@ class LocalLibraryWatcher {
         LogPrefix.Backend
       )
       this.stop()
+      return
+    }
+
+    const previousEntries = await this.state.load(nextRootPath)
+    if (revision !== this.revision) {
+      return
+    }
+
+    if (previousEntries) {
+      this.reportAddedEntries(
+        getAddedEntryNames(previousEntries, currentEntries, this.exclusionRules)
+      )
+    }
+    await this.state.save(nextRootPath, new Set(this.knownEntries))
+    if (revision !== this.revision) {
+      return
     }
   }
 
@@ -203,11 +225,15 @@ class LocalLibraryWatcher {
     }
 
     this.knownEntries = currentEntries
+    this.reportAddedEntries(addedEntries)
+    await this.state.save(watchedRootPath, currentEntries)
+  }
 
-    for (const entryName of addedEntries) {
+  private reportAddedEntries(entryNames: string[]): void {
+    for (const entryName of entryNames) {
       const archiveExtension = getArchiveExtension(entryName)
       this.onFolderAdded({
-        folderPath: join(watchedRootPath, entryName),
+        folderPath: join(this.rootPath, entryName),
         isArchive: archiveExtension !== undefined,
         title: archiveExtension ? getArchiveTitle(entryName) : entryName
       })

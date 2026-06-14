@@ -30,6 +30,29 @@ import {
   LocalLibraryWatcher,
   matchesExclusionRule
 } from '../local_library_watcher'
+import type { LocalLibraryWatcherState } from '../local_library_watcher_state'
+
+function createWatcherState(
+  initialSnapshots: Record<string, string[]> = {}
+): LocalLibraryWatcherState {
+  const snapshots = new Map(
+    Object.entries(initialSnapshots).map(([rootPath, entries]) => [
+      rootPath,
+      new Set(entries)
+    ])
+  )
+
+  return {
+    load(rootPath) {
+      const entries = snapshots.get(rootPath)
+      return Promise.resolve(entries ? new Set(entries) : undefined)
+    },
+    save(rootPath, entries) {
+      snapshots.set(rootPath, new Set(entries))
+      return Promise.resolve()
+    }
+  }
+}
 
 describe('local library watcher', () => {
   it('finds only newly added entry names', () => {
@@ -119,8 +142,9 @@ describe('local library watcher', () => {
         resolveAddedFolder = resolve
       }
     )
-    const watcher = new LocalLibraryWatcher((folder) =>
-      resolveAddedFolder(folder)
+    const watcher = new LocalLibraryWatcher(
+      (folder) => resolveAddedFolder(folder),
+      createWatcherState()
     )
 
     try {
@@ -154,8 +178,9 @@ describe('local library watcher', () => {
         resolveAddedFolder = resolve
       }
     )
-    const watcher = new LocalLibraryWatcher((folder) =>
-      resolveAddedFolder(folder)
+    const watcher = new LocalLibraryWatcher(
+      (folder) => resolveAddedFolder(folder),
+      createWatcherState()
     )
 
     try {
@@ -173,12 +198,67 @@ describe('local library watcher', () => {
     }
   })
 
+  it('reports folders and archives added while the watcher was stopped', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-local-library-')
+    )
+    const state = createWatcherState()
+    const initialWatcher = new LocalLibraryWatcher(jest.fn(), state)
+
+    try {
+      await fs.mkdir(join(rootPath, 'Existing Game'))
+      await initialWatcher.setPath(rootPath)
+      initialWatcher.stop()
+
+      const newFolderPath = join(rootPath, 'Offline Folder')
+      const newArchivePath = join(rootPath, 'Offline Archive.7z.001')
+      await fs.mkdir(newFolderPath)
+      await fs.writeFile(newArchivePath, '')
+      await fs.writeFile(join(rootPath, 'Offline Archive.7z.002'), '')
+
+      const addedFolders: Array<{
+        folderPath: string
+        isArchive: boolean
+        title: string
+      }> = []
+      const restartedWatcher = new LocalLibraryWatcher(
+        (folder) => addedFolders.push(folder),
+        state
+      )
+      await restartedWatcher.setPath(rootPath)
+
+      expect(
+        addedFolders.sort((left, right) =>
+          left.folderPath.localeCompare(right.folderPath)
+        )
+      ).toEqual(
+        [
+          {
+            folderPath: newFolderPath,
+            isArchive: false,
+            title: 'Offline Folder'
+          },
+          {
+            folderPath: newArchivePath,
+            isArchive: true,
+            title: 'Offline Archive'
+          }
+        ].sort((left, right) => left.folderPath.localeCompare(right.folderPath))
+      )
+
+      restartedWatcher.stop()
+    } finally {
+      initialWatcher.stop()
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
   it('does not report newly added folders matching an exclusion rule', async () => {
     const rootPath = await fs.mkdtemp(
       join(process.cwd(), '.tmp-heroic-local-library-')
     )
     const onFolderAdded = jest.fn()
-    const watcher = new LocalLibraryWatcher(onFolderAdded)
+    const watcher = new LocalLibraryWatcher(onFolderAdded, createWatcherState())
     watcher.setExclusionRules(['_temp-*'])
 
     try {
@@ -200,7 +280,7 @@ describe('local library watcher', () => {
     const stagingPath = join(rootPath, '.heroic-extract-staging')
     const destinationPath = join(rootPath, 'Extracted Game')
     const onFolderAdded = jest.fn()
-    const watcher = new LocalLibraryWatcher(onFolderAdded)
+    const watcher = new LocalLibraryWatcher(onFolderAdded, createWatcherState())
 
     try {
       await watcher.setPath(rootPath)
