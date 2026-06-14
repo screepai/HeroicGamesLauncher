@@ -1,0 +1,65 @@
+name: Release Fork
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag, example: v2.22.0-vn'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-base.yml
+    with:
+      publish-snap: false
+    secrets:
+      workflowToken: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download built artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Show release files
+        run: find release-artifacts -type f
+
+      - name: Create release and upload files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+
+          mapfile -d '' FILES < <(find release-artifacts -type f -print0)
+
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No files found to upload."
+            exit 1
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${FILES[@]}" --clobber
+          else
+            gh release create "$TAG" "${FILES[@]}" \
+              --title "$TAG" \
+              --generate-notes \
+              --latest
+          fi
