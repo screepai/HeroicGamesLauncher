@@ -1,13 +1,20 @@
 import { promises as fs } from 'fs'
 import { join } from 'path'
 
+const mockAppSettings = {
+  detectLocalLibraryArchives: true,
+  enableLocalLibraryWatcher: true,
+  localLibrarySyncExclusions: [] as string[],
+  localLibrarySyncPath: ''
+}
+
 jest.mock('../backend_events', () => ({
   backendEvents: { on: jest.fn() }
 }))
 jest.mock('../config', () => ({
   GlobalConfig: {
     get: () => ({
-      getSettings: () => ({ localLibrarySyncPath: '' })
+      getSettings: () => mockAppSettings
     })
   }
 }))
@@ -27,10 +34,24 @@ import {
   getArchiveExtension,
   getEntryTitle,
   getLibraryEntryNames,
+  initLocalLibraryWatcher,
   LocalLibraryWatcher,
   matchesExclusionRule
 } from '../local_library_watcher'
 import type { LocalLibraryWatcherState } from '../local_library_watcher_state'
+import { backendEvents } from '../backend_events'
+import { sendFrontendMessage } from '../ipc'
+
+type SettingChangedHandler = (payload: {
+  key: string
+  oldValue: unknown
+  newValue: unknown
+}) => void
+
+type SettingChangedOn = (
+  eventName: 'settingChanged',
+  listener: SettingChangedHandler
+) => typeof backendEvents
 
 function createWatcherState(
   initialSnapshots: Record<string, string[]> = {}
@@ -101,6 +122,24 @@ describe('local library watcher', () => {
       const entries = await fs.readdir(rootPath, { withFileTypes: true })
       expect(getLibraryEntryNames(entries)).toEqual(
         new Set(['Game.part1.rar', 'Other Game.7z.001'])
+      )
+    } finally {
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it('ignores archives when archive detection is disabled', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-multipart-watcher-')
+    )
+
+    try {
+      await fs.mkdir(join(rootPath, 'Folder Game'))
+      await fs.writeFile(join(rootPath, 'Archive Game.zip'), '')
+
+      const entries = await fs.readdir(rootPath, { withFileTypes: true })
+      expect(getLibraryEntryNames(entries, false)).toEqual(
+        new Set(['Folder Game'])
       )
     } finally {
       await fs.rm(rootPath, { recursive: true, force: true })
@@ -296,6 +335,42 @@ describe('local library watcher', () => {
       expect(onFolderAdded).not.toHaveBeenCalled()
     } finally {
       watcher.stop()
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it('stops watching when the global watcher setting is disabled', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-local-library-')
+    )
+    mockAppSettings.enableLocalLibraryWatcher = true
+    mockAppSettings.localLibrarySyncPath = rootPath
+
+    try {
+      initLocalLibraryWatcher()
+      await new Promise((resolve) => setTimeout(resolve, 100))
+
+      await fs.mkdir(join(rootPath, 'Detected Game'))
+      await new Promise((resolve) => setTimeout(resolve, 700))
+      expect(sendFrontendMessage).toHaveBeenCalledTimes(1)
+
+      const settingChangedHandler = (
+        backendEvents.on as unknown as jest.MockedFunction<SettingChangedOn>
+      ).mock.calls.find(([eventName]) => eventName === 'settingChanged')?.[1]
+      expect(settingChangedHandler).toBeDefined()
+
+      mockAppSettings.enableLocalLibraryWatcher = false
+      settingChangedHandler?.({
+        key: 'enableLocalLibraryWatcher',
+        oldValue: true,
+        newValue: false
+      })
+
+      await fs.mkdir(join(rootPath, 'Ignored While Paused'))
+      await new Promise((resolve) => setTimeout(resolve, 700))
+      expect(sendFrontendMessage).toHaveBeenCalledTimes(1)
+    } finally {
+      mockAppSettings.enableLocalLibraryWatcher = false
       await fs.rm(rootPath, { recursive: true, force: true })
     }
   })

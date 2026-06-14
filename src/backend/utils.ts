@@ -640,9 +640,14 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
   }
 
   const updateActivity = async () => {
-    const vndbMatch = gameInfo.isVisualNovel
-      ? getVndbGameMatch(gameInfo.app_name, gameInfo.runner)
-      : null
+    const { enableVndbIntegration, useVndbDiscordRichPresence } =
+      GlobalConfig.get().getSettings()
+    const vndbMatch =
+      gameInfo.isVisualNovel &&
+      enableVndbIntegration &&
+      useVndbDiscordRichPresence
+        ? getVndbGameMatch(gameInfo.app_name, gameInfo.runner)
+        : null
     const activityTitle = vndbMatch?.vndbTitle ?? title
     const activityDetails = getVndbRichPresenceDetails(vndbMatch)
     const vndbButtons = getVndbRichPresenceButtons(vndbMatch)

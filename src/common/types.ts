@@ -96,6 +96,7 @@ export interface AppSettings extends GameSettings {
   altCometBin: string
   altLegendaryBin: string
   altNileBin: string
+  askToDeleteArchiveAfterExtraction: boolean
   autoUpdateGames: boolean
   autoVndbSyncNewGames: boolean
   checkForUpdatesOnStartup: boolean
@@ -116,9 +117,12 @@ export interface AppSettings extends GameSettings {
   disableAnimations: boolean
   discordRPC: boolean
   disableGOGPresence: boolean
+  detectLocalLibraryArchives: boolean
   downloadNoHttps: boolean
   downloadProtonToSteam: boolean
   egsLinkedPath: string
+  enableLocalLibraryWatcher: boolean
+  enableVndbIntegration: boolean
   enableUpdates: boolean
   exitToTray: boolean
   noTrayIcon: boolean
@@ -139,7 +143,10 @@ export interface AppSettings extends GameSettings {
   disableUMU: boolean
   verboseLogs: boolean
   showValveProton: boolean
+  showVndbActionsOnGameCards: boolean
   steamGridDbApiKey: string
+  syncVndbUserData: boolean
+  useVndbDiscordRichPresence: boolean
   vndbApiToken: string
 }
 

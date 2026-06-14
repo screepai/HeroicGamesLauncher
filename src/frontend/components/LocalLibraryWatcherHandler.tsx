@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { LocalLibraryWatchEntry } from 'common/types'
+import useAppSetting from 'frontend/hooks/useAppSetting'
 import ContextProvider from 'frontend/state/ContextProvider'
 import {
   openInstallGameModal,
@@ -13,6 +14,10 @@ import ArchiveExtractionDialog from './ArchiveExtractionDialog'
 export default function LocalLibraryWatcherHandler() {
   const { t } = useTranslation()
   const { dialogModalOptions, showDialogModal } = useContext(ContextProvider)
+  const enableLocalLibraryWatcher = useAppSetting(
+    'enableLocalLibraryWatcher',
+    true
+  )
   const installModalOpen = useInstallGameModal((state) => state.isOpen)
   const [pendingFolders, setPendingFolders] = useState<
     LocalLibraryWatchEntry[]
@@ -21,6 +26,10 @@ export default function LocalLibraryWatcherHandler() {
     useState<LocalLibraryWatchEntry | null>(null)
 
   useEffect(() => {
+    if (!enableLocalLibraryWatcher) {
+      return
+    }
+
     const handleFolderAdded = (
       _event: Electron.IpcRendererEvent,
       folder: LocalLibraryWatchEntry
@@ -44,7 +53,19 @@ export default function LocalLibraryWatcherHandler() {
     return () => {
       removeListener()
     }
-  }, [])
+  }, [enableLocalLibraryWatcher])
+
+  useEffect(() => {
+    if (enableLocalLibraryWatcher) {
+      return
+    }
+
+    setPendingFolders([])
+    if (currentFolder && !currentFolder.isArchive) {
+      showDialogModal({ showDialog: false })
+    }
+    setCurrentFolder(null)
+  }, [currentFolder, enableLocalLibraryWatcher, showDialogModal])
 
   useEffect(() => {
     if (

@@ -38,6 +38,7 @@ import Folder from '@mui/icons-material/Folder'
 import List from '@mui/icons-material/List'
 import VndbSyncButton from '../../LibraryHeader/VndbSyncButton'
 import CategoriesManager from '../../CategoriesManager'
+import useAppSetting from 'frontend/hooks/useAppSetting'
 
 type Props = {
   availablePlatforms: AvailablePlatforms
@@ -65,6 +66,7 @@ export default function SideloadDialog({
   defaultPath
 }: Props) {
   const { t, i18n } = useTranslation('gamepage')
+  const enableVndbIntegration = useAppSetting('enableVndbIntegration', true)
   const [selectedExe, setSelectedExe] = useState('')
   const [gameUrl, setGameUrl] = useState('')
   const [customUserAgent, setCustomUserAgent] = useState('')
@@ -181,7 +183,7 @@ export default function SideloadDialog({
     setSearching(true)
 
     try {
-      if (isVisualNovel) {
+      if (enableVndbIntegration && isVisualNovel) {
         try {
           const vndbResults = await window.api.vndb.searchVisualNovels({
             query: title,
@@ -295,9 +297,10 @@ export default function SideloadDialog({
     setAddingApp(false)
 
     if (newGame.isVisualNovel) {
-      const { autoVndbSyncNewGames } = await window.api.requestAppSettings()
+      const { autoVndbSyncNewGames, enableVndbIntegration } =
+        await window.api.requestAppSettings()
 
-      if (autoVndbSyncNewGames) {
+      if (enableVndbIntegration && autoVndbSyncNewGames) {
         setVndbSyncGame(newGame)
         return
       }
@@ -412,12 +415,14 @@ export default function SideloadDialog({
           <div className="imageIcons">
             <div
               className={classNames('appImageContainer', {
-                hasSgdbKey: hasSgdbKey || isVisualNovel,
+                hasSgdbKey:
+                  hasSgdbKey || (enableVndbIntegration && isVisualNovel),
                 searching,
                 loading: imageLoading
               })}
               onClick={() =>
-                (hasSgdbKey || isVisualNovel) && setSgdbTarget('square')
+                (hasSgdbKey || (enableVndbIntegration && isVisualNovel)) &&
+                setSgdbTarget('square')
               }
             >
               <CachedImage
@@ -433,11 +438,13 @@ export default function SideloadDialog({
                   <FontAwesomeIcon icon={faSpinner} spin size="3x" />
                 </div>
               )}
-              {(hasSgdbKey || isVisualNovel) && !searching && !imageLoading && (
-                <div className="imageHoverOverlay">
-                  <FontAwesomeIcon icon={faSearch} size="3x" />
-                </div>
-              )}
+              {(hasSgdbKey || (enableVndbIntegration && isVisualNovel)) &&
+                !searching &&
+                !imageLoading && (
+                  <div className="imageHoverOverlay">
+                    <FontAwesomeIcon icon={faSearch} size="3x" />
+                  </div>
+                )}
             </div>
             <div
               className={classNames('appImageContainer heroImageContainer', {
@@ -465,7 +472,11 @@ export default function SideloadDialog({
               <SteamGridDBPicker
                 initialTitle={title}
                 mode={sgdbTarget === 'cover' ? 'heroes' : 'grids'}
-                includeVndb={isVisualNovel && sgdbTarget === 'square'}
+                includeVndb={
+                  enableVndbIntegration &&
+                  isVisualNovel &&
+                  sgdbTarget === 'square'
+                }
                 enableSteamGridDb={hasSgdbKey}
                 onClose={() => setSgdbTarget(null)}
                 onSelect={(url: string) => {
@@ -564,13 +575,15 @@ export default function SideloadDialog({
                       type="button"
                       className="button is-secondary is-small"
                       disabled={
-                        (!hasSgdbKey && !isVisualNovel) || !title.trim()
+                        (!hasSgdbKey &&
+                          !(enableVndbIntegration && isVisualNovel)) ||
+                        !title.trim()
                       }
                       onClick={() => {
                         setSgdbTarget('square')
                       }}
                     >
-                      {isVisualNovel
+                      {enableVndbIntegration && isVisualNovel
                         ? t('sideload.images.search-covers', 'Search Covers')
                         : t(
                             'sideload.images.search-steamgriddb',
@@ -689,7 +702,7 @@ export default function SideloadDialog({
           {!addingApp && t('button.finish', 'Finish')}
         </button>
       </DialogFooter>
-      {vndbSyncGame && (
+      {enableVndbIntegration && vndbSyncGame && (
         <VndbSyncButton
           list={[vndbSyncGame]}
           autoOpen

@@ -5,6 +5,7 @@ import { useState, useEffect, useContext } from 'react'
 import ContextProvider from 'frontend/state/ContextProvider'
 
 import useGlobalState from 'frontend/state/GlobalStateV2'
+import { APP_SETTING_CHANGED_EVENT } from './useAppSetting'
 
 type Props = {
   appName: string
@@ -48,6 +49,13 @@ const useSettingsContext = ({ appName, gameInfo, runner }: Props) => {
       }
       setCurrentConfig({ ...currentConfig, [key]: value })
       window.api.setSetting({ appName, key, value })
+      if (isDefault) {
+        window.dispatchEvent(
+          new CustomEvent(APP_SETTING_CHANGED_EVENT, {
+            detail: { key, value }
+          })
+        )
+      }
     },
     config: currentConfig,
     isDefault,

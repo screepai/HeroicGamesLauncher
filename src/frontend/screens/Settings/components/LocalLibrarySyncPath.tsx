@@ -2,7 +2,11 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Chip } from '@mui/material'
 
-import { PathSelectionBox, TextInputField } from 'frontend/components/UI'
+import {
+  PathSelectionBox,
+  TextInputField,
+  ToggleSwitch
+} from 'frontend/components/UI'
 import useSetting from 'frontend/hooks/useSetting'
 
 import './LocalLibrarySyncPath/index.css'
@@ -10,6 +14,16 @@ import './LocalLibrarySyncPath/index.css'
 const LocalLibrarySyncPath = () => {
   const { t } = useTranslation()
   const [newExclusionRule, setNewExclusionRule] = useState('')
+  const [enableLocalLibraryWatcher, setEnableLocalLibraryWatcher] = useSetting(
+    'enableLocalLibraryWatcher',
+    true
+  )
+  const [detectLocalLibraryArchives, setDetectLocalLibraryArchives] =
+    useSetting('detectLocalLibraryArchives', true)
+  const [
+    askToDeleteArchiveAfterExtraction,
+    setAskToDeleteArchiveAfterExtraction
+  ] = useSetting('askToDeleteArchiveAfterExtraction', true)
   const [localLibrarySyncPath, setLocalLibrarySyncPath] = useSetting(
     'localLibrarySyncPath',
     ''
@@ -40,8 +54,54 @@ const LocalLibrarySyncPath = () => {
 
   return (
     <>
+      <ToggleSwitch
+        htmlId="enableLocalLibraryWatcher"
+        value={enableLocalLibraryWatcher}
+        handleChange={() =>
+          setEnableLocalLibraryWatcher(!enableLocalLibraryWatcher)
+        }
+        title={t(
+          'setting.enableLocalLibraryWatcher',
+          'Watch local library folder for new games'
+        )}
+        description={t(
+          'setting.enableLocalLibraryWatcher-description',
+          'Pause folder and archive detection without clearing the watched folder or exclusion rules.'
+        )}
+      />
+      <ToggleSwitch
+        htmlId="detectLocalLibraryArchives"
+        value={detectLocalLibraryArchives}
+        disabled={!enableLocalLibraryWatcher}
+        handleChange={() =>
+          setDetectLocalLibraryArchives(!detectLocalLibraryArchives)
+        }
+        title={t(
+          'setting.detectLocalLibraryArchives',
+          'Detect compressed archives in watched folders'
+        )}
+      />
+      <ToggleSwitch
+        htmlId="askToDeleteArchiveAfterExtraction"
+        value={askToDeleteArchiveAfterExtraction}
+        handleChange={() =>
+          setAskToDeleteArchiveAfterExtraction(
+            !askToDeleteArchiveAfterExtraction
+          )
+        }
+        title={t(
+          'setting.askToDeleteArchiveAfterExtraction',
+          'Ask to delete archives after extraction'
+        )}
+        description={t(
+          'setting.askToDeleteArchiveAfterExtraction-description',
+          'When disabled, extracted archives are kept without showing a deletion prompt.'
+        )}
+      />
+
       <PathSelectionBox
         type="directory"
+        disabled={!enableLocalLibraryWatcher}
         onPathChange={setLocalLibrarySyncPath}
         path={localLibrarySyncPath}
         pathDialogTitle={t(
@@ -70,6 +130,7 @@ const LocalLibrarySyncPath = () => {
 
       <TextInputField
         htmlId="local_library_sync_exclusion"
+        disabled={!enableLocalLibraryWatcher}
         extraClass="withRightButton localLibraryExclusionInput"
         label={t(
           'setting.local-library-sync-exclusions',
@@ -91,7 +152,7 @@ const LocalLibrarySyncPath = () => {
           <button
             className="button is-primary rightButton"
             type="button"
-            disabled={!newExclusionRule.trim()}
+            disabled={!enableLocalLibraryWatcher || !newExclusionRule.trim()}
             onClick={addExclusionRule}
           >
             {t('box.add', 'Add')}
@@ -105,6 +166,7 @@ const LocalLibrarySyncPath = () => {
             className="localLibraryExclusionChip"
             key={rule}
             label={rule}
+            disabled={!enableLocalLibraryWatcher}
             onDelete={() => removeExclusionRule(rule)}
             variant="outlined"
           />

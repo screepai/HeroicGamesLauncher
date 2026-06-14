@@ -75,17 +75,19 @@ Heroic is built with Web Technologies:
 
 ## Features this fork has to offer
 
-- Sync game library with VNDB library
-- Library layout grouped by categories that follow your custom drag-and-drop order
-- Enhanced Discord Rich Presence including session time, total playtime tracking and buttons
-- Local storage sync with customizable exclusion rules
-- Automatic VNDB synchronization for newly added visual novels from local storage
-- Dedicated VNDB tab to seamlessly view information, modify labels, and cast votes
-- Cover image search integration supporting both VNDB and SteamGridDB
-- One-click Locale Emulator (or just locale flags for Linux) setup for visual novels [Windows, for now]
-- Bulk selection and batch categorization of game cards
-- Type-to-search functionality directly within the library list
-- Built-in archive extraction with options to select contents and automatically clean up original files
+- Full VNDB library integration with automatic matching, manual rematching, bulk synchronization, and direct game-card actions
+- Secure VNDB account integration for synchronizing labels, votes, play dates, and selected releases
+- Dedicated VNDB game tab with descriptions, tags, ratings, play length, developers, relations, releases, and account controls
+- Automatic VNDB matching and synchronization for newly added visual novels from watched local folders
+- Cover image search through both VNDB and SteamGridDB
+- Enhanced Discord Rich Presence with session time, total playtime, game links, and optional VNDB details
+- Category-grouped library layout that follows your custom drag-and-drop order
+- Type-to-search directly within the library, including matched VNDB titles and aliases
+- Local library folder watcher with persistent state, customizable exclusion rules, and optional archive detection
+- Built-in archive inspection and extraction with content selection, password-protected and multipart archive support, incomplete-archive diagnostics, and optional source cleanup
+- Per-game Visual Novel and Japanese Locale controls, including Locale Emulator support on Windows and locale launch flags on Linux [Windows, for now]
+- Bulk selection with Select All/Unselect All, batch categorization, and batch Visual Novel or Japanese Locale settings
+- Granular settings to enable or disable VNDB integration, VNDB account writes, game-card actions, VNDB Discord details, local-folder watching, archive detection, and post-extraction cleanup prompts
 
 ## Planned features
 

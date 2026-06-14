@@ -8,11 +8,13 @@ const AutoVndbSyncNewGames = () => {
     'autoVndbSyncNewGames',
     true
   )
+  const [enableVndbIntegration] = useSetting('enableVndbIntegration', true)
 
   return (
     <ToggleSwitch
       htmlId="autoVndbSyncNewGames"
       value={autoVndbSyncNewGames}
+      disabled={!enableVndbIntegration}
       handleChange={() => setAutoVndbSyncNewGames(!autoVndbSyncNewGames)}
       title={t(
         'setting.autoVndbSyncNewGames',

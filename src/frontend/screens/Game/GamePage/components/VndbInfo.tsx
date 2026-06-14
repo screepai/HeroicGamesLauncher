@@ -12,6 +12,7 @@ import { Tooltip } from '@mui/material'
 import fallbackImage from 'frontend/assets/heroic_card.jpg'
 import { CachedImage, WarningMessage } from 'frontend/components/UI'
 import { createNewWindow } from 'frontend/helpers'
+import useSetting from 'frontend/hooks/useSetting'
 import {
   getSelectedVndbRelease,
   getSelectedVndbReleases,
@@ -636,12 +637,14 @@ function VndbUserOptionsSection({
   mainVersion,
   onChange,
   onResyncDates,
-  state
+  state,
+  syncEnabled
 }: {
   mainVersion: MainVersionInfo
   onChange: (update: VndbUserOptionsUpdate) => Promise<void>
   onResyncDates: () => Promise<void>
   state: VndbUserOptionsState
+  syncEnabled: boolean
 }) {
   const { t } = useTranslation('gamepage')
   const [saving, setSaving] = useState(false)
@@ -763,7 +766,7 @@ function VndbUserOptionsSection({
               <label>
                 <span>{t('vndb.start-date', 'Start date')}</span>
                 <input
-                  disabled={saving || !state.options.canWrite}
+                  disabled={saving || !state.options.canWrite || !syncEnabled}
                   max="2099-12-31"
                   min="1970-01-01"
                   onChange={(event) =>
@@ -776,7 +779,7 @@ function VndbUserOptionsSection({
               <label>
                 <span>{t('vndb.finish-date', 'Finish date')}</span>
                 <input
-                  disabled={saving || !state.options.canWrite}
+                  disabled={saving || !state.options.canWrite || !syncEnabled}
                   max="2099-12-31"
                   min="1970-01-01"
                   onChange={(event) =>
@@ -788,7 +791,7 @@ function VndbUserOptionsSection({
               </label>
               <button
                 className="button is-secondary vndbInfoResyncDates"
-                disabled={saving || !state.options.canWrite}
+                disabled={saving || !state.options.canWrite || !syncEnabled}
                 onClick={() => void resyncDates()}
               >
                 {t('vndb.resync-dates', 'Resync dates')}
@@ -854,6 +857,7 @@ function VndbUserOptionsSection({
 
 export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
   const { t, i18n } = useTranslation('gamepage')
+  const [syncVndbUserData] = useSetting('syncVndbUserData', false)
   const [savingRelease, setSavingRelease] = useState(false)
   const [releaseSaveError, setReleaseSaveError] = useState<string | null>(null)
   const [userOptionsState, setUserOptionsState] =
@@ -1062,6 +1066,7 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
 
     try {
       if (
+        syncVndbUserData &&
         userOptionsState.status === 'ready' &&
         userOptionsState.options.canWrite
       ) {
@@ -1155,6 +1160,7 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
         onChange={handleUserOptionsChange}
         onResyncDates={() => syncVndbUserDates()}
         state={userOptionsState}
+        syncEnabled={syncVndbUserData}
       />
 
       <VndbReleaseChooser

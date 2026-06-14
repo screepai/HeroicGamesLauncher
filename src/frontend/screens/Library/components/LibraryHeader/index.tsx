@@ -15,6 +15,7 @@ import AddGameButton from '../AddGameButton'
 import VndbSyncButton from './VndbSyncButton'
 import BulkGameOptionsDialog from './BulkGameOptionsDialog'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import useAppSetting from 'frontend/hooks/useAppSetting'
 import {
   faCheckDouble,
   faSlidersH,
@@ -32,6 +33,7 @@ export default memo(function LibraryHeader({
   onVndbMatchesChange
 }: Props) {
   const { t } = useTranslation()
+  const enableVndbIntegration = useAppSetting('enableVndbIntegration', true)
   const {
     showFavourites,
     selectedGames,
@@ -134,10 +136,12 @@ export default memo(function LibraryHeader({
               <FontAwesomeIcon icon={faSlidersH} />
               {t('library.bulk-options.button', 'Options')}
             </button>
-            <VndbSyncButton
-              list={selectedGames}
-              onMatchesChange={onVndbMatchesChange}
-            />
+            {enableVndbIntegration && (
+              <VndbSyncButton
+                list={selectedGames}
+                onMatchesChange={onVndbMatchesChange}
+              />
+            )}
             <button
               className="libraryBulkAction"
               onClick={clearGameSelection}
@@ -168,10 +172,12 @@ export default memo(function LibraryHeader({
                 >
                   {t('box.extract-archive', 'Extract Archive')}
                 </button>
-                <VndbSyncButton
-                  list={list}
-                  onMatchesChange={onVndbMatchesChange}
-                />
+                {enableVndbIntegration && (
+                  <VndbSyncButton
+                    list={list}
+                    onMatchesChange={onVndbMatchesChange}
+                  />
+                )}
               </span>
             </span>
             <ActionIcons />

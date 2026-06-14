@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { InfoBox, TextInputField } from 'frontend/components/UI'
+import useSetting from 'frontend/hooks/useSetting'
 
 export default function VndbApiToken() {
   const { t } = useTranslation()
   const [value, setValue] = useState('')
   const [hasToken, setHasToken] = useState(false)
+  const [enableVndbIntegration] = useSetting('enableVndbIntegration', true)
   const url = 'https://vndb.org/u/tokens'
 
   useEffect(() => {
@@ -34,6 +36,7 @@ export default function VndbApiToken() {
       value={value}
       htmlId="vndb-api-token"
       type="password"
+      disabled={!enableVndbIntegration}
       afterInput={
         <InfoBox text={t('settings.advanced.details', 'Details')}>
           <span style={{ userSelect: 'text' }}>

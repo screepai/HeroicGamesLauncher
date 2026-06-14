@@ -23,13 +23,17 @@ type LocalLibraryFolder = {
 
 const WATCH_DEBOUNCE_MS = 500
 
-function getLibraryEntryNames(entries: Dirent[]): Set<string> {
+function getLibraryEntryNames(
+  entries: Dirent[],
+  detectArchives = true
+): Set<string> {
   return new Set(
     entries
       .filter(
         (entry) =>
           entry.isDirectory() ||
-          (entry.isFile() &&
+          (detectArchives &&
+            entry.isFile() &&
             getArchiveExtension(entry.name) !== undefined &&
             (getArchivePart(entry.name)?.partNumber ?? 1) === 1)
       )
@@ -73,6 +77,7 @@ class LocalLibraryWatcher {
   private knownEntries = new Set<string>()
   private suppressedEntries = new Set<string>()
   private exclusionRules: string[] = []
+  private detectArchives = true
   private watcher: FSWatcher | undefined
   private reconcileTimeout: NodeJS.Timeout | undefined
   private revision = 0
@@ -84,6 +89,10 @@ class LocalLibraryWatcher {
 
   setExclusionRules(exclusionRules: string[]): void {
     this.exclusionRules = exclusionRules
+  }
+
+  setDetectArchives(detectArchives: boolean): void {
+    this.detectArchives = detectArchives
   }
 
   suppressPath(path: string): void {
@@ -119,7 +128,7 @@ class LocalLibraryWatcher {
     }
 
     this.rootPath = nextRootPath
-    const currentEntries = getLibraryEntryNames(entries)
+    const currentEntries = getLibraryEntryNames(entries, this.detectArchives)
     this.knownEntries = currentEntries
 
     try {
@@ -211,7 +220,7 @@ class LocalLibraryWatcher {
       return
     }
 
-    const currentEntries = getLibraryEntryNames(entries)
+    const currentEntries = getLibraryEntryNames(entries, this.detectArchives)
     const addedEntries = getAddedEntryNames(
       this.knownEntries,
       currentEntries,
@@ -259,7 +268,10 @@ function initLocalLibraryWatcher(): void {
 
   const settings = GlobalConfig.get().getSettings()
   localLibraryWatcher.setExclusionRules(settings.localLibrarySyncExclusions)
-  void localLibraryWatcher.setPath(settings.localLibrarySyncPath)
+  localLibraryWatcher.setDetectArchives(settings.detectLocalLibraryArchives)
+  void localLibraryWatcher.setPath(
+    settings.enableLocalLibraryWatcher ? settings.localLibrarySyncPath : ''
+  )
 
   backendEvents.on('settingChanged', ({ key, newValue }) => {
     if (key === 'localLibrarySyncExclusions') {
@@ -270,9 +282,27 @@ function initLocalLibraryWatcher(): void {
       )
     }
 
-    if (key === 'localLibrarySyncPath') {
+    if (key === 'enableLocalLibraryWatcher') {
+      const settings = GlobalConfig.get().getSettings()
       void localLibraryWatcher.setPath(
-        typeof newValue === 'string' ? newValue : ''
+        newValue === true ? settings.localLibrarySyncPath : ''
+      )
+    }
+
+    if (key === 'detectLocalLibraryArchives') {
+      const settings = GlobalConfig.get().getSettings()
+      localLibraryWatcher.setDetectArchives(newValue === true)
+      void localLibraryWatcher.setPath(
+        settings.enableLocalLibraryWatcher ? settings.localLibrarySyncPath : ''
+      )
+    }
+
+    if (key === 'localLibrarySyncPath') {
+      const settings = GlobalConfig.get().getSettings()
+      void localLibraryWatcher.setPath(
+        settings.enableLocalLibraryWatcher && typeof newValue === 'string'
+          ? newValue
+          : ''
       )
     }
   })

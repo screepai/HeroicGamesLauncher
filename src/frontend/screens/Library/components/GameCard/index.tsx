@@ -64,6 +64,7 @@ import {
 import EditGameDialog from 'frontend/components/UI/EditGameDialog'
 import { openInstallGameModal } from 'frontend/state/InstallGameModal'
 import VndbSyncButton from '../LibraryHeader/VndbSyncButton'
+import useAppSetting from 'frontend/hooks/useAppSetting'
 
 interface Card {
   buttonClick: () => void
@@ -111,6 +112,11 @@ const GameCard = ({
 
   const { t } = useTranslation('gamepage')
   const { t: t2 } = useTranslation()
+  const enableVndbIntegration = useAppSetting('enableVndbIntegration', true)
+  const showVndbActionsOnGameCards = useAppSetting(
+    'showVndbActionsOnGameCards',
+    true
+  )
 
   const navigate = useNavigate()
 
@@ -379,6 +385,8 @@ const GameCard = ({
 
   const isSideloaded = runner === 'sideload'
   const showVndbSync =
+    enableVndbIntegration &&
+    showVndbActionsOnGameCards &&
     Boolean(gameInfoFromProps.isVisualNovel) &&
     !gameInfoFromProps.install.is_dlc
 
@@ -566,7 +574,7 @@ const GameCard = ({
           onClose={() => setShowUninstallModal(false)}
         />
       )}
-      {showVndbSyncDialog && (
+      {showVndbSync && showVndbSyncDialog && (
         <VndbSyncButton
           list={[gameInfoFromProps]}
           autoOpen

@@ -37,6 +37,7 @@ import {
 } from 'frontend/helpers/vndb'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import useAppSetting from 'frontend/hooks/useAppSetting'
 
 type Props = {
   list: GameInfo[]
@@ -520,6 +521,7 @@ export default function VndbSyncButton({
   onClose
 }: Props) {
   const { t, i18n } = useTranslation()
+  const syncVndbUserData = useAppSetting('syncVndbUserData', false)
   const [open, setOpen] = useState(false)
   const [loadingMatches, setLoadingMatches] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -1071,18 +1073,20 @@ export default function VndbSyncButton({
             )}
           </DialogContent>
           <DialogFooter>
-            <button
-              className="button is-secondary"
-              onClick={() => void syncStoredUserData()}
-              disabled={loadingMatches || syncing || refreshingMatches}
-            >
-              {refreshingMatches ? (
-                <FontAwesomeIcon icon={faSpinner} spin />
-              ) : (
-                <FontAwesomeIcon icon={faSyncAlt} />
-              )}
-              {t('vndb.sync.sync-existing-data', 'Sync existing data')}
-            </button>
+            {syncVndbUserData && (
+              <button
+                className="button is-secondary"
+                onClick={() => void syncStoredUserData()}
+                disabled={loadingMatches || syncing || refreshingMatches}
+              >
+                {refreshingMatches ? (
+                  <FontAwesomeIcon icon={faSpinner} spin />
+                ) : (
+                  <FontAwesomeIcon icon={faSyncAlt} />
+                )}
+                {t('vndb.sync.sync-existing-data', 'Sync existing data')}
+              </button>
+            )}
             <button
               className="button is-secondary"
               onClick={closeDialog}

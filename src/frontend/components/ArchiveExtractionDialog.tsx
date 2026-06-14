@@ -11,6 +11,7 @@ import type {
 } from 'common/types'
 import { getArchivePart } from 'common/local_library_archive'
 import { TextInputField, WarningMessage } from 'frontend/components/UI'
+import useAppSetting from 'frontend/hooks/useAppSetting'
 import {
   Dialog,
   DialogContent,
@@ -237,6 +238,10 @@ export default function ArchiveExtractionDialog({
   source = 'watcher'
 }: Props) {
   const { t } = useTranslation()
+  const askToDeleteArchiveAfterExtraction = useAppSetting(
+    'askToDeleteArchiveAfterExtraction',
+    true
+  )
   const [stage, setStage] = useState<Stage>('prompt')
   const [tree, setTree] = useState<ArchiveTreeNode[]>([])
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set())
@@ -400,8 +405,12 @@ export default function ArchiveExtractionDialog({
         rootPath: finalRootPath ?? undefined,
         selectedPaths: [...selectedPaths]
       })
-      setExtractedFolder(extractedFolder)
-      setStage('delete-prompt')
+      if (askToDeleteArchiveAfterExtraction) {
+        setExtractedFolder(extractedFolder)
+        setStage('delete-prompt')
+      } else {
+        onExtracted(extractedFolder)
+      }
     } catch (extractionError) {
       if (isPasswordError(extractionError)) {
         setPasswordRequired(true)

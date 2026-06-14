@@ -37,6 +37,7 @@ import CategoriesManager from './components/CategoriesManager'
 import LibraryTour from './components/LibraryTour'
 import AlphabetFilter from './components/AlphabetFilter'
 import { openInstallGameModal } from 'frontend/state/InstallGameModal'
+import useAppSetting from 'frontend/hooks/useAppSetting'
 import {
   getGameVndbMatchKey,
   getVndbSearchNames
@@ -93,6 +94,7 @@ function isEditableElement(target: EventTarget | null) {
 }
 
 export default React.memo(function Library(): JSX.Element {
+  const enableVndbIntegration = useAppSetting('enableVndbIntegration', true)
   const { t } = useTranslation()
 
   const {
@@ -378,6 +380,11 @@ export default React.memo(function Library(): JSX.Element {
   }
 
   useEffect(() => {
+    if (!enableVndbIntegration) {
+      setVndbMatches({})
+      return
+    }
+
     let isMounted = true
 
     window.api.vndb
@@ -394,7 +401,7 @@ export default React.memo(function Library(): JSX.Element {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [enableVndbIntegration])
 
   useEffect(() => {
     const focusSearchInput = () => {
@@ -702,9 +709,10 @@ export default React.memo(function Library(): JSX.Element {
       const searchableLibrary: SearchableGame[] = filteredLibrary.map(
         (game) => {
           const title = game.overrides?.title || game.title
-          const vndbSearchNames = game.isVisualNovel
-            ? getVndbSearchNames(vndbMatches[getGameVndbMatchKey(game)])
-            : []
+          const vndbSearchNames =
+            enableVndbIntegration && game.isVisualNovel
+              ? getVndbSearchNames(vndbMatches[getGameVndbMatchKey(game)])
+              : []
           return {
             original: game,
             normalizedSearchNames: [title, ...vndbSearchNames].map(
@@ -766,6 +774,7 @@ export default React.memo(function Library(): JSX.Element {
     showThirdPartyManagedOnly,
     showUpdatesOnly,
     gameUpdates,
+    enableVndbIntegration,
     vndbMatches
   ])
 

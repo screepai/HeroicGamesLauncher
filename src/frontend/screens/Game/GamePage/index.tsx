@@ -76,6 +76,7 @@ import ReleaseDate from './components/ReleaseDate'
 import { hasKnownFixes } from 'frontend/hooks/hasKnownFixes'
 import { openInstallGameModal } from 'frontend/state/InstallGameModal'
 import useSettingsContext from 'frontend/hooks/useSettingsContext'
+import useAppSetting from 'frontend/hooks/useAppSetting'
 import SettingsContext from 'frontend/screens/Settings/SettingsContext'
 import useGlobalState from 'frontend/state/GlobalStateV2'
 import Achievements from './components/Achievements'
@@ -127,6 +128,7 @@ function isGamePageTab(value: unknown): value is GamePageTab {
 }
 
 export default React.memo(function GamePage(): JSX.Element | null {
+  const enableVndbIntegration = useAppSetting('enableVndbIntegration', true)
   const { appName, runner } = useParams() as { appName: string; runner: Runner }
   const location = useLocation() as {
     state: { fromDM: boolean; gameInfo: GameInfo }
@@ -322,7 +324,7 @@ export default React.memo(function GamePage(): JSX.Element | null {
   }, [appName])
 
   useEffect(() => {
-    if (!gameInfo.isVisualNovel) {
+    if (!enableVndbIntegration || !gameInfo.isVisualNovel) {
       setVndbMatch(null)
       return
     }
@@ -346,10 +348,11 @@ export default React.memo(function GamePage(): JSX.Element | null {
     return () => {
       isMounted = false
     }
-  }, [appName, gameInfo.isVisualNovel, runner])
+  }, [appName, enableVndbIntegration, gameInfo.isVisualNovel, runner])
 
   useEffect(() => {
     if (
+      !enableVndbIntegration ||
       !gameInfo.isVisualNovel ||
       !vndbMatch ||
       !vndbMatchNeedsGamePageDetails(vndbMatch)
@@ -435,13 +438,16 @@ export default React.memo(function GamePage(): JSX.Element | null {
     return () => {
       isMounted = false
     }
-  }, [gameInfo.isVisualNovel, vndbMatch])
+  }, [enableVndbIntegration, gameInfo.isVisualNovel, vndbMatch])
 
   useEffect(() => {
-    if (currentTab === 'vndb' && (!gameInfo.isVisualNovel || !vndbMatch)) {
+    if (
+      currentTab === 'vndb' &&
+      (!enableVndbIntegration || !gameInfo.isVisualNovel || !vndbMatch)
+    ) {
       setCurrentTab('info')
     }
-  }, [currentTab, gameInfo.isVisualNovel, vndbMatch])
+  }, [currentTab, enableVndbIntegration, gameInfo.isVisualNovel, vndbMatch])
 
   useEffect(() => {
     // when the user clicks the Play button, we disable it so the user can't click it again
@@ -698,15 +704,17 @@ export default React.memo(function GamePage(): JSX.Element | null {
                               icon={<Star className="gameInfoTabsIcon" />}
                             />
                           )}
-                          {gameInfo.isVisualNovel && vndbMatch && (
-                            <Tab
-                              className="tabButton"
-                              value={'vndb'}
-                              label={t('game.vndb', 'VNDB')}
-                              iconPosition="start"
-                              icon={<MenuBook className="gameInfoTabsIcon" />}
-                            />
-                          )}
+                          {enableVndbIntegration &&
+                            gameInfo.isVisualNovel &&
+                            vndbMatch && (
+                              <Tab
+                                className="tabButton"
+                                value={'vndb'}
+                                label={t('game.vndb', 'VNDB')}
+                                iconPosition="start"
+                                icon={<MenuBook className="gameInfoTabsIcon" />}
+                              />
+                            )}
                           {hasRequirements && (
                             <Tab
                               className="tabButton"
@@ -763,19 +771,21 @@ export default React.memo(function GamePage(): JSX.Element | null {
                           <AppleWikiInfo gameInfo={gameInfo} />
                         </TabPanel>
 
-                        {gameInfo.isVisualNovel && vndbMatch && (
-                          <TabPanel
-                            value={currentTab}
-                            index="vndb"
-                            className="vndbTab"
-                          >
-                            <VndbInfo
-                              gameInfo={gameInfo}
-                              match={vndbMatch}
-                              onMatchChange={setVndbMatch}
-                            />
-                          </TabPanel>
-                        )}
+                        {enableVndbIntegration &&
+                          gameInfo.isVisualNovel &&
+                          vndbMatch && (
+                            <TabPanel
+                              value={currentTab}
+                              index="vndb"
+                              className="vndbTab"
+                            >
+                              <VndbInfo
+                                gameInfo={gameInfo}
+                                match={vndbMatch}
+                                onMatchChange={setVndbMatch}
+                              />
+                            </TabPanel>
+                          )}
 
                         <TabPanel
                           className="tabPanelRequirements"

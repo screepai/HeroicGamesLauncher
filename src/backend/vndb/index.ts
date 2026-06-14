@@ -1,5 +1,5 @@
 import CacheStore from 'backend/cache'
-import { tsStore } from 'backend/constants/key_value_stores'
+import { configStore, tsStore } from 'backend/constants/key_value_stores'
 import { logError, logInfo, LogPrefix } from 'backend/logger'
 import { stat } from 'fs/promises'
 import { isVndbError, parseVndbId } from 'vndb-kana-api'
@@ -28,6 +28,7 @@ import type {
   VndbUserOptions,
   VndbUserOptionsUpdate
 } from 'common/types/vndb'
+import type { AppSettings } from 'common/types'
 
 import {
   hasStoredApiToken,
@@ -35,6 +36,17 @@ import {
   vndbClient
 } from './client'
 import { vndbMatchesStore } from './electronStore'
+
+function getVndbFeatureSettings() {
+  const settings =
+    (configStore.get_nodefault('settings') as
+      | Partial<AppSettings>
+      | undefined) ?? {}
+  return {
+    enableVndbIntegration: settings.enableVndbIntegration ?? true,
+    syncVndbUserData: settings.syncVndbUserData ?? false
+  }
+}
 
 type PartialVisualNovel = Partial<
   Pick<
@@ -731,6 +743,10 @@ function getVndbRequestErrorDetails(error: unknown) {
 export async function getVndbUserOptions(
   visualNovelId: string
 ): Promise<VndbUserOptions> {
+  if (!getVndbFeatureSettings().enableVndbIntegration) {
+    return getEmptyUserOptions(false)
+  }
+
   refreshVndbClientApiToken()
 
   if (!hasStoredApiToken()) {
@@ -782,13 +798,25 @@ export async function updateVndbUserOptions(
   visualNovelId: string,
   update: VndbUserOptionsUpdate
 ): Promise<VndbUserOptions> {
+  const settings = getVndbFeatureSettings()
+  if (!settings.enableVndbIntegration) {
+    return getEmptyUserOptions(false)
+  }
+
   refreshVndbClientApiToken()
 
   if (!hasStoredApiToken()) {
     return getEmptyUserOptions(false)
   }
 
-  const normalizedUpdate = normalizeUserOptionsUpdate(update)
+  const normalizedUpdate = normalizeUserOptionsUpdate(
+    settings.syncVndbUserData
+      ? update
+      : {
+          labels: update.labels,
+          vote: update.vote
+        }
+  )
 
   if (!Object.keys(normalizedUpdate).length) {
     return getVndbUserOptions(visualNovelId)
@@ -821,6 +849,11 @@ export async function updateVndbUserRelease(
   releaseId: string,
   selected: boolean
 ): Promise<void> {
+  const settings = getVndbFeatureSettings()
+  if (!settings.enableVndbIntegration || !settings.syncVndbUserData) {
+    return
+  }
+
   refreshVndbClientApiToken()
 
   if (!hasStoredApiToken()) {
@@ -837,6 +870,17 @@ export async function updateVndbUserRelease(
 export async function syncVndbUserData(
   targets: VndbUserDataSyncTarget[]
 ): Promise<VndbUserDataSyncResult> {
+  const settings = getVndbFeatureSettings()
+  if (!settings.enableVndbIntegration || !settings.syncVndbUserData) {
+    return {
+      hasToken: false,
+      canWrite: false,
+      synced: 0,
+      skipped: targets.length,
+      errors: []
+    }
+  }
+
   refreshVndbClientApiToken()
 
   if (!hasStoredApiToken()) {
@@ -958,6 +1002,10 @@ export async function searchVndbVisualNovels(
   query: string,
   limit?: number
 ): Promise<VndbSearchResult[]> {
+  if (!getVndbFeatureSettings().enableVndbIntegration) {
+    return []
+  }
+
   refreshVndbClientApiToken()
 
   const normalizedQuery = normalizeSearchQuery(query)
@@ -1041,6 +1089,10 @@ async function findVndbMatchCandidate(
 export async function matchVndbGames(
   games: VndbGameMatchTarget[]
 ): Promise<VndbGameMatchSuggestion[]> {
+  if (!getVndbFeatureSettings().enableVndbIntegration) {
+    return games.map((game) => ({ game, result: null }))
+  }
+
   const suggestions = new Array<VndbGameMatchSuggestion>(games.length)
   let nextGameIndex = 0
 
