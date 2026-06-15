@@ -49,7 +49,7 @@ import { sendFrontendMessage } from './ipc'
 import { GlobalConfig } from './config'
 import { GameConfig } from './game_config'
 import { validWine, runWineCommand } from './launcher'
-import { gameManagerMap, libraryManagerMap } from 'backend/storeManagers'
+import { libraryManagerMap } from 'backend/storeManagers'
 import {
   installWineVersion,
   updateWineVersionInfos,
@@ -87,8 +87,13 @@ import { parse } from '@node-steam/vdf'
 import type LogWriter from 'backend/logger/log_writer'
 import { isRunning } from './downloadmanager/downloadqueue'
 import { isOnline } from './online_monitor'
+import type { Game } from 'common/types/game_manager'
 
 const execAsync = promisify(exec)
+
+function getGame(id: string, runner: Runner): Game {
+  return libraryManagerMap[runner].getGame(id)
+}
 
 /**
  * Compares 2 SemVer strings following "major.minor.patch".
@@ -277,14 +282,8 @@ async function handleExit() {
   app.exit()
 }
 
-type ErrorHandlerMessage = {
-  error?: string
-  appName?: string
-  runner: string
-}
-
-export async function askForceUninstall(runner: Runner, appName: string) {
-  const { title } = gameManagerMap[runner].getGameInfo(appName)
+export async function askForceUninstall(game: Game) {
+  const { title } = game.getGameInfo()
   const { response } = await dialog.showMessageBox({
     type: 'question',
     title,
@@ -296,17 +295,17 @@ export async function askForceUninstall(runner: Runner, appName: string) {
   })
 
   if (response === 1) {
-    await gameManagerMap[runner].forceUninstall(appName)
+    await game.forceUninstall()
   }
   return response
 }
 
-async function errorHandler({
-  error,
-  runner: r,
-  appName
-}: ErrorHandlerMessage): Promise<void> {
-  const plat = r === 'legendary' ? 'Legendary (Epic Games)' : r
+async function errorHandler(
+  error: string,
+  appName: string,
+  runner: Runner
+): Promise<void> {
+  const plat = runner === 'legendary' ? 'Legendary (Epic Games)' : runner
   const deletedFolderMsg = 'appears to be deleted'
   const expiredCredentials = 'No saved credentials'
   const legendaryRegex = /legendary.*\.py/
@@ -323,7 +322,7 @@ async function errorHandler({
   if (ignoreMessages.some((msg) => error.includes(msg))) return
 
   if (error.includes(deletedFolderMsg) && appName) {
-    await askForceUninstall(r.toLocaleLowerCase() as Runner, appName)
+    await askForceUninstall(getGame(appName, runner))
     return
   }
 
@@ -953,10 +952,6 @@ const getCurrentChangelog = async (): Promise<Release | null> => {
     )
     return null
   }
-}
-
-function getInfo(appName: string, runner: Runner): GameInfo {
-  return gameManagerMap[runner].getGameInfo(appName)
 }
 
 // can be removed if legendary and gogdl handle SIGTERM and SIGKILL
@@ -1805,7 +1800,6 @@ export {
   detectVCRedist,
   killPattern,
   shutdownWine,
-  getInfo,
   getShellPath,
   getLatestReleases,
   getWineFromProton,
@@ -1818,7 +1812,8 @@ export {
   calculateEta,
   extractFiles,
   axiosClient,
-  parseSize
+  parseSize,
+  getGame
 }
 
 // Exported only for testing purpose
