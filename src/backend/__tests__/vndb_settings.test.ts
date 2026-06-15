@@ -10,6 +10,8 @@ const mockVndbClient = {
   updateUserReleaseEntry: jest.fn()
 }
 const mockConfigStoreGet = jest.fn()
+const mockVndbMatchesStoreGet = jest.fn()
+const mockVndbMatchesStoreSet = jest.fn()
 
 jest.mock('../constants/key_value_stores', () => ({
   configStore: {
@@ -29,14 +31,16 @@ jest.mock('../vndb/client', () => ({
 }))
 jest.mock('../vndb/electronStore', () => ({
   vndbMatchesStore: {
-    get: jest.fn(() => ({})),
-    set: jest.fn()
+    get: mockVndbMatchesStoreGet,
+    set: mockVndbMatchesStoreSet
   }
 }))
 
 import {
+  getVndbGameMatch,
   matchVndbGames,
   searchVndbVisualNovels,
+  syncVndbGameMatches,
   syncVndbUserData,
   updateVndbUserRelease
 } from '../vndb'
@@ -47,6 +51,7 @@ describe('VNDB global settings', () => {
     mockSettings.enableVndbIntegration = true
     mockSettings.syncVndbUserData = true
     mockConfigStoreGet.mockReturnValue(mockSettings)
+    mockVndbMatchesStoreGet.mockReturnValue({})
   })
 
   it('skips remote user-data writes when user-data sync is disabled', async () => {
@@ -98,5 +103,120 @@ describe('VNDB global settings', () => {
       }
     ])
     expect(mockVndbClient.searchVisualNovels).not.toHaveBeenCalled()
+  })
+})
+
+describe('VNDB match persistence', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockConfigStoreGet.mockReturnValue(mockSettings)
+    mockVndbMatchesStoreGet.mockReturnValue({})
+  })
+
+  it('persists fork-specific metadata fields under a runner-scoped key', () => {
+    const selectedRelease = {
+      id: 'r1',
+      title: 'English Release',
+      languages: ['en'],
+      platforms: ['win'],
+      vns: []
+    }
+
+    const matches = syncVndbGameMatches([
+      {
+        appName: 'game',
+        runner: 'sideload',
+        title: 'Local Title',
+        vndbId: 'v1',
+        vndbTitle: 'VNDB Title',
+        aliases: ['Alias'],
+        developers: ['Developer'],
+        languages: ['ja'],
+        selectedReleases: [selectedRelease]
+      }
+    ])
+
+    expect(matches['sideload:game']).toEqual(
+      expect.objectContaining({
+        appName: 'game',
+        runner: 'sideload',
+        vndbId: 'v1',
+        aliases: ['Alias'],
+        developers: ['Developer'],
+        languages: ['ja'],
+        selectedReleases: [selectedRelease]
+      })
+    )
+    expect(typeof matches['sideload:game'].syncedAt).toBe('string')
+    expect(mockVndbMatchesStoreSet).toHaveBeenCalledWith('matches', matches)
+    expect(getVndbGameMatch('game', 'sideload')).toEqual(
+      matches['sideload:game']
+    )
+  })
+
+  it('preserves selected releases when refreshing the same VNDB match', () => {
+    const selectedReleases = [
+      {
+        id: 'r1',
+        title: 'Selected Release',
+        languages: ['en'],
+        platforms: ['win'],
+        vns: []
+      }
+    ]
+    mockVndbMatchesStoreGet.mockReturnValue({
+      'sideload:game': {
+        appName: 'game',
+        runner: 'sideload',
+        title: 'Old Title',
+        vndbId: 'v1',
+        vndbTitle: 'VNDB Title',
+        selectedReleases,
+        syncedAt: '2026-01-01T00:00:00.000Z'
+      }
+    })
+
+    const matches = syncVndbGameMatches([
+      {
+        appName: 'game',
+        runner: 'sideload',
+        title: 'New Title',
+        vndbId: 'v1',
+        developers: ['Updated Developer']
+      }
+    ])
+
+    expect(matches['sideload:game']).toEqual(
+      expect.objectContaining({
+        title: 'New Title',
+        developers: ['Updated Developer'],
+        selectedReleases
+      })
+    )
+  })
+
+  it('removes a stored match when an update clears the VNDB id', () => {
+    mockVndbMatchesStoreGet.mockReturnValue({
+      'gog:game': {
+        appName: 'game',
+        runner: 'gog',
+        title: 'Game',
+        vndbId: 'v1',
+        vndbTitle: 'Game',
+        syncedAt: '2026-01-01T00:00:00.000Z'
+      }
+    })
+
+    const matches = syncVndbGameMatches([
+      {
+        appName: 'game',
+        runner: 'gog',
+        title: 'Game',
+        vndbId: null
+      }
+    ])
+
+    expect(matches).toEqual({})
+    expect(mockVndbMatchesStoreSet).toHaveBeenCalledWith('matches', {})
   })
 })
