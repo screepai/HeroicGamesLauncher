@@ -301,8 +301,17 @@ export default function SideloadDialog({
         await window.api.requestAppSettings()
 
       if (enableVndbIntegration && autoVndbSyncNewGames) {
-        setVndbSyncGame(newGame)
-        return
+        const existingVndbMatch = editMode
+          ? await window.api.vndb.getGameMatch({
+              appName: newGame.app_name,
+              runner: newGame.runner
+            })
+          : null
+
+        if (!existingVndbMatch) {
+          setVndbSyncGame(newGame)
+          return
+        }
       }
     }
 
@@ -632,7 +641,9 @@ export default function SideloadDialog({
                     path={selectedExe}
                     placeholder={t('sideload.info.exe', 'Select Executable')}
                     pathDialogTitle={t('box.sideload.exe', 'Select Executable')}
-                    pathDialogDefaultPath={defaultPath || winePrefix}
+                    pathDialogDefaultPath={
+                      selectedExe || defaultPath || winePrefix
+                    }
                     pathDialogFilters={fileFilters(platformToInstall)}
                     htmlId="sideload-exe"
                     label={t('sideload.info.exe', 'Select Executable')}
