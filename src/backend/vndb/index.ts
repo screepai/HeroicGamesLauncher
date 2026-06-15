@@ -44,7 +44,7 @@ function getVndbFeatureSettings() {
       | undefined) ?? {}
   return {
     enableVndbIntegration: settings.enableVndbIntegration ?? true,
-    syncVndbUserData: settings.syncVndbUserData ?? false
+    syncVndbUserData: settings.syncVndbUserData ?? true
   }
 }
 
@@ -680,12 +680,17 @@ function normalizeUserOptionsUpdate(
     normalizedUpdate.vote = update.vote
   }
 
-  if (typeof update.started === 'string' && update.started.trim()) {
-    normalizedUpdate.started = update.started.trim()
+  if (update.started !== undefined) {
+    normalizedUpdate.started =
+      typeof update.started === 'string'
+        ? update.started.trim() || null
+        : update.started
   }
 
   if (update.finished !== undefined) {
     normalizedUpdate.finished = update.finished
+  } else if (normalizedUpdate.labels?.includes(finishedLabelId)) {
+    normalizedUpdate.finished = formatVndbDate(new Date())
   }
 
   return normalizedUpdate
@@ -809,14 +814,7 @@ export async function updateVndbUserOptions(
     return getEmptyUserOptions(false)
   }
 
-  const normalizedUpdate = normalizeUserOptionsUpdate(
-    settings.syncVndbUserData
-      ? update
-      : {
-          labels: update.labels,
-          vote: update.vote
-        }
-  )
+  const normalizedUpdate = normalizeUserOptionsUpdate(update)
 
   if (!Object.keys(normalizedUpdate).length) {
     return getVndbUserOptions(visualNovelId)

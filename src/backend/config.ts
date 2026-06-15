@@ -393,7 +393,7 @@ class GlobalConfigV0 extends GlobalConfig {
       showVndbActionsOnGameCards: true,
       showValveProton: false,
       steamGridDbApiKey: '',
-      syncVndbUserData: false,
+      syncVndbUserData: true,
       useVndbDiscordRichPresence: true,
       vndbApiToken: '',
       disableGOGPresence: false

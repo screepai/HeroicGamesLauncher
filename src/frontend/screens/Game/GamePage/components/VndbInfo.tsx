@@ -12,7 +12,7 @@ import { Tooltip } from '@mui/material'
 import fallbackImage from 'frontend/assets/heroic_card.jpg'
 import { CachedImage, WarningMessage } from 'frontend/components/UI'
 import { createNewWindow } from 'frontend/helpers'
-import useSetting from 'frontend/hooks/useSetting'
+import useAppSetting from 'frontend/hooks/useAppSetting'
 import {
   getSelectedVndbRelease,
   getSelectedVndbReleases,
@@ -766,7 +766,7 @@ function VndbUserOptionsSection({
               <label>
                 <span>{t('vndb.start-date', 'Start date')}</span>
                 <input
-                  disabled={saving || !state.options.canWrite || !syncEnabled}
+                  disabled={saving || !state.options.canWrite}
                   max="2099-12-31"
                   min="1970-01-01"
                   onChange={(event) =>
@@ -779,7 +779,7 @@ function VndbUserOptionsSection({
               <label>
                 <span>{t('vndb.finish-date', 'Finish date')}</span>
                 <input
-                  disabled={saving || !state.options.canWrite || !syncEnabled}
+                  disabled={saving || !state.options.canWrite}
                   max="2099-12-31"
                   min="1970-01-01"
                   onChange={(event) =>
@@ -857,7 +857,7 @@ function VndbUserOptionsSection({
 
 export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
   const { t, i18n } = useTranslation('gamepage')
-  const [syncVndbUserData] = useSetting('syncVndbUserData', false)
+  const syncVndbUserData = useAppSetting('syncVndbUserData', true)
   const [savingRelease, setSavingRelease] = useState(false)
   const [releaseSaveError, setReleaseSaveError] = useState<string | null>(null)
   const [userOptionsState, setUserOptionsState] =

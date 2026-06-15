@@ -6,10 +6,14 @@ const mockSettings = {
 const mockVndbClient = {
   deleteUserReleaseEntry: jest.fn(),
   getAuthInfo: jest.fn(),
+  getUserLabels: jest.fn(),
+  getUserList: jest.fn(),
   searchVisualNovels: jest.fn(),
+  updateUserListEntry: jest.fn(),
   updateUserReleaseEntry: jest.fn()
 }
 const mockConfigStoreGet = jest.fn()
+const mockHasStoredApiToken = jest.fn()
 const mockVndbMatchesStoreGet = jest.fn()
 const mockVndbMatchesStoreSet = jest.fn()
 
@@ -25,7 +29,7 @@ jest.mock('../logger', () => ({
   LogPrefix: { Backend: 'Backend' }
 }))
 jest.mock('../vndb/client', () => ({
-  hasStoredApiToken: jest.fn(() => true),
+  hasStoredApiToken: mockHasStoredApiToken,
   refreshVndbClientApiToken: jest.fn(),
   vndbClient: mockVndbClient
 }))
@@ -42,6 +46,7 @@ import {
   searchVndbVisualNovels,
   syncVndbGameMatches,
   syncVndbUserData,
+  updateVndbUserOptions,
   updateVndbUserRelease
 } from '../vndb'
 
@@ -51,7 +56,15 @@ describe('VNDB global settings', () => {
     mockSettings.enableVndbIntegration = true
     mockSettings.syncVndbUserData = true
     mockConfigStoreGet.mockReturnValue(mockSettings)
+    mockHasStoredApiToken.mockReturnValue(true)
     mockVndbMatchesStoreGet.mockReturnValue({})
+    mockVndbClient.getAuthInfo.mockResolvedValue({
+      id: 'u1',
+      username: 'test-user',
+      permissions: ['listread', 'listwrite']
+    })
+    mockVndbClient.getUserLabels.mockResolvedValue({ labels: [] })
+    mockVndbClient.getUserList.mockResolvedValue({ results: [] })
   })
 
   it('skips remote user-data writes when user-data sync is disabled', async () => {
@@ -78,6 +91,35 @@ describe('VNDB global settings', () => {
     await updateVndbUserRelease('r1', true)
 
     expect(mockVndbClient.updateUserReleaseEntry).not.toHaveBeenCalled()
+  })
+
+  it('allows explicit date edits when automatic user-data sync is disabled', async () => {
+    mockSettings.syncVndbUserData = false
+
+    await updateVndbUserOptions('v1', {
+      started: null,
+      finished: '2026-06-16'
+    })
+
+    expect(mockVndbClient.updateUserListEntry).toHaveBeenCalledWith('v1', {
+      started: null,
+      finished: '2026-06-16'
+    })
+  })
+
+  it('sets the finish date when the Finished label is selected', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-16T12:00:00.000Z'))
+
+    try {
+      await updateVndbUserOptions('v1', { labels: [2] })
+
+      expect(mockVndbClient.updateUserListEntry).toHaveBeenCalledWith('v1', {
+        labels: [2],
+        finished: '2026-06-16'
+      })
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('suppresses VNDB search and matching when integration is disabled', async () => {

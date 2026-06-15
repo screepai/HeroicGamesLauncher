@@ -10,7 +10,7 @@ export default function VndbFeatureSettings() {
   )
   const [syncVndbUserData, setSyncVndbUserData] = useSetting(
     'syncVndbUserData',
-    false
+    true
   )
   const [discordRPC] = useSetting('discordRPC', false)
   const [showVndbActionsOnGameCards, setShowVndbActionsOnGameCards] =

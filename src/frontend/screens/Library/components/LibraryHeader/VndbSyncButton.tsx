@@ -521,7 +521,7 @@ export default function VndbSyncButton({
   onClose
 }: Props) {
   const { t, i18n } = useTranslation()
-  const syncVndbUserData = useAppSetting('syncVndbUserData', false)
+  const syncVndbUserData = useAppSetting('syncVndbUserData', true)
   const [open, setOpen] = useState(false)
   const [loadingMatches, setLoadingMatches] = useState(false)
   const [syncing, setSyncing] = useState(false)
