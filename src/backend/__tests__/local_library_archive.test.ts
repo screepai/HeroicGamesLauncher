@@ -33,6 +33,7 @@ jest.mock('../utils', () => ({
 import {
   deleteLocalLibraryArchive,
   extractLocalLibraryArchive,
+  findLocalLibraryNestedArchives,
   inspectLocalLibraryArchive,
   listLocalLibraryArchive,
   parseArchiveListing,
@@ -170,6 +171,81 @@ Attributes = A
       await expect(
         fs.readFile(join(result.folderPath, 'secret.txt'), 'utf8')
       ).resolves.toBe('classified')
+    } finally {
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it('finds a nested archive wrapper without treating game folders as nested archives', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-nested-archive-')
+    )
+    const wrapperPath = join(rootPath, 'Extracted Wrapper')
+    const nestedArchivePath = join(wrapperPath, 'Inner Game.rar')
+    const gameFolderPath = join(rootPath, 'Game Folder')
+
+    try {
+      await fs.mkdir(wrapperPath)
+      await fs.writeFile(nestedArchivePath, 'archive')
+      await fs.writeFile(join(wrapperPath, 'readme.txt'), 'sidecar')
+      await expect(
+        findLocalLibraryNestedArchives(wrapperPath)
+      ).resolves.toEqual([
+        {
+          cleanupAfterExtractionPath: wrapperPath,
+          extractionDestinationDirectory: rootPath,
+          folderPath: nestedArchivePath,
+          isArchive: true,
+          title: 'Inner Game'
+        }
+      ])
+
+      await fs.mkdir(gameFolderPath)
+      await fs.writeFile(join(gameFolderPath, 'assets.zip'), 'asset archive')
+      await fs.mkdir(join(gameFolderPath, 'GameData'))
+      await expect(
+        findLocalLibraryNestedArchives(gameFolderPath)
+      ).resolves.toEqual([])
+    } finally {
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it('extracts a nested archive beside the wrapper and removes the wrapper', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-nested-extract-')
+    )
+    const wrapperPath = join(rootPath, 'Extracted Wrapper')
+    const sourcePath = join(rootPath, 'payload.txt')
+    const nestedArchivePath = join(wrapperPath, 'Inner Game.7z')
+
+    try {
+      await fs.mkdir(wrapperPath)
+      await fs.writeFile(sourcePath, 'nested payload')
+      await execFileAsync(path7z, ['a', nestedArchivePath, sourcePath], {
+        cwd: rootPath,
+        windowsHide: true
+      })
+      await fs.rm(sourcePath)
+
+      const result = await extractLocalLibraryArchive({
+        archivePath: nestedArchivePath,
+        cleanupPath: wrapperPath,
+        destinationDirectory: rootPath,
+        destinationName: 'Final Game',
+        selectedPaths: ['payload.txt']
+      })
+
+      expect(result).toEqual({
+        folderPath: join(rootPath, 'Final Game'),
+        title: 'Final Game'
+      })
+      await expect(
+        fs.readFile(join(result.folderPath, 'payload.txt'), 'utf8')
+      ).resolves.toBe('nested payload')
+      await expect(fs.access(wrapperPath)).rejects.toMatchObject({
+        code: 'ENOENT'
+      })
     } finally {
       await fs.rm(rootPath, { recursive: true, force: true })
     }

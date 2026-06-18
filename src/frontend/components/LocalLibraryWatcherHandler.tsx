@@ -30,27 +30,41 @@ export default function LocalLibraryWatcherHandler() {
       return
     }
 
-    const handleFolderAdded = (
-      _event: Electron.IpcRendererEvent,
-      folder: LocalLibraryWatchEntry
-    ): void => {
+    let active = true
+
+    const appendPendingFolders = (folders: LocalLibraryWatchEntry[]): void => {
+      if (!active || folders.length === 0) {
+        return
+      }
+
       setPendingFolders((current) => {
-        if (
-          current.some(
-            (pendingFolder) => pendingFolder.folderPath === folder.folderPath
-          )
-        ) {
+        const currentFolderPaths = new Set(
+          current.map((pendingFolder) => pendingFolder.folderPath)
+        )
+        const newFolders = folders.filter(
+          (folder) => !currentFolderPaths.has(folder.folderPath)
+        )
+
+        if (newFolders.length === 0) {
           return current
         }
 
-        return [...current, folder]
+        return [...current, ...newFolders]
       })
     }
 
+    const drainPendingFolders = (): void => {
+      void window.api.drainLocalLibraryWatcherQueue().then(appendPendingFolders)
+    }
+
+    const handleFolderAdded = (): void => drainPendingFolders()
+
     const removeListener: () => void =
       window.api.handleLocalLibraryFolderAdded(handleFolderAdded)
+    drainPendingFolders()
 
     return () => {
+      active = false
       removeListener()
     }
   }, [enableLocalLibraryWatcher])

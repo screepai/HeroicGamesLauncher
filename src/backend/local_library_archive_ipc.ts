@@ -2,6 +2,7 @@ import { addHandler } from './ipc'
 import {
   deleteLocalLibraryArchive,
   extractLocalLibraryArchive,
+  findLocalLibraryNestedArchives,
   inspectLocalLibraryArchive,
   listLocalLibraryArchive
 } from './local_library_archive'
@@ -24,4 +25,8 @@ addHandler('extractLocalLibraryArchive', (_event, args) =>
 
 addHandler('deleteLocalLibraryArchive', (_event, archivePath) =>
   deleteLocalLibraryArchive(archivePath)
+)
+
+addHandler('findLocalLibraryNestedArchives', (_event, folderPath) =>
+  findLocalLibraryNestedArchives(folderPath)
 )

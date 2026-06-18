@@ -19,6 +19,7 @@ jest.mock('../config', () => ({
   }
 }))
 jest.mock('../ipc', () => ({
+  addHandler: jest.fn(),
   sendFrontendMessage: jest.fn()
 }))
 jest.mock('../logger', () => ({
@@ -36,11 +37,12 @@ import {
   getLibraryEntryNames,
   initLocalLibraryWatcher,
   LocalLibraryWatcher,
-  matchesExclusionRule
+  matchesExclusionRule,
+  drainLocalLibraryWatcherQueue
 } from '../local_library_watcher'
 import type { LocalLibraryWatcherState } from '../local_library_watcher_state'
 import { backendEvents } from '../backend_events'
-import { sendFrontendMessage } from '../ipc'
+import { addHandler, sendFrontendMessage } from '../ipc'
 
 type SettingChangedHandler = (payload: {
   key: string
@@ -52,6 +54,35 @@ type SettingChangedOn = (
   eventName: 'settingChanged',
   listener: SettingChangedHandler
 ) => typeof backendEvents
+
+const testWatcherOptions = {
+  entryStableChecks: 2,
+  entryStabilityIntervalMs: 25,
+  watchDebounceMs: 25
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolveDelay) => setTimeout(resolveDelay, ms))
+}
+
+async function waitFor(
+  assertion: () => void,
+  timeoutMs = 1000,
+  intervalMs = 10
+): Promise<void> {
+  const startTime = Date.now()
+
+  while (Date.now() - startTime < timeoutMs) {
+    try {
+      assertion()
+      return
+    } catch {
+      await delay(intervalMs)
+    }
+  }
+
+  assertion()
+}
 
 function createWatcherState(
   initialSnapshots: Record<string, string[]> = {}
@@ -183,7 +214,8 @@ describe('local library watcher', () => {
     )
     const watcher = new LocalLibraryWatcher(
       (folder) => resolveAddedFolder(folder),
-      createWatcherState()
+      createWatcherState(),
+      testWatcherOptions
     )
 
     try {
@@ -219,7 +251,8 @@ describe('local library watcher', () => {
     )
     const watcher = new LocalLibraryWatcher(
       (folder) => resolveAddedFolder(folder),
-      createWatcherState()
+      createWatcherState(),
+      testWatcherOptions
     )
 
     try {
@@ -237,12 +270,82 @@ describe('local library watcher', () => {
     }
   })
 
+  it('waits for a newly added archive to stop changing before reporting it', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-local-library-')
+    )
+    const newArchivePath = join(rootPath, 'Downloading Game.zip')
+    const onFolderAdded = jest.fn()
+    const watcher = new LocalLibraryWatcher(
+      onFolderAdded,
+      createWatcherState(),
+      testWatcherOptions
+    )
+
+    try {
+      await watcher.setPath(rootPath)
+      await fs.writeFile(newArchivePath, 'partial')
+      await delay(60)
+      await fs.appendFile(newArchivePath, ' content')
+
+      expect(onFolderAdded).not.toHaveBeenCalled()
+      await waitFor(() =>
+        expect(onFolderAdded).toHaveBeenCalledWith({
+          folderPath: newArchivePath,
+          isArchive: true,
+          title: 'Downloading Game'
+        })
+      )
+    } finally {
+      watcher.stop()
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it('waits for a newly added folder tree to stop changing before reporting it', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-local-library-')
+    )
+    const newFolderPath = join(rootPath, 'Moving Game')
+    const nestedFilePath = join(newFolderPath, 'data.bin')
+    const onFolderAdded = jest.fn()
+    const watcher = new LocalLibraryWatcher(
+      onFolderAdded,
+      createWatcherState(),
+      testWatcherOptions
+    )
+
+    try {
+      await watcher.setPath(rootPath)
+      await fs.mkdir(newFolderPath)
+      await fs.writeFile(nestedFilePath, 'partial')
+      await delay(60)
+      await fs.appendFile(nestedFilePath, ' content')
+
+      expect(onFolderAdded).not.toHaveBeenCalled()
+      await waitFor(() =>
+        expect(onFolderAdded).toHaveBeenCalledWith({
+          folderPath: newFolderPath,
+          isArchive: false,
+          title: 'Moving Game'
+        })
+      )
+    } finally {
+      watcher.stop()
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
   it('reports folders and archives added while the watcher was stopped', async () => {
     const rootPath = await fs.mkdtemp(
       join(process.cwd(), '.tmp-heroic-local-library-')
     )
     const state = createWatcherState()
-    const initialWatcher = new LocalLibraryWatcher(jest.fn(), state)
+    const initialWatcher = new LocalLibraryWatcher(
+      jest.fn(),
+      state,
+      testWatcherOptions
+    )
 
     try {
       await fs.mkdir(join(rootPath, 'Existing Game'))
@@ -262,14 +365,77 @@ describe('local library watcher', () => {
       }> = []
       const restartedWatcher = new LocalLibraryWatcher(
         (folder) => addedFolders.push(folder),
-        state
+        state,
+        testWatcherOptions
       )
       await restartedWatcher.setPath(rootPath)
 
-      expect(
-        addedFolders.sort((left, right) =>
-          left.folderPath.localeCompare(right.folderPath)
+      await waitFor(() =>
+        expect(
+          addedFolders.sort((left, right) =>
+            left.folderPath.localeCompare(right.folderPath)
+          )
+        ).toEqual(
+          [
+            {
+              folderPath: newFolderPath,
+              isArchive: false,
+              title: 'Offline Folder'
+            },
+            {
+              folderPath: newArchivePath,
+              isArchive: true,
+              title: 'Offline Archive'
+            }
+          ].sort((left, right) =>
+            left.folderPath.localeCompare(right.folderPath)
+          )
         )
+      )
+
+      restartedWatcher.stop()
+    } finally {
+      initialWatcher.stop()
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps startup discoveries queued until the frontend drains them', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-local-library-')
+    )
+    const state = createWatcherState()
+    const initialWatcher = new LocalLibraryWatcher(
+      jest.fn(),
+      state,
+      testWatcherOptions
+    )
+
+    try {
+      await fs.mkdir(join(rootPath, 'Existing Game'))
+      await initialWatcher.setPath(rootPath)
+      initialWatcher.stop()
+
+      const newFolderPath = join(rootPath, 'Offline Folder')
+      const newArchivePath = join(rootPath, 'Offline Archive.zip')
+      await fs.mkdir(newFolderPath)
+      await fs.writeFile(newArchivePath, '')
+
+      const onFolderAdded = jest.fn()
+      const restartedWatcher = new LocalLibraryWatcher(
+        onFolderAdded,
+        state,
+        testWatcherOptions
+      )
+      await restartedWatcher.setPath(rootPath)
+
+      await waitFor(() => expect(onFolderAdded).toHaveBeenCalledTimes(2))
+      expect(
+        restartedWatcher
+          .drainQueuedEntries()
+          .sort((left, right) =>
+            left.folderPath.localeCompare(right.folderPath)
+          )
       ).toEqual(
         [
           {
@@ -284,6 +450,7 @@ describe('local library watcher', () => {
           }
         ].sort((left, right) => left.folderPath.localeCompare(right.folderPath))
       )
+      expect(restartedWatcher.drainQueuedEntries()).toEqual([])
 
       restartedWatcher.stop()
     } finally {
@@ -297,13 +464,17 @@ describe('local library watcher', () => {
       join(process.cwd(), '.tmp-heroic-local-library-')
     )
     const onFolderAdded = jest.fn()
-    const watcher = new LocalLibraryWatcher(onFolderAdded, createWatcherState())
+    const watcher = new LocalLibraryWatcher(
+      onFolderAdded,
+      createWatcherState(),
+      testWatcherOptions
+    )
     watcher.setExclusionRules(['_temp-*'])
 
     try {
       await watcher.setPath(rootPath)
       await fs.mkdir(join(rootPath, '_temp-download'))
-      await new Promise((resolve) => setTimeout(resolve, 700))
+      await delay(100)
 
       expect(onFolderAdded).not.toHaveBeenCalled()
     } finally {
@@ -319,7 +490,11 @@ describe('local library watcher', () => {
     const stagingPath = join(rootPath, '.heroic-extract-staging')
     const destinationPath = join(rootPath, 'Extracted Game')
     const onFolderAdded = jest.fn()
-    const watcher = new LocalLibraryWatcher(onFolderAdded, createWatcherState())
+    const watcher = new LocalLibraryWatcher(
+      onFolderAdded,
+      createWatcherState(),
+      testWatcherOptions
+    )
 
     try {
       await watcher.setPath(rootPath)
@@ -327,10 +502,10 @@ describe('local library watcher', () => {
       watcher.suppressPath(destinationPath)
 
       await fs.mkdir(stagingPath)
-      await new Promise((resolve) => setTimeout(resolve, 700))
+      await delay(100)
       await fs.rm(stagingPath, { recursive: true })
       await fs.mkdir(destinationPath)
-      await new Promise((resolve) => setTimeout(resolve, 700))
+      await delay(100)
 
       expect(onFolderAdded).not.toHaveBeenCalled()
     } finally {
@@ -348,11 +523,18 @@ describe('local library watcher', () => {
 
     try {
       initLocalLibraryWatcher()
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      await delay(100)
+
+      expect(addHandler).toHaveBeenCalledWith(
+        'drainLocalLibraryWatcherQueue',
+        drainLocalLibraryWatcherQueue
+      )
 
       await fs.mkdir(join(rootPath, 'Detected Game'))
-      await new Promise((resolve) => setTimeout(resolve, 700))
-      expect(sendFrontendMessage).toHaveBeenCalledTimes(1)
+      await waitFor(
+        () => expect(sendFrontendMessage).toHaveBeenCalledTimes(1),
+        4000
+      )
 
       const settingChangedHandler = (
         backendEvents.on as unknown as jest.MockedFunction<SettingChangedOn>
@@ -367,7 +549,7 @@ describe('local library watcher', () => {
       })
 
       await fs.mkdir(join(rootPath, 'Ignored While Paused'))
-      await new Promise((resolve) => setTimeout(resolve, 700))
+      await delay(700)
       expect(sendFrontendMessage).toHaveBeenCalledTimes(1)
     } finally {
       mockAppSettings.enableLocalLibraryWatcher = false

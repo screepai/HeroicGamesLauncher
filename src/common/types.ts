@@ -897,6 +897,8 @@ export interface LocalLibraryWatchEntry {
   folderPath: string
   isArchive: boolean
   title: string
+  cleanupAfterExtractionPath?: string
+  extractionDestinationDirectory?: string
 }
 
 export interface SGDBGrid {

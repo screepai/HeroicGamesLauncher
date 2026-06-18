@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Checkbox, CircularProgress, FormControlLabel } from '@mui/material'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
@@ -48,26 +48,25 @@ type Stage =
   | 'delete-prompt'
   | 'deleting'
 
+const PASSWORD_ERROR_MESSAGE = 'Archive password is required or incorrect'
+const INCOMPLETE_ARCHIVE_ERROR_MESSAGE =
+  'The archive is incomplete. Add the remaining parts and try again.'
+const MISSING_ARCHIVE_PARTS_ERROR_MESSAGE = 'Archive parts are missing:'
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : ''
+}
+
 function isPasswordError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    error.message === 'Archive password is required or incorrect'
-  )
+  return getErrorMessage(error).includes(PASSWORD_ERROR_MESSAGE)
 }
 
 function isIncompleteArchiveError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    error.message ===
-      'The archive is incomplete. Add the remaining parts and try again.'
-  )
+  return getErrorMessage(error).includes(INCOMPLETE_ARCHIVE_ERROR_MESSAGE)
 }
 
 function isMissingArchivePartsError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    error.message.startsWith('Archive parts are missing:')
-  )
+  return getErrorMessage(error).includes(MISSING_ARCHIVE_PARTS_ERROR_MESSAGE)
 }
 
 function isArchivePartsError(error: unknown): boolean {
@@ -242,10 +241,11 @@ export default function ArchiveExtractionDialog({
     'askToDeleteArchiveAfterExtraction',
     true
   )
+  const [activeArchive, setActiveArchive] = useState(archive)
   const [stage, setStage] = useState<Stage>('prompt')
   const [tree, setTree] = useState<ArchiveTreeNode[]>([])
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set())
-  const [folderName, setFolderName] = useState(archive.title)
+  const [folderName, setFolderName] = useState(activeArchive.title)
   const [password, setPassword] = useState('')
   const [passwordRequired, setPasswordRequired] = useState(false)
   const [archiveInfo, setArchiveInfo] =
@@ -254,12 +254,34 @@ export default function ArchiveExtractionDialog({
   const [extractedFolder, setExtractedFolder] =
     useState<ExtractedFolder | null>(null)
   const [error, setError] = useState('')
+
+  const resetArchiveDialog = useCallback(
+    (nextArchive: LocalLibraryWatchEntry) => {
+      setActiveArchive(nextArchive)
+      setStage('prompt')
+      setTree([])
+      setSelectedPaths(new Set())
+      setFolderName(nextArchive.title)
+      setPassword('')
+      setPasswordRequired(false)
+      setArchiveInfo(null)
+      setFinalRootPath(null)
+      setExtractedFolder(null)
+      setError('')
+    },
+    []
+  )
+
+  useEffect(() => {
+    resetArchiveDialog(archive)
+  }, [archive, resetArchiveDialog])
+
   const archiveFileName =
-    archive.folderPath.split(/[\\/]/).pop() ?? archive.folderPath
+    activeArchive.folderPath.split(/[\\/]/).pop() ?? activeArchive.folderPath
   const displayArchiveName =
     archiveInfo?.isMultipart || getArchivePart(archiveFileName)
-      ? archive.title
-      : archive.folderPath
+      ? activeArchive.title
+      : activeArchive.folderPath
 
   const loadArchive = async (archivePath: string) => {
     setStage('loading')
@@ -311,7 +333,7 @@ export default function ArchiveExtractionDialog({
 
     try {
       const info = await window.api.inspectLocalLibraryArchive(
-        archive.folderPath
+        activeArchive.folderPath
       )
       setArchiveInfo(info)
       return info
@@ -399,13 +421,24 @@ export default function ArchiveExtractionDialog({
 
     try {
       const extractedFolder = await window.api.extractLocalLibraryArchive({
-        archivePath: archiveInfo?.archivePath ?? archive.folderPath,
+        archivePath: archiveInfo?.archivePath ?? activeArchive.folderPath,
+        cleanupPath: activeArchive.cleanupAfterExtractionPath,
+        destinationDirectory: activeArchive.extractionDestinationDirectory,
         destinationName: folderName.trim(),
         password: password || undefined,
         rootPath: finalRootPath ?? undefined,
         selectedPaths: [...selectedPaths]
       })
-      if (askToDeleteArchiveAfterExtraction) {
+      const nestedArchives = await window.api
+        .findLocalLibraryNestedArchives(extractedFolder.folderPath)
+        .catch(() => [])
+
+      if (nestedArchives.length > 0) {
+        resetArchiveDialog(nestedArchives[0])
+      } else if (
+        askToDeleteArchiveAfterExtraction &&
+        !activeArchive.cleanupAfterExtractionPath
+      ) {
         setExtractedFolder(extractedFolder)
         setStage('delete-prompt')
       } else {
@@ -453,7 +486,7 @@ export default function ArchiveExtractionDialog({
 
     try {
       await window.api.deleteLocalLibraryArchive(
-        archiveInfo?.archivePath ?? archive.folderPath
+        archiveInfo?.archivePath ?? activeArchive.folderPath
       )
       finishExtraction()
     } catch (deletionError) {
@@ -507,12 +540,12 @@ export default function ArchiveExtractionDialog({
                 ? t(
                     'box.local-library-archive.manual-message',
                     'Do you want to extract the archive "{{title}}" before adding the game?',
-                    archive
+                    activeArchive
                   )
                 : t(
                     'box.local-library-archive.message',
                     'The archive "{{title}}" was added to your watched local library. Do you want to extract it before adding the game?',
-                    archive
+                    activeArchive
                   )}
             </p>
             <code className="archivePath">{displayArchiveName}</code>
@@ -673,7 +706,7 @@ export default function ArchiveExtractionDialog({
                     'Do you want to delete all {{count}} parts of "{{title}}" now that extraction is complete?',
                     {
                       count: archiveInfo.partPaths.length,
-                      title: archive.title
+                      title: activeArchive.title
                     }
                   )
                 : t(

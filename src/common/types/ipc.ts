@@ -167,12 +167,18 @@ interface AsyncIPCFunctions {
   inspectLocalLibraryArchive: (
     archivePath: string
   ) => Promise<LocalLibraryArchiveInfo>
+  drainLocalLibraryWatcherQueue: () => Promise<LocalLibraryWatchEntry[]>
   listLocalLibraryArchive: (args: {
     archivePath: string
     password?: string
   }) => Promise<LocalLibraryArchiveEntry[]>
+  findLocalLibraryNestedArchives: (
+    folderPath: string
+  ) => Promise<LocalLibraryWatchEntry[]>
   extractLocalLibraryArchive: (args: {
     archivePath: string
+    cleanupPath?: string
+    destinationDirectory?: string
     destinationName: string
     password?: string
     rootPath?: string

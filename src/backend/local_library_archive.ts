@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import { promises as fs } from 'fs'
-import { basename, dirname, join, resolve } from 'path'
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'path'
 
 import { path7z } from '7zip-bin-full'
 import sanitizeFilename from 'sanitize-filename'
@@ -12,7 +12,8 @@ import {
 } from 'common/local_library_archive'
 import type {
   LocalLibraryArchiveEntry,
-  LocalLibraryArchiveInfo
+  LocalLibraryArchiveInfo,
+  LocalLibraryWatchEntry
 } from 'common/types'
 
 import { fixAsarPath } from './constants/paths'
@@ -20,6 +21,8 @@ import { spawnAsync } from './utils'
 
 type ExtractArchiveOptions = {
   archivePath: string
+  cleanupPath?: string
+  destinationDirectory?: string
   destinationName: string
   password?: string
   rootPath?: string
@@ -236,6 +239,15 @@ function validateDestinationName(destinationName: string): string {
   return normalizedName
 }
 
+function isPathInside(parentPath: string, childPath: string): boolean {
+  const pathDifference = relative(parentPath, childPath)
+  return (
+    pathDifference.length > 0 &&
+    !pathDifference.startsWith('..') &&
+    !isAbsolute(pathDifference)
+  )
+}
+
 async function deleteLocalLibraryArchive(archivePath: string): Promise<void> {
   const archiveInfo = await inspectLocalLibraryArchive(archivePath)
   await Promise.all(
@@ -366,8 +378,46 @@ async function moveExtractionResult(
   await fs.rename(stagingPath, destinationPath)
 }
 
+async function findLocalLibraryNestedArchives(
+  folderPath: string
+): Promise<LocalLibraryWatchEntry[]> {
+  const resolvedFolderPath = resolve(folderPath)
+  const folderStats = await fs.stat(resolvedFolderPath)
+  if (!folderStats.isDirectory()) {
+    return []
+  }
+
+  const entries = await fs.readdir(resolvedFolderPath, { withFileTypes: true })
+  if (entries.some((entry) => entry.isDirectory())) {
+    return []
+  }
+
+  const archiveEntries = entries
+    .filter(
+      (entry) => entry.isFile() && getArchiveExtension(entry.name) !== undefined
+    )
+    .filter((entry) => (getArchivePart(entry.name)?.partNumber ?? 1) === 1)
+
+  if (archiveEntries.length !== 1) {
+    return []
+  }
+
+  const archiveName = archiveEntries[0].name
+  return [
+    {
+      cleanupAfterExtractionPath: resolvedFolderPath,
+      extractionDestinationDirectory: dirname(resolvedFolderPath),
+      folderPath: join(resolvedFolderPath, archiveName),
+      isArchive: true,
+      title: getArchiveTitle(archiveName)
+    }
+  ]
+}
+
 async function extractLocalLibraryArchive({
   archivePath,
+  cleanupPath,
+  destinationDirectory,
   destinationName,
   password,
   rootPath,
@@ -401,9 +451,39 @@ async function extractLocalLibraryArchive({
 
   const normalizedDestinationName = validateDestinationName(destinationName)
   const archiveDirectory = resolve(dirname(canonicalArchivePath))
-  const destinationPath = resolve(archiveDirectory, normalizedDestinationName)
-  if (dirname(destinationPath) !== archiveDirectory) {
+  const resolvedDestinationDirectory = destinationDirectory
+    ? resolve(destinationDirectory)
+    : archiveDirectory
+  const destinationDirectoryStats = await fs.stat(resolvedDestinationDirectory)
+  if (!destinationDirectoryStats.isDirectory()) {
+    throw new Error('The extraction destination must be a directory')
+  }
+
+  const destinationPath = resolve(
+    resolvedDestinationDirectory,
+    normalizedDestinationName
+  )
+  if (dirname(destinationPath) !== resolvedDestinationDirectory) {
     throw new Error('The extraction folder must be beside the archive')
+  }
+
+  const resolvedCleanupPath = cleanupPath ? resolve(cleanupPath) : undefined
+  if (resolvedCleanupPath) {
+    const cleanupPathStats = await fs.stat(resolvedCleanupPath)
+    if (!cleanupPathStats.isDirectory()) {
+      throw new Error('The cleanup path must be a directory')
+    }
+    if (!isPathInside(resolvedCleanupPath, canonicalArchivePath)) {
+      throw new Error('The archive must be inside the cleanup folder')
+    }
+    if (dirname(resolvedCleanupPath) !== resolvedDestinationDirectory) {
+      throw new Error('The cleanup folder must be beside the extraction folder')
+    }
+    if (destinationPath === resolvedCleanupPath) {
+      throw new Error(
+        'The extraction folder cannot be the same as the cleanup folder'
+      )
+    }
   }
 
   try {
@@ -422,7 +502,10 @@ async function extractLocalLibraryArchive({
     }
   }
 
-  const stagingPath = join(archiveDirectory, `.heroic-extract-${randomUUID()}`)
+  const stagingPath = join(
+    resolvedDestinationDirectory,
+    `.heroic-extract-${randomUUID()}`
+  )
   onBeforePathCreated?.(stagingPath)
   onBeforePathCreated?.(destinationPath)
   await fs.mkdir(stagingPath)
@@ -456,6 +539,9 @@ async function extractLocalLibraryArchive({
       canonicalArchivePath,
       normalizedRootPath
     )
+    if (resolvedCleanupPath) {
+      await fs.rm(resolvedCleanupPath, { recursive: true, force: true })
+    }
 
     return {
       folderPath: destinationPath,
@@ -470,6 +556,7 @@ async function extractLocalLibraryArchive({
 export {
   deleteLocalLibraryArchive,
   extractLocalLibraryArchive,
+  findLocalLibraryNestedArchives,
   getArchiveExtension,
   getArchivePart,
   getArchiveTitle,
