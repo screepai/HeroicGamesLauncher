@@ -59,6 +59,18 @@ export interface ContextType {
     listCategories: () => string[]
     addToGame: (category: string, appName: string) => void
     removeFromGame: (category: string, appName: string) => void
+    moveGame: (
+      fromCategory: string | undefined,
+      toCategory: string | undefined,
+      appName: string
+    ) => void
+    moveGames: (
+      moves: Array<{
+        fromCategory: string | undefined
+        toCategory: string | undefined
+        appName: string
+      }>
+    ) => void
     setGamesMembership: (
       category: string,
       appNames: string[],

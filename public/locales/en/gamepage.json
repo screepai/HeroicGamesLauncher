@@ -360,6 +360,13 @@
     },
     "vndb": {
         "average": "Average",
+        "category-sync": {
+            "add": "Add \"{{title}}\" to \"{{toCategory}}\" to match the VNDB label \"{{label}}\"?",
+            "move": "Move \"{{title}}\" from \"{{fromCategory}}\" to \"{{toCategory}}\" to match the VNDB label \"{{label}}\"?",
+            "remember": "Remember this choice and don't ask again",
+            "remove": "Remove \"{{title}}\" from \"{{fromCategory}}\" because it no longer has that VNDB label?",
+            "title": "Update library category?"
+        },
         "downloaded-version": "Downloaded version",
         "entry-type": "VNDB entry type",
         "finish-date": "Finish date",

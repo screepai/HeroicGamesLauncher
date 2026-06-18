@@ -77,6 +77,7 @@ Heroic is built with Web Technologies:
 
 - Full VNDB library integration with automatic matching, manual rematching, bulk synchronization, and direct game-card actions
 - Secure VNDB account integration for synchronizing labels, votes, play dates, and selected releases
+- Optional VNDB label/category synchronization that can prompt or automatically move games between same-named custom categories when their VNDB label changes, and can prompt before updating VNDB labels after manual category changes
 - Dedicated VNDB game tab with descriptions, tags, ratings, play length, developers, relations, releases, and account controls
 - Automatic VNDB matching and synchronization for newly added visual novels from watched local folders
 - Cover image search through both VNDB and SteamGridDB

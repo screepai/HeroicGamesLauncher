@@ -23,6 +23,7 @@ import {
   faPencil,
   faTrash
 } from '@fortawesome/free-solid-svg-icons'
+import useVndbCategoryLabelSync from 'frontend/hooks/useVndbCategoryLabelSync'
 
 interface CategoryItemProps {
   name: string
@@ -192,6 +193,7 @@ const reorderCategories = (
 function CategoriesManager({ games, onClose }: CategoriesManagerProps) {
   const { t } = useTranslation()
   const { customCategories } = useContext(ContextProvider)
+  const requestCategoryLabelSync = useVndbCategoryLabelSync()
 
   const { setShowCategories } = useContext(LibraryContext)
 
@@ -240,6 +242,9 @@ function CategoriesManager({ games, onClose }: CategoriesManagerProps) {
     ) => void
 
     setGamesMembership(category, selectedGameIds, !assignedToAll)
+    if (games) {
+      void requestCategoryLabelSync(games, category, !assignedToAll)
+    }
   }
 
   const addBulkCategory = () => {
@@ -255,6 +260,9 @@ function CategoriesManager({ games, onClose }: CategoriesManagerProps) {
     ) => void
 
     setGamesMembership(category, selectedGameIds, true)
+    if (games) {
+      void requestCategoryLabelSync(games, category, true)
+    }
     setNewCategoryName('')
   }
 

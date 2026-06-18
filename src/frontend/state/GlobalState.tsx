@@ -563,6 +563,46 @@ class GlobalState extends PureComponent<Props> {
     configStore.set('games.customCategories', newCustomCategories)
   }
 
+  moveGameBetweenCustomCategories = (
+    fromCategory: string | undefined,
+    toCategory: string | undefined,
+    appName: string
+  ) =>
+    this.moveGamesBetweenCustomCategories([
+      { fromCategory, toCategory, appName }
+    ])
+
+  moveGamesBetweenCustomCategories = (
+    moves: Array<{
+      fromCategory: string | undefined
+      toCategory: string | undefined
+      appName: string
+    }>
+  ) => {
+    const newCustomCategories = Object.fromEntries(
+      Object.entries(this.state.customCategories).map(([category, games]) => [
+        category,
+        [...games]
+      ])
+    )
+
+    for (const { fromCategory, toCategory, appName } of moves) {
+      if (fromCategory && newCustomCategories[fromCategory]) {
+        newCustomCategories[fromCategory] = newCustomCategories[
+          fromCategory
+        ].filter((game) => game !== appName)
+      }
+      if (toCategory && newCustomCategories[toCategory]) {
+        newCustomCategories[toCategory] = [
+          ...new Set([...newCustomCategories[toCategory], appName])
+        ]
+      }
+    }
+
+    this.setState({ customCategories: newCustomCategories })
+    configStore.set('games.customCategories', newCustomCategories)
+  }
+
   setGamesCustomCategoryMembership = (
     category: string,
     appNames: string[],
@@ -1276,6 +1316,8 @@ class GlobalState extends PureComponent<Props> {
             listCategories: this.getCustomCategories,
             addToGame: this.addGameToCustomCategory,
             removeFromGame: this.removeGameFromCustomCategory,
+            moveGame: this.moveGameBetweenCustomCategories,
+            moveGames: this.moveGamesBetweenCustomCategories,
             setGamesMembership: this.setGamesCustomCategoryMembership,
             addCategory: this.setCustomCategory,
             removeCategory: this.removeCustomCategory,

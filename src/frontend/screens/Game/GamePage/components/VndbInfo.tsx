@@ -7,12 +7,26 @@ import type {
   VndbUserOptions,
   VndbUserOptionsUpdate
 } from 'common/types/vndb'
-import type { GameInfo } from 'common/types'
+import type { GameInfo, VndbLabelCategorySyncMode } from 'common/types'
 import { Tooltip } from '@mui/material'
 import fallbackImage from 'frontend/assets/heroic_card.jpg'
-import { CachedImage, WarningMessage } from 'frontend/components/UI'
+import {
+  CachedImage,
+  ToggleSwitch,
+  WarningMessage
+} from 'frontend/components/UI'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader
+} from 'frontend/components/UI/Dialog'
 import { createNewWindow } from 'frontend/helpers'
-import useAppSetting from 'frontend/hooks/useAppSetting'
+import useAppSetting, {
+  APP_SETTING_CHANGED_EVENT
+} from 'frontend/hooks/useAppSetting'
+import { getVndbCategorySyncPlan } from 'common/vndbCategorySync'
+import ContextProvider from 'frontend/state/ContextProvider'
 import {
   getSelectedVndbRelease,
   getSelectedVndbReleases,
@@ -20,7 +34,7 @@ import {
   getVndbReleasesWithSelectedReleases,
   sortVndbReleasesByDate
 } from 'frontend/helpers/vndb'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface Props {
@@ -51,6 +65,12 @@ type VndbUserOptionsState =
   | { status: 'idle' | 'loading' }
   | { status: 'ready'; options: VndbUserOptions }
   | { status: 'error'; message: string }
+
+type PendingCategorySync = {
+  fromCategory?: string
+  toCategory?: string
+  nextLabel?: string
+}
 
 type Translate = (
   key: string,
@@ -266,6 +286,13 @@ function getSelectedVndbLabelId(options: VndbUserOptions): string {
   )
 
   return selectedLabelId ? String(selectedLabelId) : ''
+}
+
+function getSelectedVndbLabel(options: VndbUserOptions) {
+  const selectedLabelId = Number(getSelectedVndbLabelId(options))
+  return getEditableVndbLabels(options).find(
+    (label) => label.id === selectedLabelId
+  )
 }
 
 function getLabelsFromSelectValue(value: string): number[] {
@@ -857,7 +884,15 @@ function VndbUserOptionsSection({
 
 export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
   const { t, i18n } = useTranslation('gamepage')
+  const { customCategories } = useContext(ContextProvider)
   const syncVndbUserData = useAppSetting('syncVndbUserData', true)
+  const configuredCategorySyncMode = useAppSetting(
+    'vndbLabelCategorySyncMode',
+    'ask'
+  )
+  const [pendingCategorySync, setPendingCategorySync] =
+    useState<PendingCategorySync | null>(null)
+  const [rememberCategorySync, setRememberCategorySync] = useState(false)
   const [savingRelease, setSavingRelease] = useState(false)
   const [releaseSaveError, setReleaseSaveError] = useState<string | null>(null)
   const [userOptionsState, setUserOptionsState] =
@@ -866,6 +901,51 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
   const userDataSyncTarget = useMemo(
     () => getVndbUserDataSyncTarget(gameInfo),
     [gameInfo]
+  )
+  const applyCategorySync = useCallback(
+    ({ fromCategory, toCategory }: PendingCategorySync) => {
+      customCategories.moveGame(
+        fromCategory,
+        toCategory,
+        `${gameInfo.app_name}_${gameInfo.runner}`
+      )
+    },
+    [customCategories, gameInfo.app_name, gameInfo.runner]
+  )
+
+  const handleLabelCategorySync = useCallback(
+    (previousLabel: string | undefined, nextLabel: string | undefined) => {
+      if (configuredCategorySyncMode === 'disabled') {
+        return
+      }
+
+      const plan = getVndbCategorySyncPlan({
+        categories: customCategories.listCategories(),
+        categoryGames: customCategories.list,
+        gameId: `${gameInfo.app_name}_${gameInfo.runner}`,
+        previousLabel,
+        nextLabel
+      })
+      if (!plan) {
+        return
+      }
+
+      const pendingSync = { ...plan, nextLabel }
+      if (configuredCategorySyncMode === 'automatic') {
+        applyCategorySync(pendingSync)
+        return
+      }
+
+      setRememberCategorySync(false)
+      setPendingCategorySync(pendingSync)
+    },
+    [
+      applyCategorySync,
+      configuredCategorySyncMode,
+      customCategories,
+      gameInfo.app_name,
+      gameInfo.runner
+    ]
   )
   const syncVndbUserDates = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}) => {
@@ -1128,11 +1208,44 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
       return
     }
 
+    const previousLabel =
+      userOptionsState.status === 'ready'
+        ? getSelectedVndbLabel(userOptionsState.options)?.label
+        : undefined
     const options = await window.api.vndb.updateUserOptions({
       vnId: mainVersion.id,
       update
     })
     setUserOptionsState({ status: 'ready', options })
+
+    if (update.labels !== undefined) {
+      handleLabelCategorySync(
+        previousLabel,
+        getSelectedVndbLabel(options)?.label
+      )
+    }
+  }
+
+  function confirmCategorySync() {
+    if (!pendingCategorySync) {
+      return
+    }
+
+    applyCategorySync(pendingCategorySync)
+    if (rememberCategorySync) {
+      const nextMode: VndbLabelCategorySyncMode = 'automatic'
+      void window.api.setSetting({
+        appName: 'default',
+        key: 'vndbLabelCategorySyncMode',
+        value: nextMode
+      })
+      window.dispatchEvent(
+        new CustomEvent(APP_SETTING_CHANGED_EVENT, {
+          detail: { key: 'vndbLabelCategorySyncMode', value: nextMode }
+        })
+      )
+    }
+    setPendingCategorySync(null)
   }
 
   return (
@@ -1174,6 +1287,74 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
 
       <VndbIncludedVisualNovels includedVns={includedVns} />
       <VndbRelations relations={relations} />
+
+      {pendingCategorySync && (
+        <Dialog
+          showCloseButton
+          onClose={() => setPendingCategorySync(null)}
+          className="vndbCategorySyncDialog"
+        >
+          <DialogHeader onClose={() => setPendingCategorySync(null)}>
+            {t('vndb.category-sync.title', 'Update library category?')}
+          </DialogHeader>
+          <DialogContent>
+            <p>
+              {pendingCategorySync.fromCategory &&
+              pendingCategorySync.toCategory
+                ? t(
+                    'vndb.category-sync.move',
+                    'Move "{{title}}" from "{{fromCategory}}" to "{{toCategory}}" to match the VNDB label "{{label}}"?',
+                    {
+                      title: gameInfo.title,
+                      fromCategory: pendingCategorySync.fromCategory,
+                      toCategory: pendingCategorySync.toCategory,
+                      label: pendingCategorySync.nextLabel
+                    }
+                  )
+                : pendingCategorySync.toCategory
+                  ? t(
+                      'vndb.category-sync.add',
+                      'Add "{{title}}" to "{{toCategory}}" to match the VNDB label "{{label}}"?',
+                      {
+                        title: gameInfo.title,
+                        toCategory: pendingCategorySync.toCategory,
+                        label: pendingCategorySync.nextLabel
+                      }
+                    )
+                  : t(
+                      'vndb.category-sync.remove',
+                      'Remove "{{title}}" from "{{fromCategory}}" because it no longer has that VNDB label?',
+                      {
+                        title: gameInfo.title,
+                        fromCategory: pendingCategorySync.fromCategory
+                      }
+                    )}
+            </p>
+            <ToggleSwitch
+              htmlId="remember-vndb-category-sync"
+              value={rememberCategorySync}
+              handleChange={() =>
+                setRememberCategorySync(!rememberCategorySync)
+              }
+              title={t(
+                'vndb.category-sync.remember',
+                "Remember this choice and don't ask again"
+              )}
+            />
+          </DialogContent>
+          <DialogFooter>
+            <button className="button is-primary" onClick={confirmCategorySync}>
+              {t('box.yes', 'Yes')}
+            </button>
+            <button
+              className="button is-secondary"
+              onClick={() => setPendingCategorySync(null)}
+            >
+              {t('box.no', 'No')}
+            </button>
+          </DialogFooter>
+        </Dialog>
+      )}
     </div>
   )
 }

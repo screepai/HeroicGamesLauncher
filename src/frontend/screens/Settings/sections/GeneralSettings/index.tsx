@@ -23,6 +23,7 @@ import {
   UseDarkTrayIcon,
   UseFramelessWindow,
   VndbFeatureSettings,
+  VndbLabelCategorySync,
   WinePrefixesBasePath,
   PlaytimeSync,
   AnalyticsOptIn
@@ -56,6 +57,8 @@ export default function GeneralSettings() {
       <AutoUpdateGames />
 
       <VndbFeatureSettings />
+
+      <VndbLabelCategorySync />
 
       <AutoVndbSyncNewGames />
 

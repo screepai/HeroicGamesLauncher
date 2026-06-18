@@ -11,6 +11,7 @@ import {
   DialogHeader
 } from 'frontend/components/UI/Dialog'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
+import useVndbCategoryLabelSync from 'frontend/hooks/useVndbCategoryLabelSync'
 
 const CategorySettings = () => {
   const {
@@ -18,7 +19,8 @@ const CategorySettings = () => {
     currentCustomCategories,
     setCurrentCustomCategories
   } = useContext(ContextProvider)
-  const { appName, runner } = useContext(SettingsContext)
+  const { appName, runner, gameInfo } = useContext(SettingsContext)
+  const requestCategoryLabelSync = useVndbCategoryLabelSync()
 
   const [newCategory, setNewCategory] = useState('')
   const [categoryToDelete, setCategoryToDelete] = useState('')
@@ -59,11 +61,17 @@ const CategorySettings = () => {
 
   const handleRemoveGameFromCategory = (category: string) => {
     customCategories.removeFromGame(category, appNameWithRunner)
+    if (gameInfo) {
+      void requestCategoryLabelSync([gameInfo], category, false)
+    }
   }
 
   const handleAddGameToCategory = (category: string) => {
     customCategories.addToGame(category, appNameWithRunner)
     updateCategories()
+    if (gameInfo) {
+      void requestCategoryLabelSync([gameInfo], category, true)
+    }
   }
 
   const handleShowRemoveCategoryConfirmation = (category: string) => {

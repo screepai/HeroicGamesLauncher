@@ -147,8 +147,13 @@ export interface AppSettings extends GameSettings {
   steamGridDbApiKey: string
   syncVndbUserData: boolean
   useVndbDiscordRichPresence: boolean
+  vndbCategoryLabelSyncMode: VndbCategoryLabelSyncMode
+  vndbLabelCategorySyncMode: VndbLabelCategorySyncMode
   vndbApiToken: string
 }
+
+export type VndbCategoryLabelSyncMode = 'ask' | 'disabled'
+export type VndbLabelCategorySyncMode = 'ask' | 'automatic' | 'disabled'
 
 export type LibraryTopSectionOptions =
   | 'disabled'

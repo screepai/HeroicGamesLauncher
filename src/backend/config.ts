@@ -395,6 +395,8 @@ class GlobalConfigV0 extends GlobalConfig {
       steamGridDbApiKey: '',
       syncVndbUserData: true,
       useVndbDiscordRichPresence: true,
+      vndbCategoryLabelSyncMode: 'ask',
+      vndbLabelCategorySyncMode: 'ask',
       vndbApiToken: '',
       disableGOGPresence: false
     }

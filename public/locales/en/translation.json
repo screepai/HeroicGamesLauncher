@@ -269,7 +269,13 @@
         "remove": "Remove \"{{name}}\"",
         "rename": "Rename \"{{name}}\"",
         "reorder": "Reorder \"{{name}}\"",
-        "title": "Manage Categories"
+        "title": "Manage Categories",
+        "vndb-sync": {
+            "failed_one": "{{failed}} of {{count}} VNDB updates failed: {{games}}",
+            "failed_other": "{{failed}} of {{count}} VNDB updates failed: {{games}}",
+            "failed-title": "Some VNDB labels could not be updated",
+            "title": "Update VNDB labels?"
+        }
     },
     "category-settings": {
         "add-new-category": "Add New Category",
@@ -277,6 +283,10 @@
         "delete-question": "Proceeding will permanently remove this category and unassign it from all games. Continue?",
         "new-category": "New Category",
         "remove-category": "Remove Category",
+        "vndb-sync": {
+            "add": "Set the VNDB label for \"{{title}}\" to \"{{category}}\"?",
+            "remove": "Clear the VNDB label \"{{category}}\" from \"{{title}}\"?"
+        },
         "warning": "Warning"
     },
     "console": {
@@ -1032,6 +1042,17 @@
         "useVndbDiscordRichPresence": "Use VNDB details in Discord Rich Presence",
         "verboseLogs": {
             "description": "Enable verbose logs"
+        },
+        "vndbCategoryLabelSyncMode": {
+            "ask": "Ask before changing",
+            "disabled": "Disabled",
+            "label": "When library categories change"
+        },
+        "vndbLabelCategorySyncMode": {
+            "ask": "Ask before changing",
+            "automatic": "Always change automatically",
+            "disabled": "Disabled",
+            "label": "When VNDB labels change"
         },
         "winecrossoverbottle": "CrossOver Bottle",
         "wineprefix": "WinePrefix folder",
