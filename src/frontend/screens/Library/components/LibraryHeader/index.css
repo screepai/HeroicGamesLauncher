@@ -19,6 +19,7 @@
 .sideloadGameButton:focus-within {
   background: var(--primary-button, var(--accent-overlay));
   box-shadow: 0px 0px 0px 3px var(--button-stroke, var(--text-default));
+  color: var(--text-tertiary);
 }
 
 .libraryManualActions {
@@ -49,6 +50,7 @@
 .extractArchiveButton:focus-visible {
   background: var(--accent-overlay);
   box-shadow: 0 0 0 3px var(--button-stroke, var(--text-default));
+  color: var(--text-tertiary);
 }
 
 .numberOfgames {
@@ -83,6 +85,7 @@
 .libraryBulkAction:hover,
 .libraryBulkAction:focus-visible {
   background: var(--accent-overlay);
+  color: var(--text-tertiary);
 }
 
 .libraryBulkAction:disabled {
@@ -144,6 +147,7 @@
 .vndbSyncButton:focus-visible {
   background: var(--accent-overlay);
   box-shadow: 0 0 0 3px var(--button-stroke, var(--text-default));
+  color: var(--text-tertiary);
 }
 
 .vndbSyncButton:disabled {
