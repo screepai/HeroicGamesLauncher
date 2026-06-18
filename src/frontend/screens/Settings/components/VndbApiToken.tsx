@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { InfoBox, TextInputField } from 'frontend/components/UI'
+import { dispatchVndbApiTokenChanged } from 'frontend/hooks/useHasVndbApiToken'
 import useSetting from 'frontend/hooks/useSetting'
 
 export default function VndbApiToken() {
@@ -17,7 +18,9 @@ export default function VndbApiToken() {
   const onChange = (newValue: string) => {
     setValue(newValue)
     void window.api.vndb.setApiToken(newValue).then(() => {
-      setHasToken(!!newValue)
+      const nextHasToken = !!newValue
+      setHasToken(nextHasToken)
+      dispatchVndbApiTokenChanged(nextHasToken)
     })
   }
 

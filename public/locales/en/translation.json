@@ -1054,6 +1054,7 @@
             "disabled": "Disabled",
             "label": "When VNDB labels change"
         },
+        "vndbTokenRequired": "Requires a VNDB API token.",
         "winecrossoverbottle": "CrossOver Bottle",
         "wineprefix": "WinePrefix folder",
         "wineversion": "Wine Version",

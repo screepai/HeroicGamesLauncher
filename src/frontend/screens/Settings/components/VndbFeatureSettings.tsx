@@ -1,4 +1,5 @@
 import { ToggleSwitch } from 'frontend/components/UI'
+import useHasVndbApiToken from 'frontend/hooks/useHasVndbApiToken'
 import useSetting from 'frontend/hooks/useSetting'
 import { useTranslation } from 'react-i18next'
 
@@ -17,6 +18,11 @@ export default function VndbFeatureSettings() {
     useSetting('showVndbActionsOnGameCards', true)
   const [useVndbDiscordRichPresence, setUseVndbDiscordRichPresence] =
     useSetting('useVndbDiscordRichPresence', true)
+  const hasVndbApiToken = useHasVndbApiToken(enableVndbIntegration)
+  const tokenRequiredMessage = t(
+    'setting.vndbTokenRequired',
+    'Requires a VNDB API token.'
+  )
 
   return (
     <>
@@ -33,7 +39,7 @@ export default function VndbFeatureSettings() {
       <ToggleSwitch
         htmlId="syncVndbUserData"
         value={syncVndbUserData}
-        disabled={!enableVndbIntegration}
+        disabled={!enableVndbIntegration || !hasVndbApiToken}
         handleChange={() => setSyncVndbUserData(!syncVndbUserData)}
         title={t(
           'setting.syncVndbUserData',
@@ -44,6 +50,9 @@ export default function VndbFeatureSettings() {
           'Allow Heroic to write detected start and finish dates and selected releases to your VNDB account.'
         )}
       />
+      {enableVndbIntegration && !hasVndbApiToken && (
+        <span className="smallMessage">{tokenRequiredMessage}</span>
+      )}
       <ToggleSwitch
         htmlId="showVndbActionsOnGameCards"
         value={showVndbActionsOnGameCards}

@@ -4,6 +4,7 @@ import type {
   VndbLabelCategorySyncMode
 } from 'common/types'
 import { SelectField } from 'frontend/components/UI'
+import useHasVndbApiToken from 'frontend/hooks/useHasVndbApiToken'
 import useSetting from 'frontend/hooks/useSetting'
 import { useTranslation } from 'react-i18next'
 
@@ -18,13 +19,19 @@ export default function VndbLabelCategorySync() {
     'vndbCategoryLabelSyncMode',
     'ask'
   )
+  const hasVndbApiToken = useHasVndbApiToken(enableVndbIntegration)
+  const isTokenGated = !enableVndbIntegration || !hasVndbApiToken
+  const tokenRequiredMessage = t(
+    'setting.vndbTokenRequired',
+    'Requires a VNDB API token.'
+  )
 
   return (
     <>
       <SelectField
         htmlId="vndbLabelCategorySyncMode"
         value={labelToCategoryMode}
-        disabled={!enableVndbIntegration}
+        disabled={isTokenGated}
         onChange={(event) =>
           setLabelToCategoryMode(
             event.target.value as VndbLabelCategorySyncMode
@@ -34,6 +41,11 @@ export default function VndbLabelCategorySync() {
           'setting.vndbLabelCategorySyncMode.label',
           'When VNDB labels change'
         )}
+        afterSelect={
+          enableVndbIntegration && !hasVndbApiToken ? (
+            <span className="smallMessage">{tokenRequiredMessage}</span>
+          ) : undefined
+        }
       >
         <MenuItem value="ask">
           {t('setting.vndbLabelCategorySyncMode.ask', 'Ask before changing')}
@@ -51,7 +63,7 @@ export default function VndbLabelCategorySync() {
       <SelectField
         htmlId="vndbCategoryLabelSyncMode"
         value={categoryToLabelMode}
-        disabled={!enableVndbIntegration}
+        disabled={isTokenGated}
         onChange={(event) =>
           setCategoryToLabelMode(
             event.target.value as VndbCategoryLabelSyncMode
@@ -61,6 +73,11 @@ export default function VndbLabelCategorySync() {
           'setting.vndbCategoryLabelSyncMode.label',
           'When library categories change'
         )}
+        afterSelect={
+          enableVndbIntegration && !hasVndbApiToken ? (
+            <span className="smallMessage">{tokenRequiredMessage}</span>
+          ) : undefined
+        }
       >
         <MenuItem value="ask">
           {t('setting.vndbCategoryLabelSyncMode.ask', 'Ask before changing')}
