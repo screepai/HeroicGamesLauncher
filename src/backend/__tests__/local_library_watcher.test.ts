@@ -40,7 +40,10 @@ import {
   matchesExclusionRule,
   drainLocalLibraryWatcherQueue
 } from '../local_library_watcher'
-import type { LocalLibraryWatcherState } from '../local_library_watcher_state'
+import type {
+  LocalLibraryWatcherQueuedEntry,
+  LocalLibraryWatcherState
+} from '../local_library_watcher_state'
 import { backendEvents } from '../backend_events'
 import { addHandler, sendFrontendMessage } from '../ipc'
 
@@ -93,14 +96,25 @@ function createWatcherState(
       new Set(entries)
     ])
   )
+  const queues = new Map<string, LocalLibraryWatcherQueuedEntry[]>()
 
   return {
     load(rootPath) {
       const entries = snapshots.get(rootPath)
       return Promise.resolve(entries ? new Set(entries) : undefined)
     },
+    loadQueue(rootPath) {
+      return Promise.resolve(queues.get(rootPath) ?? [])
+    },
     save(rootPath, entries) {
       snapshots.set(rootPath, new Set(entries))
+      return Promise.resolve()
+    },
+    saveQueue(rootPath, entries) {
+      queues.set(
+        rootPath,
+        entries.map((entry) => ({ ...entry }))
+      )
       return Promise.resolve()
     }
   }
@@ -431,11 +445,9 @@ describe('local library watcher', () => {
 
       await waitFor(() => expect(onFolderAdded).toHaveBeenCalledTimes(2))
       expect(
-        restartedWatcher
-          .drainQueuedEntries()
-          .sort((left, right) =>
-            left.folderPath.localeCompare(right.folderPath)
-          )
+        (await restartedWatcher.drainQueuedEntries()).sort((left, right) =>
+          left.folderPath.localeCompare(right.folderPath)
+        )
       ).toEqual(
         [
           {
@@ -450,9 +462,61 @@ describe('local library watcher', () => {
           }
         ].sort((left, right) => left.folderPath.localeCompare(right.folderPath))
       )
-      expect(restartedWatcher.drainQueuedEntries()).toEqual([])
+      await expect(restartedWatcher.drainQueuedEntries()).resolves.toEqual([])
 
       restartedWatcher.stop()
+    } finally {
+      initialWatcher.stop()
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps queued startup discoveries across watcher rebuilds until drained', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-local-library-')
+    )
+    const state = createWatcherState()
+    const initialWatcher = new LocalLibraryWatcher(
+      jest.fn(),
+      state,
+      testWatcherOptions
+    )
+
+    try {
+      await fs.mkdir(join(rootPath, 'Existing Game'))
+      await initialWatcher.setPath(rootPath)
+      initialWatcher.stop()
+
+      const newFolderPath = join(rootPath, 'Rebuild Folder')
+      await fs.mkdir(newFolderPath)
+
+      const firstOnFolderAdded = jest.fn()
+      const firstWatcher = new LocalLibraryWatcher(
+        firstOnFolderAdded,
+        state,
+        testWatcherOptions
+      )
+      await firstWatcher.setPath(rootPath)
+      await waitFor(() => expect(firstOnFolderAdded).toHaveBeenCalledTimes(1))
+      firstWatcher.stop()
+
+      const secondWatcher = new LocalLibraryWatcher(
+        jest.fn(),
+        state,
+        testWatcherOptions
+      )
+      await secondWatcher.setPath(rootPath)
+
+      await expect(secondWatcher.drainQueuedEntries()).resolves.toEqual([
+        {
+          folderPath: newFolderPath,
+          isArchive: false,
+          title: 'Rebuild Folder'
+        }
+      ])
+      await expect(secondWatcher.drainQueuedEntries()).resolves.toEqual([])
+
+      secondWatcher.stop()
     } finally {
       initialWatcher.stop()
       await fs.rm(rootPath, { recursive: true, force: true })

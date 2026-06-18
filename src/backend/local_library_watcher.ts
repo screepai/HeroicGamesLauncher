@@ -11,6 +11,7 @@ import {
 } from './local_library_archive'
 import {
   localLibraryWatcherState,
+  type LocalLibraryWatcherQueuedEntry,
   type LocalLibraryWatcherState
 } from './local_library_watcher_state'
 import { logWarning, LogPrefix } from './logger'
@@ -237,7 +238,11 @@ class LocalLibraryWatcher {
       const entryName = basename(path)
       this.knownEntries.add(entryName)
       this.pendingEntries.delete(entryName)
+      this.queuedEntries = this.queuedEntries.filter(
+        (queuedEntry) => basename(queuedEntry.folderPath) !== entryName
+      )
       this.suppressedEntries.add(entryName)
+      void this.saveQueuedEntries(this.rootPath)
     }
   }
 
@@ -296,12 +301,33 @@ class LocalLibraryWatcher {
       return
     }
 
+    const loadedQueuedEntries = await this.state.loadQueue(nextRootPath)
+    if (revision !== this.revision) {
+      return
+    }
+
+    this.queuedEntries = this.filterQueuedEntries(
+      loadedQueuedEntries,
+      currentEntries
+    )
+    await this.saveQueuedEntries(nextRootPath)
+    if (revision !== this.revision) {
+      return
+    }
+
+    this.queuedEntries.forEach((entry) => this.onFolderAdded(entry))
+
     let addedEntries: string[] = []
     if (previousEntries) {
       addedEntries = getAddedEntryNames(
         previousEntries,
         currentEntries,
         this.exclusionRules
+      ).filter(
+        (entryName) =>
+          !this.queuedEntries.some(
+            (queuedEntry) => basename(queuedEntry.folderPath) === entryName
+          )
       )
       this.reportAddedEntriesWhenReady(addedEntries, nextRootPath, revision)
     }
@@ -328,9 +354,12 @@ class LocalLibraryWatcher {
     this.suppressedEntries = new Set()
   }
 
-  drainQueuedEntries(): LocalLibraryFolder[] {
+  async drainQueuedEntries(): Promise<LocalLibraryFolder[]> {
     const queuedEntries = this.queuedEntries
     this.queuedEntries = []
+    if (this.rootPath) {
+      await this.saveQueuedEntries(this.rootPath)
+    }
     return queuedEntries
   }
 
@@ -408,6 +437,37 @@ class LocalLibraryWatcher {
     await this.state.save(rootPath, this.getPersistableEntries())
   }
 
+  private filterQueuedEntries(
+    queuedEntries: LocalLibraryWatcherQueuedEntry[],
+    currentEntries: Set<string>
+  ): LocalLibraryFolder[] {
+    return queuedEntries.filter((queuedEntry) => {
+      const entryName = basename(queuedEntry.folderPath)
+      return (
+        currentEntries.has(entryName) &&
+        !matchesExclusionRule(entryName, this.exclusionRules)
+      )
+    })
+  }
+
+  private async saveQueuedEntries(rootPath: string): Promise<void> {
+    await this.state.saveQueue(rootPath, this.queuedEntries)
+  }
+
+  private async queueEntry(
+    rootPath: string,
+    folder: LocalLibraryFolder
+  ): Promise<void> {
+    if (
+      !this.queuedEntries.some(
+        (queuedEntry) => queuedEntry.folderPath === folder.folderPath
+      )
+    ) {
+      this.queuedEntries.push(folder)
+      await this.saveQueuedEntries(rootPath)
+    }
+  }
+
   private reportAddedEntriesWhenReady(
     entryNames: string[],
     rootPath: string,
@@ -448,7 +508,7 @@ class LocalLibraryWatcher {
         isArchive,
         title: archiveExtension ? getArchiveTitle(entryName) : entryName
       }
-      this.queuedEntries.push(folder)
+      await this.queueEntry(rootPath, folder)
       this.onFolderAdded(folder)
     } finally {
       this.pendingEntries.delete(entryName)
@@ -501,7 +561,7 @@ function suppressLocalLibraryPath(path: string): void {
   localLibraryWatcher.suppressPath(path)
 }
 
-function drainLocalLibraryWatcherQueue(): LocalLibraryFolder[] {
+function drainLocalLibraryWatcherQueue(): Promise<LocalLibraryFolder[]> {
   return localLibraryWatcher.drainQueuedEntries()
 }
 

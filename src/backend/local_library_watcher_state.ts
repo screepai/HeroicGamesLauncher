@@ -6,9 +6,30 @@ import { logWarning, LogPrefix } from './logger'
 
 type LocalLibraryWatcherSnapshots = Record<string, string[]>
 
+type LocalLibraryWatcherQueuedEntry = {
+  folderPath: string
+  isArchive: boolean
+  title: string
+}
+
+type LocalLibraryWatcherQueues = Record<
+  string,
+  LocalLibraryWatcherQueuedEntry[]
+>
+
+type LocalLibraryWatcherStateData = {
+  queues: LocalLibraryWatcherQueues
+  snapshots: LocalLibraryWatcherSnapshots
+}
+
 type LocalLibraryWatcherState = {
   load: (rootPath: string) => Promise<Set<string> | undefined>
+  loadQueue: (rootPath: string) => Promise<LocalLibraryWatcherQueuedEntry[]>
   save: (rootPath: string, entries: Set<string>) => Promise<void>
+  saveQueue: (
+    rootPath: string,
+    entries: LocalLibraryWatcherQueuedEntry[]
+  ) => Promise<void>
 }
 
 const statePath = resolve(appFolder, 'local-library-watcher.json')
@@ -28,9 +49,56 @@ function parseSnapshots(value: unknown): LocalLibraryWatcherSnapshots {
   )
 }
 
-async function readSnapshots(): Promise<LocalLibraryWatcherSnapshots> {
+function parseQueues(value: unknown): LocalLibraryWatcherQueues {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+
+  const isQueuedEntry = (
+    queuedEntry: unknown
+  ): queuedEntry is LocalLibraryWatcherQueuedEntry => {
+    if (!queuedEntry || typeof queuedEntry !== 'object') {
+      return false
+    }
+
+    const candidate = queuedEntry as Record<string, unknown>
+    return (
+      typeof candidate.folderPath === 'string' &&
+      typeof candidate.isArchive === 'boolean' &&
+      typeof candidate.title === 'string'
+    )
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, LocalLibraryWatcherQueuedEntry[]] =>
+        Array.isArray(entry[1]) && entry[1].every(isQueuedEntry)
+    )
+  )
+}
+
+function parseStateData(value: unknown): LocalLibraryWatcherStateData {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { queues: {}, snapshots: {} }
+  }
+
+  if ('snapshots' in value || 'queues' in value) {
+    const stateData = value as Record<string, unknown>
+    return {
+      queues: parseQueues(stateData.queues),
+      snapshots: parseSnapshots(stateData.snapshots)
+    }
+  }
+
+  return {
+    queues: {},
+    snapshots: parseSnapshots(value)
+  }
+}
+
+async function readStateData(): Promise<LocalLibraryWatcherStateData> {
   try {
-    return parseSnapshots(JSON.parse(await fs.readFile(statePath, 'utf8')))
+    return parseStateData(JSON.parse(await fs.readFile(statePath, 'utf8')))
   } catch (error) {
     if (
       typeof error === 'object' &&
@@ -38,33 +106,59 @@ async function readSnapshots(): Promise<LocalLibraryWatcherSnapshots> {
       'code' in error &&
       error.code === 'ENOENT'
     ) {
-      return {}
+      return { queues: {}, snapshots: {} }
     }
 
     logWarning(
       ['Unable to read the local library watcher state:', error],
       LogPrefix.Backend
     )
-    return {}
+    return { queues: {}, snapshots: {} }
   }
 }
 
 const localLibraryWatcherState: LocalLibraryWatcherState = {
   async load(rootPath) {
     await pendingWrite
-    const entries = (await readSnapshots())[resolve(rootPath)]
+    const entries = (await readStateData()).snapshots[resolve(rootPath)]
     return entries ? new Set(entries) : undefined
+  },
+
+  async loadQueue(rootPath) {
+    await pendingWrite
+    return (await readStateData()).queues[resolve(rootPath)] ?? []
   },
 
   save(rootPath, entries) {
     pendingWrite = pendingWrite.then(async () => {
-      const snapshots = await readSnapshots()
-      snapshots[resolve(rootPath)] = [...entries].sort()
+      const stateData = await readStateData()
+      stateData.snapshots[resolve(rootPath)] = [...entries].sort()
 
       try {
         await fs.mkdir(dirname(statePath), { recursive: true })
         const temporaryPath = `${statePath}.tmp`
-        await fs.writeFile(temporaryPath, JSON.stringify(snapshots, null, 2))
+        await fs.writeFile(temporaryPath, JSON.stringify(stateData, null, 2))
+        await fs.rename(temporaryPath, statePath)
+      } catch (error) {
+        logWarning(
+          ['Unable to save the local library watcher state:', error],
+          LogPrefix.Backend
+        )
+      }
+    })
+
+    return pendingWrite
+  },
+
+  saveQueue(rootPath, entries) {
+    pendingWrite = pendingWrite.then(async () => {
+      const stateData = await readStateData()
+      stateData.queues[resolve(rootPath)] = entries
+
+      try {
+        await fs.mkdir(dirname(statePath), { recursive: true })
+        const temporaryPath = `${statePath}.tmp`
+        await fs.writeFile(temporaryPath, JSON.stringify(stateData, null, 2))
         await fs.rename(temporaryPath, statePath)
       } catch (error) {
         logWarning(
@@ -79,4 +173,4 @@ const localLibraryWatcherState: LocalLibraryWatcherState = {
 }
 
 export { localLibraryWatcherState }
-export type { LocalLibraryWatcherState }
+export type { LocalLibraryWatcherQueuedEntry, LocalLibraryWatcherState }
