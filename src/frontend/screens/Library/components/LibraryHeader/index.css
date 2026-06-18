@@ -94,6 +94,12 @@
   width: min(520px, 92vw);
 }
 
+.BulkGameOptionsDialog .button,
+.BulkGameOptionsDialog .button:hover,
+.BulkGameOptionsDialog .button:focus-visible {
+  color: var(--text-tertiary);
+}
+
 .bulkGameOptionsContent {
   display: flex;
   flex-direction: column;
@@ -126,6 +132,12 @@
   padding: var(--space-xs) var(--space-md);
   text-transform: uppercase;
   transition: 300ms;
+}
+
+.VndbSyncDialog .button,
+.VndbSyncDialog .button:hover,
+.VndbSyncDialog .button:focus-visible {
+  color: var(--text-tertiary);
 }
 
 .vndbSyncButton:hover,

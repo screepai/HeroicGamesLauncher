@@ -137,10 +137,23 @@
     gap: var(--space-xs);
   }
 
-  .categoriesButton {
+  .sideloadActionButtons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+
+  .sideloadActionButton {
+    color: var(--text-tertiary);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-xs);
+  }
+
+  .sideloadActionButton:hover,
+  .sideloadActionButton:focus-visible {
+    color: var(--text-tertiary);
+    box-shadow: 0 0 0 3px var(--button-stroke, var(--text-default));
   }
 }

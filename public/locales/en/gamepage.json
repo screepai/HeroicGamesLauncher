@@ -297,6 +297,7 @@
             "title": "Game/App Title",
             "useragent": "Custom User Agent"
         },
+        "open-directory": "Open Directory",
         "placeholder": {
             "image": "Paste an URL of an Image or select one from your computer",
             "title": "Add a title to your Game/App",

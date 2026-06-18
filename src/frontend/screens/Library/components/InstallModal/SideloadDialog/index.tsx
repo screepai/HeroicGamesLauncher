@@ -35,6 +35,7 @@ import axios from 'axios'
 import { NavLink, useNavigate } from 'react-router-dom'
 import TextInputWithIconField from 'frontend/components/UI/TextInputWithIconField'
 import Folder from '@mui/icons-material/Folder'
+import FolderOpen from '@mui/icons-material/FolderOpen'
 import List from '@mui/icons-material/List'
 import VndbSyncButton from '../../LibraryHeader/VndbSyncButton'
 import CategoriesManager from '../../CategoriesManager'
@@ -51,6 +52,27 @@ type Props = {
   title: string
   setTitle: (title: string) => void
   defaultPath?: string
+}
+
+function getParentDirectory(filePath: string): string {
+  const separatorIndex = Math.max(
+    filePath.lastIndexOf('/'),
+    filePath.lastIndexOf('\\')
+  )
+
+  if (separatorIndex === -1) {
+    return ''
+  }
+
+  if (separatorIndex === 0) {
+    return filePath.slice(0, 1)
+  }
+
+  if (separatorIndex === 2 && /^[a-z]:/i.test(filePath)) {
+    return filePath.slice(0, 3)
+  }
+
+  return filePath.slice(0, separatorIndex)
 }
 
 export default function SideloadDialog({
@@ -410,6 +432,8 @@ export default function SideloadDialog({
   }
 
   const showSideloadExe = appPlatform !== 'Browser'
+  const executableDirectory = getParentDirectory(selectedExe)
+  const directoryToOpen = executableDirectory || defaultPath || ''
 
   const shouldShowRunExe =
     platform !== 'win32' &&
@@ -551,15 +575,26 @@ export default function SideloadDialog({
                     )}
                   />
                 )}
-                <button
-                  type="button"
-                  className="button is-secondary categoriesButton"
-                  disabled={!app_name}
-                  onClick={() => setShowCategories(true)}
-                >
-                  <List />
-                  {t('submenu.categories', 'Categories')}
-                </button>
+                <div className="sideloadActionButtons">
+                  <button
+                    type="button"
+                    className="button is-secondary sideloadActionButton"
+                    disabled={!app_name}
+                    onClick={() => setShowCategories(true)}
+                  >
+                    <List />
+                    {t('submenu.categories', 'Categories')}
+                  </button>
+                  <button
+                    type="button"
+                    className="button is-secondary sideloadActionButton"
+                    disabled={!directoryToOpen}
+                    onClick={() => window.api.openFolder(directoryToOpen)}
+                  >
+                    <FolderOpen />
+                    {t('sideload.open-directory', 'Open Directory')}
+                  </button>
+                </div>
                 <details className="advancedFields">
                   <summary>{t('sideload.images.summary', 'Images')}</summary>
                   <TextInputWithIconField

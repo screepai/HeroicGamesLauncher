@@ -1,6 +1,12 @@
 .CategoriesManager__Dialog {
   width: 400px;
 
+  .button,
+  .button:hover,
+  .button:focus-visible {
+    color: var(--text-tertiary);
+  }
+
   .MuiDialogContent-root {
     display: flex;
     flex-direction: column;
