@@ -1,13 +1,26 @@
-import { Fragment, useCallback, useEffect, useRef } from 'react'
+import {
+  cloneElement,
+  HTMLAttributes,
+  KeyboardEvent,
+  ReactElement,
+  useCallback,
+  useRef,
+  useState
+} from 'react'
 import './index.scss'
 import { faSearch, faXmark } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 interface Props {
-  suggestionsListItems?: JSX.Element[]
+  suggestionsListItems?: ReactElement<HTMLAttributes<HTMLElement>>[]
   onInputChanged: (text: string) => void
   value: string
   placeholder: string
+}
+
+interface Selection {
+  value: string
+  index: number
 }
 
 export default function SearchBar({
@@ -17,40 +30,59 @@ export default function SearchBar({
   placeholder
 }: Props) {
   const input = useRef<HTMLInputElement>(null)
+  const suggestionsList = useRef<HTMLUListElement>(null)
+  const [selection, setSelection] = useState<Selection>({ value, index: -1 })
+  const suggestionCount = suggestionsListItems?.length ?? 0
+  const hasSuggestions = value.length > 0 && suggestionCount > 0
+  const selectedSuggestion =
+    selection.value === value && selection.index < suggestionCount
+      ? selection.index
+      : -1
 
-  // we have to use an event listener instead of the react
-  // onChange callback so it works with the virtual keyboard
-  useEffect(() => {
-    if (input.current) {
-      const element = input.current
-      element.value = value
-      const handler = () => {
-        onInputChanged(element.value)
-      }
-      element.addEventListener('input', handler)
-      return () => {
-        element.removeEventListener('input', handler)
-      }
-    }
-    return
-  }, [input, value, onInputChanged])
-
-  // Sync external value changes (e.g., a reset button) into the uncontrolled
-  // input. The effect above only runs on mount, so without this a caller
-  // clearing the value wouldn't clear the visible text.
-  useEffect(() => {
-    if (input.current && input.current.value !== value) {
-      input.current.value = value
-    }
-  }, [value])
+  const selectSuggestion = (index: number) => {
+    setSelection({ value, index })
+    const suggestion = suggestionsList.current?.children[index] as
+      | HTMLElement
+      | undefined
+    suggestion?.scrollIntoView?.({ block: 'nearest' })
+  }
 
   const onClear = useCallback(() => {
     onInputChanged('')
-    if (input.current) {
-      input.current.value = ''
-      input.current.focus()
-    }
+    setSelection({ value: '', index: -1 })
+    input.current?.focus()
   }, [onInputChanged])
+
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (!hasSuggestions) {
+      return
+    }
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const nextSuggestion =
+        event.key === 'ArrowDown'
+          ? (selectedSuggestion + 1) % suggestionCount
+          : selectedSuggestion <= 0
+            ? suggestionCount - 1
+            : selectedSuggestion - 1
+      selectSuggestion(nextSuggestion)
+      return
+    }
+
+    if (event.key === 'Enter' && selectedSuggestion >= 0) {
+      event.preventDefault()
+      const suggestion = suggestionsList.current?.children[
+        selectedSuggestion
+      ] as HTMLElement | undefined
+      const interactiveElement = suggestion?.querySelector<HTMLElement>(
+        'button, a, [role="button"]'
+      )
+      ;(interactiveElement ?? suggestion)?.click()
+    } else if (event.key === 'Escape') {
+      setSelection({ value, index: -1 })
+    }
+  }
 
   return (
     <div className="SearchBar" data-testid="searchBar">
@@ -69,18 +101,54 @@ export default function SearchBar({
         // and in src/helpers/gamepad.ts#isSearchInput
         id="search"
         className="searchBarInput"
+        value={value}
+        aria-label={placeholder}
+        aria-autocomplete="list"
+        aria-controls="search-autocomplete"
+        aria-activedescendant={
+          selectedSuggestion >= 0
+            ? `search-autocomplete-option-${selectedSuggestion}`
+            : undefined
+        }
+        onChange={(event) => {
+          const nextValue = event.currentTarget.value
+          setSelection({ value: nextValue, index: -1 })
+          onInputChanged(nextValue)
+        }}
+        onKeyDown={onKeyDown}
       />
       {value.length > 0 && (
         <>
-          <ul className="autoComplete">
+          <ul
+            ref={suggestionsList}
+            id="search-autocomplete"
+            className="autoComplete"
+          >
             {suggestionsListItems &&
               suggestionsListItems.length > 0 &&
-              suggestionsListItems.map((li, idx) => (
-                <Fragment key={idx}>{li}</Fragment>
-              ))}
+              suggestionsListItems.map((li, index) => {
+                const { className = '', onMouseEnter } = li.props
+                return cloneElement(li, {
+                  id: `search-autocomplete-option-${index}`,
+                  role: 'option',
+                  'aria-selected': selectedSuggestion === index,
+                  className: `${className}${
+                    selectedSuggestion === index ? ' selected' : ''
+                  }`.trim(),
+                  onMouseEnter: (event) => {
+                    onMouseEnter?.(event)
+                    selectSuggestion(index)
+                  }
+                })
+              })}
           </ul>
 
-          <button className="clearSearchButton" onClick={onClear} tabIndex={-1}>
+          <button
+            type="button"
+            className="clearSearchButton"
+            onClick={onClear}
+            tabIndex={-1}
+          >
             <FontAwesomeIcon icon={faXmark} />
           </button>
         </>

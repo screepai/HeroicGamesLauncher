@@ -18,16 +18,22 @@ function focusKeyboard() {
 function typeInInput(button: string) {
   if (!targetInput) return
 
+  let value = targetInput.value
   if (button.length === 1) {
-    targetInput.value = targetInput.value + button
+    value += button
   } else if (button === '{bksp}') {
-    if (targetInput.value.length > 0) {
-      targetInput.value = targetInput.value.slice(0, -1)
+    if (value.length > 0) {
+      value = value.slice(0, -1)
     }
   } else if (button === '{space}') {
-    targetInput.value = targetInput.value + ' '
+    value += ' '
   }
-  targetInput.dispatchEvent(new Event('input'))
+
+  Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    'value'
+  )?.set?.call(targetInput, value)
+  targetInput.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
 function makeKeyboardTopLayer() {

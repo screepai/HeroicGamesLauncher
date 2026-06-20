@@ -37,7 +37,8 @@
         opacity: 0.3;
       }
 
-      &:hover {
+      &:hover,
+      &.selected {
         background-color: var(--accent);
         color: var(--background);
       }
