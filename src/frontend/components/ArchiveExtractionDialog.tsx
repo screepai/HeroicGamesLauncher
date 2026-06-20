@@ -1,11 +1,17 @@
 import { memo, useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Checkbox, CircularProgress, FormControlLabel } from '@mui/material'
+import {
+  Checkbox,
+  CircularProgress,
+  FormControlLabel,
+  LinearProgress
+} from '@mui/material'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
 
 import type {
   LocalLibraryArchiveEntry,
+  LocalLibraryArchiveExtractionProgress,
   LocalLibraryArchiveInfo,
   LocalLibraryWatchEntry
 } from 'common/types'
@@ -253,6 +259,8 @@ export default function ArchiveExtractionDialog({
   const [finalRootPath, setFinalRootPath] = useState<string | null>(null)
   const [extractedFolder, setExtractedFolder] =
     useState<ExtractedFolder | null>(null)
+  const [extractionProgress, setExtractionProgress] =
+    useState<LocalLibraryArchiveExtractionProgress>({ percent: 0 })
   const [error, setError] = useState('')
 
   const resetArchiveDialog = useCallback(
@@ -267,6 +275,7 @@ export default function ArchiveExtractionDialog({
       setArchiveInfo(null)
       setFinalRootPath(null)
       setExtractedFolder(null)
+      setExtractionProgress({ percent: 0 })
       setError('')
     },
     []
@@ -275,6 +284,20 @@ export default function ArchiveExtractionDialog({
   useEffect(() => {
     resetArchiveDialog(archive)
   }, [archive, resetArchiveDialog])
+
+  useEffect(
+    () =>
+      window.api.onLocalLibraryArchiveExtractionProgress(
+        (_event, archivePath, progress) => {
+          const currentArchivePath =
+            archiveInfo?.archivePath ?? activeArchive.folderPath
+          if (archivePath === currentArchivePath) {
+            setExtractionProgress(progress)
+          }
+        }
+      ),
+    [activeArchive.folderPath, archiveInfo?.archivePath]
+  )
 
   const archiveFileName =
     activeArchive.folderPath.split(/[\\/]/).pop() ?? activeArchive.folderPath
@@ -417,6 +440,7 @@ export default function ArchiveExtractionDialog({
     }
 
     setStage('extracting')
+    setExtractionProgress({ percent: 0 })
     setError('')
 
     try {
@@ -590,27 +614,55 @@ export default function ArchiveExtractionDialog({
           </>
         )}
 
-        {isBusy && (
-          <div className="archiveExtractionLoading">
-            <CircularProgress size={32} />
-            <span>
-              {stage === 'loading'
-                ? t(
-                    'box.local-library-archive.reading',
-                    'Reading archive contents...'
-                  )
-                : stage === 'extracting'
+        {isBusy &&
+          (stage === 'extracting' ? (
+            <div className="archiveExtractionProgress">
+              <div className="archiveExtractionProgressHeader">
+                <span>
+                  {t(
+                    'box.local-library-archive.extracting',
+                    'Extracting selected contents...'
+                  )}
+                </span>
+                <span>{extractionProgress.percent}%</span>
+              </div>
+              <LinearProgress
+                variant="determinate"
+                value={extractionProgress.percent}
+              />
+              <div className="archiveExtractionCurrentFile" aria-live="polite">
+                <b>
+                  {t(
+                    'box.local-library-archive.current-file',
+                    'Currently extracting'
+                  )}
+                  :
+                </b>
+                <code title={extractionProgress.file}>
+                  {extractionProgress.file ??
+                    t(
+                      'box.local-library-archive.preparing',
+                      'Preparing extraction...'
+                    )}
+                </code>
+              </div>
+            </div>
+          ) : (
+            <div className="archiveExtractionLoading">
+              <CircularProgress size={32} />
+              <span>
+                {stage === 'loading'
                   ? t(
-                      'box.local-library-archive.extracting',
-                      'Extracting selected contents...'
+                      'box.local-library-archive.reading',
+                      'Reading archive contents...'
                     )
                   : t(
                       'box.local-library-archive.deleting',
                       'Deleting original archive...'
                     )}
-            </span>
-          </div>
-        )}
+              </span>
+            </div>
+          ))}
 
         {stage === 'selection' && (
           <>

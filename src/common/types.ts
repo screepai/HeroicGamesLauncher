@@ -893,6 +893,11 @@ export interface LocalLibraryArchiveInfo {
   partPaths: string[]
 }
 
+export interface LocalLibraryArchiveExtractionProgress {
+  percent: number
+  file?: string
+}
+
 export interface LocalLibraryWatchEntry {
   folderPath: string
   isArchive: boolean

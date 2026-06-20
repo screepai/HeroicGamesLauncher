@@ -28,6 +28,34 @@
   min-height: 220px;
 }
 
+.archiveExtractionProgress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  justify-content: center;
+  min-height: 220px;
+  width: 100%;
+}
+
+.archiveExtractionProgressHeader {
+  display: flex;
+  justify-content: space-between;
+}
+
+.archiveExtractionCurrentFile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.archiveExtractionCurrentFile code {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .archiveSelectionActions {
   align-items: center;
   display: flex;

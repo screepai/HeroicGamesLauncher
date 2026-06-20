@@ -12,6 +12,7 @@ import {
 } from 'common/local_library_archive'
 import type {
   LocalLibraryArchiveEntry,
+  LocalLibraryArchiveExtractionProgress,
   LocalLibraryArchiveInfo,
   LocalLibraryWatchEntry
 } from 'common/types'
@@ -28,6 +29,7 @@ type ExtractArchiveOptions = {
   rootPath?: string
   selectedPaths: string[]
   onBeforePathCreated?: (path: string) => void
+  onProgress?: (progress: LocalLibraryArchiveExtractionProgress) => void
 }
 
 const PASSWORD_ERROR_PATTERN =
@@ -422,7 +424,8 @@ async function extractLocalLibraryArchive({
   password,
   rootPath,
   selectedPaths,
-  onBeforePathCreated
+  onBeforePathCreated,
+  onProgress
 }: ExtractArchiveOptions): Promise<{ folderPath: string; title: string }> {
   const archiveInfo = await inspectLocalLibraryArchive(archivePath)
   const canonicalArchivePath = archiveInfo.archivePath
@@ -511,17 +514,51 @@ async function extractLocalLibraryArchive({
   await fs.mkdir(stagingPath)
 
   try {
+    let outputBuffer = ''
+    let progress: LocalLibraryArchiveExtractionProgress = { percent: 0 }
+    const handleOutput = (data: string) => {
+      outputBuffer += data
+      const lines = outputBuffer.split(/\r\n|\r|\n/)
+      outputBuffer = lines.pop() ?? ''
+
+      for (const outputLine of lines) {
+        const line = outputLine.trim()
+        const percentMatch = /^(\d{1,3})%/.exec(line)
+        const fileMatch = /^-\s+(.+)$/.exec(line)
+        const extractedPath = fileMatch?.[1]
+        const nextPercent =
+          line === 'Everything is Ok'
+            ? 100
+            : percentMatch
+              ? Math.min(Number.parseInt(percentMatch[1], 10), 100)
+              : progress.percent
+        const nextFile =
+          extractedPath && !/[\\/]$/.test(extractedPath)
+            ? extractedPath
+            : progress.file
+
+        if (nextPercent !== progress.percent || nextFile !== progress.file) {
+          progress = { percent: nextPercent, file: nextFile }
+          onProgress?.(progress)
+        }
+      }
+    }
+
+    onProgress?.(progress)
     const { code, stdout, stderr } = await spawnAsync(
       fixAsarPath(path7z),
       [
         'x',
         '-y',
+        '-bb1',
+        '-bsp1',
         getArchivePasswordArgument(password),
         `-o${stagingPath}`,
         '--',
         canonicalArchivePath
       ],
-      { windowsHide: true }
+      { windowsHide: true },
+      handleOutput
     )
 
     if (code !== 0) {
@@ -542,6 +579,7 @@ async function extractLocalLibraryArchive({
     if (resolvedCleanupPath) {
       await fs.rm(resolvedCleanupPath, { recursive: true, force: true })
     }
+    onProgress?.({ ...progress, percent: 100 })
 
     return {
       folderPath: destinationPath,

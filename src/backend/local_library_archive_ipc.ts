@@ -1,4 +1,4 @@
-import { addHandler } from './ipc'
+import { addHandler, sendFrontendMessage } from './ipc'
 import {
   deleteLocalLibraryArchive,
   extractLocalLibraryArchive,
@@ -19,7 +19,13 @@ addHandler('listLocalLibraryArchive', (_event, args) =>
 addHandler('extractLocalLibraryArchive', (_event, args) =>
   extractLocalLibraryArchive({
     ...args,
-    onBeforePathCreated: suppressLocalLibraryPath
+    onBeforePathCreated: suppressLocalLibraryPath,
+    onProgress: (progress) =>
+      sendFrontendMessage(
+        'localLibraryArchiveExtractionProgress',
+        args.archivePath,
+        progress
+      )
   })
 )
 

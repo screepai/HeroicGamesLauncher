@@ -10,7 +10,8 @@ jest.mock('../utils', () => ({
   spawnAsync: (
     command: string,
     args: string[],
-    options: Record<string, unknown>
+    options: Record<string, unknown>,
+    onOutput?: (data: string) => void
   ) =>
     new Promise((resolve, reject) => {
       const { spawn } =
@@ -20,10 +21,14 @@ jest.mock('../utils', () => ({
       let stderr = ''
 
       child.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString()
+        const output = data.toString()
+        stdout += output
+        onOutput?.(output)
       })
       child.stderr?.on('data', (data: Buffer) => {
-        stderr += data.toString()
+        const output = data.toString()
+        stderr += output
+        onOutput?.(output)
       })
       child.on('error', reject)
       child.on('close', (code) => resolve({ code, stdout, stderr }))
@@ -86,6 +91,7 @@ Attributes = A
     const sourcePath = join(rootPath, 'Game')
     const archivePath = join(rootPath, 'Game.7z')
     const suppressedPaths: string[] = []
+    const extractionProgress: Array<{ percent: number; file?: string }> = []
 
     try {
       await fs.mkdir(join(sourcePath, 'Keep'), { recursive: true })
@@ -108,7 +114,8 @@ Attributes = A
         destinationName: 'Renamed Game',
         rootPath: 'Game/Keep',
         selectedPaths: ['Game/Keep/keep.txt', 'Game/Keep/no-longer-listed.txt'],
-        onBeforePathCreated: (path) => suppressedPaths.push(path)
+        onBeforePathCreated: (path) => suppressedPaths.push(path),
+        onProgress: (progress) => extractionProgress.push(progress)
       })
 
       expect(result).toEqual({
@@ -123,6 +130,12 @@ Attributes = A
       ).rejects.toMatchObject({ code: 'ENOENT' })
       expect(suppressedPaths).toHaveLength(2)
       expect(suppressedPaths).toContain(result.folderPath)
+      expect(extractionProgress.at(-1)?.percent).toBe(100)
+      expect(
+        extractionProgress.some(
+          ({ file }) => file?.replaceAll('\\', '/') === 'Game/Keep/keep.txt'
+        )
+      ).toBe(true)
     } finally {
       await fs.rm(rootPath, { recursive: true, force: true })
     }

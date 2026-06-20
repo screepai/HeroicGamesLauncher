@@ -17,6 +17,7 @@ export const inspectLocalLibraryArchive = makeHandlerInvoker('inspectLocalLibrar
 export const listLocalLibraryArchive = makeHandlerInvoker('listLocalLibraryArchive')
 export const findLocalLibraryNestedArchives = makeHandlerInvoker('findLocalLibraryNestedArchives')
 export const extractLocalLibraryArchive = makeHandlerInvoker('extractLocalLibraryArchive')
+export const onLocalLibraryArchiveExtractionProgress = frontendListenerSlot('localLibraryArchiveExtractionProgress')
 export const deleteLocalLibraryArchive = makeHandlerInvoker('deleteLocalLibraryArchive')
 export const handleGamePush = frontendListenerSlot('pushGameToLibrary')
 export const removeRecentGame = makeHandlerInvoker('removeRecent')

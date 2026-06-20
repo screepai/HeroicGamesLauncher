@@ -26,6 +26,7 @@ import type {
   LaunchOption,
   LaunchParams,
   LocalLibraryArchiveEntry,
+  LocalLibraryArchiveExtractionProgress,
   LocalLibraryArchiveInfo,
   LocalLibraryWatchEntry,
   MoveGameArgs,
@@ -434,6 +435,10 @@ interface AsyncIPCFunctions {
 interface FrontendMessages {
   gameStatusUpdate: (status: GameStatus) => void
   localLibraryFolderAdded: (folder: LocalLibraryWatchEntry) => void
+  localLibraryArchiveExtractionProgress: (
+    archivePath: string,
+    progress: LocalLibraryArchiveExtractionProgress
+  ) => void
   wineVersionsUpdated: () => void
   showDialog: (
     title: string,
