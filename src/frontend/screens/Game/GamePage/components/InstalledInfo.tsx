@@ -1,10 +1,10 @@
-import { useContext } from 'react'
+import { Fragment, useContext } from 'react'
 import { useTranslation } from 'react-i18next'
 import GameContext from '../../GameContext'
 import type { GameInfo } from 'common/types'
 import type { VndbRelease } from 'common/types/vndb'
 import {
-  getSelectedVndbRelease,
+  getSelectedVndbReleases,
   getVndbPlatformsLabel
 } from 'frontend/helpers/vndb'
 import { ToggleSwitch } from 'frontend/components/UI'
@@ -83,9 +83,9 @@ const InstalledInfo = ({ gameInfo, onIsVisualNovelChange }: Props) => {
       )}
     />
   ) : null
-  const selectedVndbRelease = vndbMatch
-    ? getSelectedVndbRelease(vndbMatch)
-    : undefined
+  const selectedVndbReleases = vndbMatch
+    ? getSelectedVndbReleases(vndbMatch)
+    : []
 
   function getBooleanLabel(value: boolean | undefined) {
     if (value === undefined) {
@@ -115,46 +115,47 @@ const InstalledInfo = ({ gameInfo, onIsVisualNovelChange }: Props) => {
       .join(', ')
   }
 
-  const vndbReleaseLanguages = selectedVndbRelease
-    ? getLanguageList(selectedVndbRelease.languages, i18n.language)
-    : ''
-  const vndbReleasePlatforms = selectedVndbRelease
-    ? getVndbPlatformsLabel(selectedVndbRelease.platforms)
-    : ''
-  const vndbReleaseFlags = selectedVndbRelease
-    ? getReleaseFlagsLabel(selectedVndbRelease)
-    : ''
-  const vndbReleaseInfo = selectedVndbRelease ? (
+  const vndbReleaseInfo = selectedVndbReleases.length ? (
     <>
-      <div>
-        <b>{t('vndb.downloaded-version', 'Downloaded version')}:</b>{' '}
-        {selectedVndbRelease.title}
-      </div>
-      <div>
-        <b>{t('vndb.release-id', 'Release ID')}:</b> {selectedVndbRelease.id}
-      </div>
-      {selectedVndbRelease.released && (
-        <div>
-          <b>{t('vndb.release-date', 'Release date')}:</b>{' '}
-          {selectedVndbRelease.released}
-        </div>
-      )}
-      {vndbReleaseLanguages && (
-        <div>
-          <b>{t('vndb.release-languages', 'Release languages')}:</b>{' '}
-          {vndbReleaseLanguages}
-        </div>
-      )}
-      {vndbReleasePlatforms && (
-        <div>
-          <b>{t('vndb.platforms', 'Platforms')}:</b> {vndbReleasePlatforms}
-        </div>
-      )}
-      {vndbReleaseFlags && (
-        <div>
-          <b>{t('vndb.release-flags', 'Release flags')}:</b> {vndbReleaseFlags}
-        </div>
-      )}
+      {selectedVndbReleases.map((release) => {
+        const languages = getLanguageList(release.languages, i18n.language)
+        const platforms = getVndbPlatformsLabel(release.platforms)
+        const flags = getReleaseFlagsLabel(release)
+
+        return (
+          <Fragment key={release.id}>
+            <div>
+              <b>{t('vndb.downloaded-version', 'Downloaded version')}:</b>{' '}
+              {release.title}
+            </div>
+            <div>
+              <b>{t('vndb.release-id', 'Release ID')}:</b> {release.id}
+            </div>
+            {release.released && (
+              <div>
+                <b>{t('vndb.release-date', 'Release date')}:</b>{' '}
+                {release.released}
+              </div>
+            )}
+            {languages && (
+              <div>
+                <b>{t('vndb.release-languages', 'Release languages')}:</b>{' '}
+                {languages}
+              </div>
+            )}
+            {platforms && (
+              <div>
+                <b>{t('vndb.platforms', 'Platforms')}:</b> {platforms}
+              </div>
+            )}
+            {flags && (
+              <div>
+                <b>{t('vndb.release-flags', 'Release flags')}:</b> {flags}
+              </div>
+            )}
+          </Fragment>
+        )
+      })}
     </>
   ) : null
 
