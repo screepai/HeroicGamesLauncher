@@ -2,9 +2,10 @@ import CacheStore from 'backend/cache'
 import { configStore, tsStore } from 'backend/constants/key_value_stores'
 import { logError, logInfo, LogPrefix } from 'backend/logger'
 import { stat } from 'fs/promises'
-import { isVndbError, parseVndbId } from 'vndb-kana-api'
+import { chunk, isVndbError, parseVndbId } from 'vndb-kana-api'
 import type {
   AuthInfo,
+  Filter,
   Release,
   ReleaseVn,
   UserLabelInfo,
@@ -146,7 +147,9 @@ const maxSearchResults = 50
 const maxVisualNovelReleases = 50
 const maxHydratedVisualNovelSearchResults = 5
 const matchSearchConcurrency = 5
+const maxVndbIdsPerRequest = 100
 const finishedLabelId = 2
+const pendingMatchSearches = new Map<string, Promise<VndbSearchResult | null>>()
 
 const searchFields = [
   'id',
@@ -665,6 +668,91 @@ function getUserListEntry(
   return entries.find((entry) => entry.id === visualNovelId)
 }
 
+function getVisualNovelIdsFilter(visualNovelIds: string[]): Filter {
+  if (visualNovelIds.length === 1) {
+    return ['id', '=', visualNovelIds[0]]
+  }
+
+  return [
+    'or',
+    ...visualNovelIds.map((visualNovelId): Filter => ['id', '=', visualNovelId])
+  ]
+}
+
+async function getUserListEntriesForSync(
+  userId: string,
+  visualNovelIds: string[]
+): Promise<{
+  entries: Map<string, UserListEntry>
+  errors: Map<string, string>
+}> {
+  const entries = new Map<string, UserListEntry>()
+  const errors = new Map<string, string>()
+  const uniqueIds = [...new Set(visualNovelIds)]
+
+  for (const visualNovelIdChunk of chunk(uniqueIds, maxVndbIdsPerRequest)) {
+    try {
+      const response = await vndbClient.getUserList({
+        user: userId,
+        filters: getVisualNovelIdsFilter(visualNovelIdChunk),
+        fields:
+          'id,voted,started,finished,labels{id,label},releases{id,list_status}',
+        results: visualNovelIdChunk.length
+      })
+
+      for (const entry of response.results) {
+        entries.set(entry.id, entry)
+      }
+    } catch (error) {
+      const message = getVndbRequestErrorMessage(error)
+      for (const visualNovelId of visualNovelIdChunk) {
+        errors.set(visualNovelId, message)
+      }
+    }
+  }
+
+  return { entries, errors }
+}
+
+interface UserListSyncState {
+  voted: number | null
+  started: string | null
+  finished: string | null
+  labels: UserListEntry['labels']
+}
+
+function getChangedUserListSyncUpdate(
+  update: VndbUserOptionsUpdate,
+  state: UserListSyncState | undefined
+): VndbUserOptionsUpdate {
+  const changedUpdate: VndbUserOptionsUpdate = {}
+
+  if (update.started !== undefined && update.started !== state?.started) {
+    changedUpdate.started = update.started
+  }
+  if (update.finished !== undefined && update.finished !== state?.finished) {
+    changedUpdate.finished = update.finished
+  }
+
+  return changedUpdate
+}
+
+function applyUserListSyncUpdate(
+  state: UserListSyncState | undefined,
+  update: VndbUserOptionsUpdate
+): UserListSyncState {
+  return {
+    voted: state?.voted ?? null,
+    started:
+      update.started !== undefined ? update.started : (state?.started ?? null),
+    finished:
+      update.finished !== undefined
+        ? update.finished
+        : (state?.finished ?? null),
+    labels: state?.labels ?? []
+  }
+}
+
 function normalizeUserOptionsUpdate(
   update: VndbUserOptionsUpdate
 ): VndbUserOptionsUpdate {
@@ -909,40 +997,72 @@ export async function syncVndbUserData(
   }
 
   const storedMatches = getAllStoredMatches()
-
-  for (const target of targets) {
+  const targetMatches = targets.map((target) => {
     const match = storedMatches[getMatchKey(target)]
-    const visualNovelId = match ? getStoredMatchMainVisualNovelId(match) : ''
+    return {
+      match,
+      visualNovelId: match ? getStoredMatchMainVisualNovelId(match) : undefined
+    }
+  })
+  const { entries: userListEntries, errors: userListReadErrors } = canRead
+    ? await getUserListEntriesForSync(
+        authInfo.id,
+        targetMatches.flatMap(({ visualNovelId }) =>
+          visualNovelId ? [visualNovelId] : []
+        )
+      )
+    : {
+        entries: new Map<string, UserListEntry>(),
+        errors: new Map<string, string>()
+      }
+  const userListStates = new Map<string, UserListSyncState>(
+    [...userListEntries].map(([visualNovelId, entry]) => [
+      visualNovelId,
+      {
+        voted: entry.voted,
+        started: entry.started,
+        finished: entry.finished,
+        labels: entry.labels
+      }
+    ])
+  )
+  const releaseStatuses = new Map<string, number>(
+    [...userListEntries.values()].flatMap((entry) =>
+      entry.releases.map(
+        (release) => [release.id, release.list_status] as const
+      )
+    )
+  )
+
+  for (const [targetIndex, target] of targets.entries()) {
+    const { match, visualNovelId } = targetMatches[targetIndex]
 
     if (!match || !visualNovelId) {
       result.skipped += 1
       continue
     }
 
+    const userListReadError = userListReadErrors.get(visualNovelId)
+    if (userListReadError) {
+      result.errors.push({
+        appName: target.appName,
+        message: userListReadError
+      })
+      continue
+    }
+
     try {
-      const userListEntry = canRead
-        ? getUserListEntry(
-            (
-              await vndbClient.getUserList({
-                user: authInfo.id,
-                filters: ['id', '=', visualNovelId],
-                fields: 'id,voted,started,finished,labels{id,label}',
-                results: 1
-              })
-            ).results,
-            visualNovelId
-          )
-        : undefined
+      const userListState = userListStates.get(visualNovelId)
       const hasFinishedLabel =
-        userListEntry?.labels.some((label) => label.id === finishedLabelId) ??
+        userListState?.labels.some((label) => label.id === finishedLabelId) ??
         false
       const finished = hasFinishedLabel
         ? formatVndbDate(
-            getUnixTimestampDate(userListEntry?.voted) ??
+            getUnixTimestampDate(userListState?.voted) ??
               getStoredLastPlayedDate(target.appName)
           )
         : undefined
-      const effectiveFinished = finished ?? userListEntry?.finished ?? undefined
+      const effectiveFinished = finished ?? userListState?.finished ?? undefined
       const installStart =
         target.runner === 'sideload'
           ? await getInstallStartDate(target)
@@ -972,16 +1092,28 @@ export async function syncVndbUserData(
       const selectedReleases = getStoredMatchSelectedReleases(match)
 
       const normalizedUpdate = normalizeUserOptionsUpdate(update)
-      if (Object.keys(normalizedUpdate).length) {
-        await vndbClient.updateUserListEntry(visualNovelId, normalizedUpdate)
+      const changedUpdate = canRead
+        ? getChangedUserListSyncUpdate(normalizedUpdate, userListState)
+        : normalizedUpdate
+      if (Object.keys(changedUpdate).length) {
+        await vndbClient.updateUserListEntry(visualNovelId, changedUpdate)
+        if (canRead) {
+          userListStates.set(
+            visualNovelId,
+            applyUserListSyncUpdate(userListState, changedUpdate)
+          )
+        }
       }
 
       if (target.includeReleases !== false) {
-        await Promise.all(
-          selectedReleases.map((release) =>
-            vndbClient.updateUserReleaseEntry(release.id, { status: 2 })
-          )
-        )
+        for (const release of selectedReleases) {
+          if (releaseStatuses.get(release.id) === 2) {
+            continue
+          }
+
+          await vndbClient.updateUserReleaseEntry(release.id, { status: 2 })
+          releaseStatuses.set(release.id, 2)
+        }
       }
 
       result.synced += 1
@@ -1074,14 +1206,30 @@ async function findVndbMatchCandidate(
     return cached
   }
 
-  const [visualNovel] = (await vndbClient.searchVisualNovels(
-    normalizedTitle,
-    matchSearchFields,
-    1
-  )) as PartialVisualNovel[]
-  const result = visualNovel ? mapVisualNovel(visualNovel) : null
-  vndbMatchCache.set(cacheKey, result)
-  return result
+  const pendingSearch = pendingMatchSearches.get(cacheKey)
+  if (pendingSearch) {
+    return pendingSearch
+  }
+
+  const search = (async () => {
+    const [visualNovel] = (await vndbClient.searchVisualNovels(
+      normalizedTitle,
+      matchSearchFields,
+      1
+    )) as PartialVisualNovel[]
+    const result = visualNovel ? mapVisualNovel(visualNovel) : null
+    vndbMatchCache.set(cacheKey, result)
+    return result
+  })()
+  pendingMatchSearches.set(cacheKey, search)
+
+  try {
+    return await search
+  } finally {
+    if (pendingMatchSearches.get(cacheKey) === search) {
+      pendingMatchSearches.delete(cacheKey)
+    }
+  }
 }
 
 export async function matchVndbGames(

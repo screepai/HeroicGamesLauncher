@@ -14,6 +14,7 @@ const mockVndbClient = {
 }
 const mockConfigStoreGet = jest.fn()
 const mockHasStoredApiToken = jest.fn()
+const mockTimestampStoreGet = jest.fn()
 const mockVndbMatchesStoreGet = jest.fn()
 const mockVndbMatchesStoreSet = jest.fn()
 
@@ -21,7 +22,7 @@ jest.mock('../constants/key_value_stores', () => ({
   configStore: {
     get_nodefault: mockConfigStoreGet
   },
-  tsStore: { get: jest.fn() }
+  tsStore: { get_nodefault: mockTimestampStoreGet }
 }))
 jest.mock('../logger', () => ({
   logError: jest.fn(),
@@ -83,6 +84,130 @@ describe('VNDB global settings', () => {
       errors: []
     })
     expect(mockVndbClient.getAuthInfo).not.toHaveBeenCalled()
+  })
+
+  it('batches user-list reads in groups of 100 visual novel IDs', async () => {
+    const targets = Array.from({ length: 101 }, (_, index) => ({
+      appName: `game-${index}`,
+      runner: 'gog' as const
+    }))
+    mockVndbMatchesStoreGet.mockReturnValue(
+      Object.fromEntries(
+        targets.map((target, index) => [
+          `gog:${target.appName}`,
+          {
+            ...target,
+            title: target.appName,
+            vndbId: `v${index + 1}`,
+            vndbTitle: target.appName,
+            syncedAt: '2026-06-21T00:00:00.000Z'
+          }
+        ])
+      )
+    )
+
+    await expect(syncVndbUserData(targets)).resolves.toMatchObject({
+      synced: 101,
+      skipped: 0,
+      errors: []
+    })
+
+    expect(mockVndbClient.getUserList).toHaveBeenCalledTimes(2)
+    expect(mockVndbClient.getUserList).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        filters: [
+          'or',
+          ...Array.from({ length: 100 }, (_, index) => [
+            'id',
+            '=',
+            `v${index + 1}`
+          ])
+        ],
+        results: 100
+      })
+    )
+    expect(mockVndbClient.getUserList).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        filters: ['id', '=', 'v101'],
+        results: 1
+      })
+    )
+    expect(mockVndbClient.updateUserListEntry).not.toHaveBeenCalled()
+    expect(mockVndbClient.updateUserReleaseEntry).not.toHaveBeenCalled()
+  })
+
+  it('deduplicates shared VN and release work and skips unchanged dates', async () => {
+    const selectedRelease = {
+      id: 'r1',
+      title: 'Shared Release',
+      languages: ['en'],
+      platforms: ['win'],
+      vns: []
+    }
+    mockVndbMatchesStoreGet.mockReturnValue({
+      'sideload:game-1': {
+        appName: 'game-1',
+        runner: 'sideload',
+        title: 'Game 1',
+        vndbId: 'v1',
+        vndbTitle: 'Shared VN',
+        selectedReleases: [selectedRelease],
+        syncedAt: '2026-06-21T00:00:00.000Z'
+      },
+      'sideload:game-2': {
+        appName: 'game-2',
+        runner: 'sideload',
+        title: 'Game 2',
+        vndbId: 'v1',
+        vndbTitle: 'Shared VN',
+        selectedReleases: [selectedRelease],
+        syncedAt: '2026-06-21T00:00:00.000Z'
+      }
+    })
+    mockVndbClient.getUserList.mockResolvedValue({
+      results: [
+        {
+          id: 'v1',
+          voted: null,
+          started: '2026-06-01',
+          finished: null,
+          labels: [],
+          releases: []
+        }
+      ]
+    })
+
+    await expect(
+      syncVndbUserData([
+        {
+          appName: 'game-1',
+          runner: 'sideload',
+          installedAt: '2026-06-01T12:00:00.000Z'
+        },
+        {
+          appName: 'game-2',
+          runner: 'sideload',
+          installedAt: '2026-06-01T12:00:00.000Z'
+        }
+      ])
+    ).resolves.toMatchObject({ synced: 2, skipped: 0, errors: [] })
+
+    expect(mockVndbClient.getUserList).toHaveBeenCalledTimes(1)
+    expect(mockVndbClient.getUserList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: ['id', '=', 'v1'],
+        fields:
+          'id,voted,started,finished,labels{id,label},releases{id,list_status}',
+        results: 1
+      })
+    )
+    expect(mockVndbClient.updateUserListEntry).not.toHaveBeenCalled()
+    expect(mockVndbClient.updateUserReleaseEntry).toHaveBeenCalledTimes(1)
+    expect(mockVndbClient.updateUserReleaseEntry).toHaveBeenCalledWith('r1', {
+      status: 2
+    })
   })
 
   it('does not update release status when user-data sync is disabled', async () => {
