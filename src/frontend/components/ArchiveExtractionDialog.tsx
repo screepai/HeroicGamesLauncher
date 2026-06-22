@@ -207,8 +207,14 @@ const ArchiveTreeItem = memo(function ArchiveTreeItem({
               .join(' ')}
             type="button"
             aria-pressed={finalRootPath === node.path}
+            aria-label={t(
+              'box.local-library-archive.use-folder-as-final',
+              'Use {{folder}} as the final folder',
+              { folder: node.name }
+            )}
             onClick={() => onSelectFinalRoot(node)}
           >
+            {finalRootPath === node.path && <span aria-hidden="true">✓</span>}
             {finalRootPath === node.path
               ? t('box.local-library-archive.final-folder', 'Final folder')
               : t(
@@ -311,6 +317,7 @@ export default function ArchiveExtractionDialog({
   const archiveFileName =
     activeArchive.folderPath.split(/[\\/]/).pop() ?? activeArchive.folderPath
   const previousArchiveFileName = previousArchivePath?.split(/[\\/]/).pop()
+  const isNestedArchive = previousArchivePath !== null
   const displayArchiveName =
     archiveInfo?.isMultipart || getArchivePart(archiveFileName)
       ? activeArchive.title
@@ -562,7 +569,15 @@ export default function ArchiveExtractionDialog({
     >
       <DialogHeader>
         {stage === 'prompt'
-          ? t('box.local-library-archive.title', 'Compressed archive detected')
+          ? isNestedArchive
+            ? t(
+                'box.local-library-archive.nested-title',
+                'Nested archive detected'
+              )
+            : t(
+                'box.local-library-archive.title',
+                'Compressed archive detected'
+              )
           : stage === 'multipart-prompt' || stage === 'multipart-waiting'
             ? t(
                 'box.local-library-archive.multipart-title',
@@ -581,28 +596,46 @@ export default function ArchiveExtractionDialog({
       <DialogContent className="archiveExtractionContent">
         {stage === 'prompt' && (
           <>
-            <p>
-              {source === 'manual'
-                ? t(
-                    'box.local-library-archive.manual-message',
-                    'Do you want to extract the archive "{{title}}" before adding the game?',
-                    activeArchive
-                  )
-                : t(
-                    'box.local-library-archive.message',
-                    'The archive "{{title}}" was added to your watched local library. Do you want to extract it before adding the game?',
-                    activeArchive
+            {isNestedArchive ? (
+              <div className="archiveNestedNotice" role="status">
+                <p>
+                  {t(
+                    'box.local-library-archive.nested-message',
+                    'Heroic found "{{title}}" inside "{{archive}}". Extract it to continue to the game files.',
+                    {
+                      title: activeArchive.title,
+                      archive: previousArchiveFileName
+                    }
                   )}
-            </p>
+                </p>
+              </div>
+            ) : (
+              <p>
+                {source === 'manual'
+                  ? t(
+                      'box.local-library-archive.manual-message',
+                      'Do you want to extract the archive "{{title}}" before adding the game?',
+                      activeArchive
+                    )
+                  : t(
+                      'box.local-library-archive.message',
+                      'The archive "{{title}}" was added to your watched local library. Do you want to extract it before adding the game?',
+                      activeArchive
+                    )}
+              </p>
+            )}
             <code className="archivePath">{displayArchiveName}</code>
             {previousArchivePath && (
               <FormControlLabel
+                className="archiveDeletePreviousLabel"
                 control={
                   <Checkbox
+                    className="archiveDeletePreviousCheckbox"
                     checked={deletePreviousArchive}
                     onChange={(event) =>
                       setDeletePreviousArchive(event.target.checked)
                     }
+                    size="small"
                   />
                 }
                 label={t(
@@ -749,16 +782,26 @@ export default function ArchiveExtractionDialog({
               </span>
             </div>
 
-            <div className="archiveFinalRoot">
-              <span>
-                {t(
-                  'box.local-library-archive.final-folder-help',
-                  'Choose the directory that should become the final extracted folder.'
-                )}
-              </span>
+            <div
+              className="archiveFinalRoot"
+              role="group"
+              aria-labelledby="archive-final-root-label"
+            >
+              <div className="archiveFinalRootHeader">
+                <strong id="archive-final-root-label">
+                  {t('box.local-library-archive.final-folder', 'Final folder')}
+                </strong>
+                <span>
+                  {t(
+                    'box.local-library-archive.final-folder-help',
+                    'Choose Automatic, or mark a directory in the archive as the final folder.'
+                  )}
+                </span>
+              </div>
               <button
                 className={[
                   'archiveFinalRootButton',
+                  'archiveAutomaticRootButton',
                   finalRootPath === null ? 'is-selected' : ''
                 ]
                   .filter(Boolean)
@@ -767,8 +810,31 @@ export default function ArchiveExtractionDialog({
                 aria-pressed={finalRootPath === null}
                 onClick={useAutomaticRoot}
               >
-                {t('box.local-library-archive.automatic-folder', 'Automatic')}
+                {finalRootPath === null && <span aria-hidden="true">✓</span>}
+                <span className="archiveAutomaticRootText">
+                  <strong>
+                    {t(
+                      'box.local-library-archive.automatic-folder',
+                      'Automatic'
+                    )}
+                  </strong>
+                  <small>
+                    {t(
+                      'box.local-library-archive.automatic-folder-description',
+                      'Let Heroic choose from the archive structure.'
+                    )}
+                  </small>
+                </span>
               </button>
+            </div>
+
+            <div className="archiveTreeHelp">
+              <span>
+                {t(
+                  'box.local-library-archive.use-as-final-folder-help',
+                  'Use the action beside a directory to make it the final folder.'
+                )}
+              </span>
             </div>
 
             <div className="archiveTree" role="tree">
