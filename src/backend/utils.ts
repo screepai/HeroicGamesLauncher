@@ -992,27 +992,33 @@ export const spawnAsync = async (
   command: string,
   args: string[],
   options: SpawnOptions = {},
-  onOutput?: (data: string) => void
+  onOutput?: (data: string) => void,
+  outputOptions: { captureAllOutput?: boolean } = {}
 ): Promise<{ code: number | null; stdout: string; stderr: string }> => {
   const child = spawn(command, args, options)
-  const stdout = memoryLog()
-  const stderr = memoryLog()
+  const outputLimit = outputOptions.captureAllOutput
+    ? Number.POSITIVE_INFINITY
+    : undefined
+  const stdout = memoryLog(outputLimit)
+  const stderr = memoryLog(outputLimit)
 
   if (child.stdout) {
-    child.stdout.on('data', (data) => {
+    child.stdout.setEncoding('utf8')
+    child.stdout.on('data', (data: string) => {
       if (onOutput) {
-        onOutput(data.toString())
+        onOutput(data)
       }
-      stdout.push(data.toString())
+      stdout.push(data)
     })
   }
 
   if (child.stderr) {
-    child.stderr.on('data', (data) => {
+    child.stderr.setEncoding('utf8')
+    child.stderr.on('data', (data: string) => {
       if (onOutput) {
-        onOutput(data.toString())
+        onOutput(data)
       }
-      stderr.push(data.toString())
+      stderr.push(data)
     })
   }
 

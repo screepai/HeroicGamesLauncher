@@ -261,10 +261,17 @@ export default function ArchiveExtractionDialog({
     useState<ExtractedFolder | null>(null)
   const [extractionProgress, setExtractionProgress] =
     useState<LocalLibraryArchiveExtractionProgress>({ percent: 0 })
+  const [previousArchivePath, setPreviousArchivePath] = useState<string | null>(
+    null
+  )
+  const [deletePreviousArchive, setDeletePreviousArchive] = useState(false)
   const [error, setError] = useState('')
 
   const resetArchiveDialog = useCallback(
-    (nextArchive: LocalLibraryWatchEntry) => {
+    (
+      nextArchive: LocalLibraryWatchEntry,
+      nextPreviousArchivePath: string | null = null
+    ) => {
       setActiveArchive(nextArchive)
       setStage('prompt')
       setTree([])
@@ -276,6 +283,8 @@ export default function ArchiveExtractionDialog({
       setFinalRootPath(null)
       setExtractedFolder(null)
       setExtractionProgress({ percent: 0 })
+      setPreviousArchivePath(nextPreviousArchivePath)
+      setDeletePreviousArchive(false)
       setError('')
     },
     []
@@ -301,6 +310,7 @@ export default function ArchiveExtractionDialog({
 
   const archiveFileName =
     activeArchive.folderPath.split(/[\\/]/).pop() ?? activeArchive.folderPath
+  const previousArchiveFileName = previousArchivePath?.split(/[\\/]/).pop()
   const displayArchiveName =
     archiveInfo?.isMultipart || getArchivePart(archiveFileName)
       ? activeArchive.title
@@ -444,6 +454,13 @@ export default function ArchiveExtractionDialog({
     setError('')
 
     try {
+      let retainedPreviousArchivePath = previousArchivePath
+      if (deletePreviousArchive && previousArchivePath) {
+        await window.api.deleteLocalLibraryArchive(previousArchivePath)
+        retainedPreviousArchivePath = null
+        setPreviousArchivePath(null)
+      }
+
       const extractedFolder = await window.api.extractLocalLibraryArchive({
         archivePath: archiveInfo?.archivePath ?? activeArchive.folderPath,
         cleanupPath: activeArchive.cleanupAfterExtractionPath,
@@ -458,7 +475,12 @@ export default function ArchiveExtractionDialog({
         .catch(() => [])
 
       if (nestedArchives.length > 0) {
-        resetArchiveDialog(nestedArchives[0])
+        resetArchiveDialog(
+          nestedArchives[0],
+          activeArchive.cleanupAfterExtractionPath
+            ? retainedPreviousArchivePath
+            : (archiveInfo?.archivePath ?? activeArchive.folderPath)
+        )
       } else if (
         askToDeleteArchiveAfterExtraction &&
         !activeArchive.cleanupAfterExtractionPath
@@ -573,6 +595,23 @@ export default function ArchiveExtractionDialog({
                   )}
             </p>
             <code className="archivePath">{displayArchiveName}</code>
+            {previousArchivePath && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={deletePreviousArchive}
+                    onChange={(event) =>
+                      setDeletePreviousArchive(event.target.checked)
+                    }
+                  />
+                }
+                label={t(
+                  'box.local-library-archive.delete-previous-archive',
+                  'Delete the previous archive "{{archive}}" when extracting this one',
+                  { archive: previousArchiveFileName }
+                )}
+              />
+            )}
           </>
         )}
 

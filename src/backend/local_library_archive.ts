@@ -207,11 +207,14 @@ async function listLocalLibraryArchive(
       'l',
       '-slt',
       '-ba',
+      '-sccUTF-8',
       getArchivePasswordArgument(password),
       '--',
       archiveInfo.archivePath
     ],
-    { windowsHide: true }
+    { windowsHide: true },
+    undefined,
+    { captureAllOutput: true }
   )
 
   if (code !== 0) {
@@ -552,6 +555,7 @@ async function extractLocalLibraryArchive({
         '-y',
         '-bb1',
         '-bsp1',
+        '-sccUTF-8',
         getArchivePasswordArgument(password),
         `-o${stagingPath}`,
         '--',

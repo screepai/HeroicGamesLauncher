@@ -97,6 +97,10 @@ Attributes = A
       await fs.mkdir(join(sourcePath, 'Keep'), { recursive: true })
       await fs.mkdir(join(sourcePath, 'Delete'), { recursive: true })
       await fs.writeFile(join(sourcePath, 'Keep', 'keep.txt'), 'keep')
+      await fs.writeFile(
+        join(sourcePath, 'Keep', 'エンジン設定.exe'),
+        'unicode'
+      )
       await fs.writeFile(join(sourcePath, 'Delete', 'delete.txt'), 'delete')
       await execFileAsync(path7z, ['a', archivePath, 'Game'], {
         cwd: rootPath,
@@ -108,12 +112,21 @@ Attributes = A
       expect(entries.some((entry) => entry.path === 'Game/Keep/keep.txt')).toBe(
         true
       )
+      expect(
+        entries.some((entry) => entry.path === 'Game/Keep/エンジン設定.exe')
+      ).toBe(true)
+
+      const selectedPaths = entries
+        .filter(
+          (entry) => !entry.isDirectory && entry.path.startsWith('Game/Keep/')
+        )
+        .map((entry) => entry.path)
 
       const result = await extractLocalLibraryArchive({
         archivePath,
         destinationName: 'Renamed Game',
         rootPath: 'Game/Keep',
-        selectedPaths: ['Game/Keep/keep.txt', 'Game/Keep/no-longer-listed.txt'],
+        selectedPaths: [...selectedPaths, 'Game/Keep/no-longer-listed.txt'],
         onBeforePathCreated: (path) => suppressedPaths.push(path),
         onProgress: (progress) => extractionProgress.push(progress)
       })
@@ -126,6 +139,9 @@ Attributes = A
         fs.readFile(join(result.folderPath, 'keep.txt'), 'utf8')
       ).resolves.toBe('keep')
       await expect(
+        fs.readFile(join(result.folderPath, 'エンジン設定.exe'), 'utf8')
+      ).resolves.toBe('unicode')
+      await expect(
         fs.access(join(result.folderPath, 'Keep'))
       ).rejects.toMatchObject({ code: 'ENOENT' })
       expect(suppressedPaths).toHaveLength(2)
@@ -134,6 +150,12 @@ Attributes = A
       expect(
         extractionProgress.some(
           ({ file }) => file?.replaceAll('\\', '/') === 'Game/Keep/keep.txt'
+        )
+      ).toBe(true)
+      expect(
+        extractionProgress.some(
+          ({ file }) =>
+            file?.replaceAll('\\', '/') === 'Game/Keep/エンジン設定.exe'
         )
       ).toBe(true)
     } finally {

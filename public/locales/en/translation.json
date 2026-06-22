@@ -133,6 +133,7 @@
             "delete-message": "Do you want to delete the original archive now that extraction is complete?",
             "delete-multipart-message_one": "Do you want to delete all {{count}} parts of \"{{title}}\" now that extraction is complete?",
             "delete-multipart-message_other": "Do you want to delete all {{count}} parts of \"{{title}}\" now that extraction is complete?",
+            "delete-previous-archive": "Delete the previous archive \"{{archive}}\" when extracting this one",
             "deleting": "Deleting original archive...",
             "extract-error": "Unable to extract the archive.",
             "extracting": "Extracting selected contents...",

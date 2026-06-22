@@ -9,6 +9,31 @@ jest.mock('../logger')
 jest.mock('../dialog/dialog')
 
 describe('backend/utils.ts', () => {
+  test('spawnAsync can capture output beyond the default buffer limit', async () => {
+    const chunkSize = 64 * 1024
+    const chunkCount = 80
+    const script = `
+      const chunk = 'x'.repeat(${chunkSize})
+      let remaining = ${chunkCount}
+      const write = () => {
+        if (remaining-- === 0) return
+        if (process.stdout.write(chunk)) setImmediate(write)
+        else process.stdout.once('drain', write)
+      }
+      write()
+    `
+
+    const { stdout } = await utils.spawnAsync(
+      process.execPath,
+      ['-e', script],
+      {},
+      undefined,
+      { captureAllOutput: true }
+    )
+
+    expect(stdout).toHaveLength(chunkSize * chunkCount)
+  })
+
   test('quoteIfNeccessary', () => {
     const testCases = new Map<string, string>([
       ['path/without/spaces', 'path/without/spaces'],
