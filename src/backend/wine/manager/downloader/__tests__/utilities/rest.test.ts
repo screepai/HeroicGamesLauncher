@@ -4,8 +4,6 @@ import { testSkipOnWindows } from 'backend/__tests__/skip'
 
 jest.mock('backend/logger')
 
-const workDir = process.cwd()
-
 // run test
 describe('Utilities - Rest', () => {
   testSkipOnWindows('get folder size successful', () => {
@@ -28,9 +26,7 @@ describe('Utilities - Rest', () => {
   test('unlink of folder fails', async () => {
     expect(() => {
       unlinkFile(__dirname)
-    }).toThrowError(
-      `Couldn't remove ${workDir}/src/backend/wine/manager/downloader/__tests__/utilities!`
-    )
+    }).toThrowError(`Couldn't remove ${__dirname}!`)
   })
 
   test('unlink files succeeds', () => {
