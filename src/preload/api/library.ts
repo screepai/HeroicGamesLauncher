@@ -3,6 +3,7 @@ import { makeListenerCaller, makeHandlerInvoker, frontendListenerSlot } from '..
 export const removeFolder = makeListenerCaller('removeFolder')
 export const openDialog = makeHandlerInvoker('openDialog')
 export const uninstall = makeHandlerInvoker('uninstall')
+export const removeGameFromHeroic = makeHandlerInvoker('removeGameFromHeroic')
 export const repair = makeHandlerInvoker('repair')
 export const launch = makeHandlerInvoker('launch')
 export const importGame = makeHandlerInvoker('importGame')

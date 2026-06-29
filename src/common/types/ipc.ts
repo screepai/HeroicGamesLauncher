@@ -261,6 +261,13 @@ interface AsyncIPCFunctions {
     appName: string,
     runner: Runner,
     shouldRemovePrefix: boolean,
+    shoudlRemoveSetting: boolean,
+    deleteFiles?: boolean
+  ) => Promise<void>
+  removeGameFromHeroic: (
+    appName: string,
+    runner: Runner,
+    shouldRemovePrefix: boolean,
     shoudlRemoveSetting: boolean
   ) => Promise<void>
   repair: (appName: string, runner: Runner) => Promise<void>

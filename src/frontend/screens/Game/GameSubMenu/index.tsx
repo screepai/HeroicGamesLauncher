@@ -10,7 +10,9 @@ import ContextProvider from 'frontend/state/ContextProvider'
 import { NavLink } from 'react-router-dom'
 
 import { CircularProgress, SvgIcon } from '@mui/material'
-import UninstallModal from 'frontend/components/UI/UninstallModal'
+import UninstallModal, {
+  UninstallAction
+} from 'frontend/components/UI/UninstallModal'
 import GameContext from '../GameContext'
 import { openInstallGameModal } from 'frontend/state/InstallGameModal'
 import useGlobalState from 'frontend/state/GlobalStateV2'
@@ -28,6 +30,7 @@ import {
   FormatListBulleted as FormatListBulletedIcon,
   Info as InfoIcon,
   PictureInPicture as PictureInPictureIcon,
+  PlaylistRemove as PlaylistRemoveIcon,
   Repartition as RepartitionIcon,
   Shortcut as ShortcutIcon,
   ShoppingCart as ShoppingCartIcon
@@ -81,6 +84,7 @@ export default function GamesSubmenu({
   const [eosOverlayRefresh, setEosOverlayRefresh] = useState<boolean>(false)
   const eosOverlayAppName = '98bc04bc842e4906993fd6d6644ffb8d'
   const [showUninstallModal, setShowUninstallModal] = useState(false)
+  const [uninstallAction, setUninstallAction] = useState<UninstallAction>()
   const [protonDBurl, setProtonDBurl] = useState(
     `https://www.protondb.com/search?q=${title}`
   )
@@ -181,6 +185,11 @@ export default function GamesSubmenu({
         />
       )
     })
+  }
+
+  function handleUninstall(action: UninstallAction) {
+    setUninstallAction(action)
+    setShowUninstallModal(true)
   }
 
   async function handleEosOverlay() {
@@ -292,7 +301,11 @@ export default function GamesSubmenu({
           <UninstallModal
             appName={appName}
             runner={runner}
-            onClose={() => setShowUninstallModal(false)}
+            initialAction={uninstallAction}
+            onClose={() => {
+              setShowUninstallModal(false)
+              setUninstallAction(undefined)
+            }}
             isDlc={false}
           />
         )}
@@ -318,12 +331,20 @@ export default function GamesSubmenu({
                   : t('submenu.addShortcut', 'Add shortcut')}
               </button>
               <button
-                onClick={async () => setShowUninstallModal(true)}
+                onClick={() => handleUninstall('heroicOnly')}
+                className="link button is-text is-link buttonWithIcon"
+                disabled={is.playing}
+              >
+                <PlaylistRemoveIcon />
+                {t('gamepage:box.uninstall.heroicOnly', 'Uninstall in Heroic')}
+              </button>{' '}
+              <button
+                onClick={() => handleUninstall('entirely')}
                 className="link button is-text is-link buttonWithIcon"
                 disabled={is.playing}
               >
                 <DeleteIcon />
-                {t('button.uninstall', 'Uninstall')}
+                {t('gamepage:box.uninstall.entirely', 'Uninstall entirely')}
               </button>{' '}
               {!isSideloaded && !isThirdPartyManaged && (
                 <button

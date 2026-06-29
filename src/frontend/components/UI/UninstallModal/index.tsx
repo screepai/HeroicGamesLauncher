@@ -17,13 +17,17 @@ interface UninstallModalProps {
   runner: Runner
   onClose: () => void
   isDlc: boolean
+  initialAction?: UninstallAction
 }
+
+export type UninstallAction = 'heroicOnly' | 'entirely'
 
 const UninstallModal: React.FC<UninstallModalProps> = function ({
   appName,
   runner,
   onClose,
-  isDlc
+  isDlc,
+  initialAction
 }) {
   const [isNative, setIsNative] = useState(true)
   const [winePrefix, setWinePrefix] = useState('')
@@ -87,6 +91,13 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
   }, [])
 
   const storage: Storage = window.localStorage
+  const closeAfterUninstall = () => {
+    if (runner === 'sideload' && location.pathname.match(/gamepage/)) {
+      navigate('/#library')
+    }
+    storage.removeItem(appName)
+  }
+
   const uninstallGame = async () => {
     onClose()
 
@@ -94,15 +105,59 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
       appName,
       runner,
       deletePrefixChecked,
+      deleteSettingsChecked,
+      true
+    )
+    closeAfterUninstall()
+  }
+
+  const removeGameFromHeroic = async () => {
+    onClose()
+
+    await window.api.removeGameFromHeroic(
+      appName,
+      runner,
+      deletePrefixChecked,
       deleteSettingsChecked
     )
-    if (runner === 'sideload' && location.pathname.match(/gamepage/)) {
-      navigate('/#library')
-    }
-    storage.removeItem(appName)
+    closeAfterUninstall()
   }
 
   const showWineCheckbox = !isNative && !isDlc
+  const showActionChoice = !isDlc && initialAction === undefined
+  const showHeroicOnlyAction =
+    !isDlc && (initialAction === undefined || initialAction === 'heroicOnly')
+  const showEntirelyAction =
+    isDlc || initialAction === undefined || initialAction === 'entirely'
+
+  const getUninstallMessage = () => {
+    if (isDlc) {
+      return t('gamepage:box.uninstall.dlc', {
+        defaultValue: 'Do you want to uninstall "{{title}}" (DLC)?',
+        title: gameTitle
+      })
+    }
+
+    if (initialAction === 'heroicOnly') {
+      return t('gamepage:box.uninstall.heroicOnlyMessage', {
+        defaultValue: 'Remove "{{title}}" from Heroic and keep the game files?',
+        title: gameTitle
+      })
+    }
+
+    if (initialAction === 'entirely') {
+      return t('gamepage:box.uninstall.entirelyMessage', {
+        defaultValue:
+          'Uninstall "{{title}}" entirely and delete the game files from disk?',
+        title: gameTitle
+      })
+    }
+
+    return t('gamepage:box.uninstall.message', {
+      defaultValue: 'How do you want to uninstall "{{title}}"?',
+      title: gameTitle
+    })
+  }
 
   // disallow uninstalling epic games if an epic game is being installed
   if (installingEpicGame && runner === 'legendary') {
@@ -165,17 +220,15 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
             {t('gamepage:box.uninstall.title')}
           </DialogHeader>
           <DialogContent>
-            <div className="uninstallModalMessage">
-              {isDlc
-                ? t('gamepage:box.uninstall.dlc', {
-                    defaultValue: 'Do you want to uninstall "{{title}}" (DLC)?',
-                    title: gameTitle
-                  })
-                : t('gamepage:box.uninstall.message', {
-                    defaultValue: 'Do you want to uninstall "{{title}}"?',
-                    title: gameTitle
-                  })}
-            </div>
+            <div className="uninstallModalMessage">{getUninstallMessage()}</div>
+            {showActionChoice && (
+              <p className="uninstallModalMessage">
+                {t(
+                  'gamepage:box.uninstall.keepFilesHint',
+                  'Uninstall in Heroic removes it from the installed list and keeps the game files. Uninstall entirely deletes the game files from disk.'
+                )}
+              </p>
+            )}
             {showWineCheckbox && (
               <ToggleSwitch
                 htmlId="uninstallCheckbox"
@@ -216,12 +269,24 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
             )}
           </DialogContent>
           <DialogFooter>
-            <button
-              onClick={uninstallGame}
-              className={`button is-secondary outline`}
-            >
-              {t('box.yes')}
-            </button>
+            {showHeroicOnlyAction && (
+              <button
+                onClick={removeGameFromHeroic}
+                className={`button is-secondary outline`}
+              >
+                {t('gamepage:box.uninstall.heroicOnly', 'Uninstall in Heroic')}
+              </button>
+            )}
+            {showEntirelyAction && (
+              <button
+                onClick={uninstallGame}
+                className={`button is-secondary outline`}
+              >
+                {isDlc
+                  ? t('box.yes')
+                  : t('gamepage:box.uninstall.entirely', 'Uninstall entirely')}
+              </button>
+            )}
             <button onClick={onClose} className={`button is-secondary outline`}>
               {t('box.no')}
             </button>

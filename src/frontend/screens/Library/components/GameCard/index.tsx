@@ -37,7 +37,9 @@ import RemoveCircleIcon from '@mui/icons-material/RemoveCircle'
 
 import classNames from 'classnames'
 import StoreLogos from 'frontend/components/UI/StoreLogos'
-import UninstallModal from 'frontend/components/UI/UninstallModal'
+import UninstallModal, {
+  UninstallAction
+} from 'frontend/components/UI/UninstallModal'
 import { getCardStatus, getImageFormatting } from './constants'
 import { hasStatus } from 'frontend/hooks/hasStatus'
 import fallBackImage from 'frontend/assets/heroic_card.jpg'
@@ -107,6 +109,7 @@ const GameCard = ({
 
   const [gameInfo, setGameInfo] = useState<GameInfo>(gameInfoFromProps)
   const [showUninstallModal, setShowUninstallModal] = useState(false)
+  const [uninstallAction, setUninstallAction] = useState<UninstallAction>()
   const [showVndbSyncDialog, setShowVndbSyncDialog] = useState(false)
   const [isLaunching, setIsLaunching] = useState(false)
 
@@ -379,7 +382,8 @@ const GameCard = ({
     )
   }, [favouriteGames, appName])
 
-  const onUninstallClick = function () {
+  const onUninstallClick = function (action: UninstallAction) {
+    setUninstallAction(action)
     setShowUninstallModal(true)
   }
 
@@ -525,9 +529,15 @@ const GameCard = ({
       icon: <PlaylistRemove />
     },
     {
-      // uninstall
-      label: t('button.uninstall'),
-      onclick: onUninstallClick,
+      label: t('gamepage:box.uninstall.heroicOnly', 'Uninstall in Heroic'),
+      onclick: () => onUninstallClick('heroicOnly'),
+      show:
+        isInstalled && !isUpdating && !isPlaying && !gameInfo.install.is_dlc,
+      icon: <PlaylistRemove />
+    },
+    {
+      label: t('gamepage:box.uninstall.entirely', 'Uninstall entirely'),
+      onclick: () => onUninstallClick('entirely'),
       show: isInstalled && !isUpdating && !isPlaying,
       icon: <DeleteForever />
     }
@@ -571,7 +581,11 @@ const GameCard = ({
           appName={appName}
           runner={runner}
           isDlc={Boolean(gameInfo.install.is_dlc)}
-          onClose={() => setShowUninstallModal(false)}
+          initialAction={uninstallAction}
+          onClose={() => {
+            setShowUninstallModal(false)
+            setUninstallAction(undefined)
+          }}
         />
       )}
       {showVndbSync && showVndbSyncDialog && (

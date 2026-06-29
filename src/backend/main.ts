@@ -69,7 +69,10 @@ import {
 
 import { Path } from './schemas'
 
-import { uninstallGameCallback } from './utils/uninstaller'
+import {
+  removeGameFromHeroicCallback,
+  uninstallGameCallback
+} from './utils/uninstaller'
 import { handleProtocol, shouldHideWindowForProtocolArgs } from './protocol'
 import {
   init as initLogger,
@@ -937,6 +940,7 @@ addHandler('openDialog', async (e, args) => {
 addListener('showItemInFolder', (e, item) => showItemInFolder(item))
 
 addHandler('uninstall', uninstallGameCallback)
+addHandler('removeGameFromHeroic', removeGameFromHeroicCallback)
 
 addHandler('repair', async (event, appName, runner) => {
   if (!isOnline()) {

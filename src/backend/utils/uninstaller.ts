@@ -96,7 +96,8 @@ export const uninstallGameCallback = async (
   appName: string,
   runner: Runner,
   shouldRemovePrefix: boolean,
-  shouldRemoveSetting: boolean
+  shouldRemoveSetting: boolean,
+  deleteFiles = false
 ) => {
   sendGameStatusUpdate({
     appName,
@@ -110,7 +111,7 @@ export const uninstallGameCallback = async (
   let uninstalled = false
 
   try {
-    await game.uninstall({ shouldRemovePrefix })
+    await game.uninstall({ shouldRemovePrefix, deleteFiles })
     uninstalled = true
   } catch (error) {
     notify({
@@ -122,7 +123,7 @@ export const uninstallGameCallback = async (
 
   if (uninstalled) {
     if (shouldRemovePrefix) {
-      removePrefix(appName, runner)
+      await removePrefix(appName, runner)
     }
     if (shouldRemoveSetting) {
       removeSettingsAndLogs(appName)
@@ -131,6 +132,68 @@ export const uninstallGameCallback = async (
 
     notify({ title, body: i18next.t('notify.uninstalled') })
     logInfo('Finished uninstalling', LogPrefix.Backend)
+  }
+
+  sendGameStatusUpdate({
+    appName,
+    runner,
+    status: 'done'
+  })
+}
+
+export const removeGameFromHeroicCallback = async (
+  event: Event,
+  appName: string,
+  runner: Runner,
+  shouldRemovePrefix: boolean,
+  shouldRemoveSetting: boolean
+) => {
+  const game = libraryManagerMap[runner].getGame(appName)
+  const { title } = game.getGameInfo()
+
+  if (runner === 'sideload') {
+    await uninstallGameCallback(
+      event,
+      appName,
+      runner,
+      shouldRemovePrefix,
+      shouldRemoveSetting,
+      false
+    )
+    return
+  }
+
+  sendGameStatusUpdate({
+    appName,
+    runner,
+    status: 'uninstalling'
+  })
+
+  try {
+    await game.forceUninstall()
+
+    if (shouldRemovePrefix) {
+      await removePrefix(appName, runner)
+    }
+    if (shouldRemoveSetting) {
+      removeSettingsAndLogs(appName)
+    }
+    removeFixFile(appName, runner)
+
+    notify({
+      title,
+      body: i18next.t('notify.removedFromHeroic', 'Removed from Heroic')
+    })
+    logInfo('Finished removing game from Heroic', LogPrefix.Backend)
+  } catch (error) {
+    notify({
+      title,
+      body: i18next.t(
+        'notify.removedFromHeroic.error',
+        'Error removing game from Heroic'
+      )
+    })
+    logError(error, LogPrefix.Backend)
   }
 
   sendGameStatusUpdate({
