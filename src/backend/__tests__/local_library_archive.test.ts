@@ -211,7 +211,7 @@ Attributes = A
     }
   })
 
-  it('finds a nested archive wrapper without treating game folders as nested archives', async () => {
+  it('finds root-level nested archives and preserves wrappers with other content', async () => {
     const rootPath = await fs.mkdtemp(
       join(process.cwd(), '.tmp-heroic-nested-archive-')
     )
@@ -227,8 +227,7 @@ Attributes = A
         findLocalLibraryNestedArchives(wrapperPath)
       ).resolves.toEqual([
         {
-          cleanupAfterExtractionPath: wrapperPath,
-          extractionDestinationDirectory: rootPath,
+          extractionDestinationDirectory: wrapperPath,
           folderPath: nestedArchivePath,
           isArchive: true,
           title: 'Inner Game'
@@ -240,7 +239,14 @@ Attributes = A
       await fs.mkdir(join(gameFolderPath, 'GameData'))
       await expect(
         findLocalLibraryNestedArchives(gameFolderPath)
-      ).resolves.toEqual([])
+      ).resolves.toEqual([
+        {
+          extractionDestinationDirectory: gameFolderPath,
+          folderPath: join(gameFolderPath, 'assets.zip'),
+          isArchive: true,
+          title: 'assets'
+        }
+      ])
     } finally {
       await fs.rm(rootPath, { recursive: true, force: true })
     }
@@ -263,10 +269,17 @@ Attributes = A
       })
       await fs.rm(sourcePath)
 
+      const [nestedArchive] = await findLocalLibraryNestedArchives(wrapperPath)
+      expect(nestedArchive).toMatchObject({
+        cleanupAfterExtractionPath: wrapperPath,
+        extractionDestinationDirectory: rootPath,
+        folderPath: nestedArchivePath
+      })
+
       const result = await extractLocalLibraryArchive({
         archivePath: nestedArchivePath,
-        cleanupPath: wrapperPath,
-        destinationDirectory: rootPath,
+        cleanupPath: nestedArchive.cleanupAfterExtractionPath,
+        destinationDirectory: nestedArchive.extractionDestinationDirectory,
         destinationName: 'Final Game',
         selectedPaths: ['payload.txt']
       })
@@ -281,6 +294,74 @@ Attributes = A
       await expect(fs.access(wrapperPath)).rejects.toMatchObject({
         code: 'ENOENT'
       })
+    } finally {
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it('groups multipart candidates and keeps unselected archives and loose files', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-nested-candidates-')
+    )
+    const wrapperPath = join(rootPath, 'Extracted Wrapper')
+    const sourcePath = join(rootPath, 'payload.txt')
+    const mainArchivePath = join(wrapperPath, 'Main Game.7z')
+
+    try {
+      await fs.mkdir(wrapperPath)
+      await fs.writeFile(sourcePath, 'main game')
+      await execFileAsync(path7z, ['a', mainArchivePath, sourcePath], {
+        cwd: rootPath,
+        windowsHide: true
+      })
+      await fs.rm(sourcePath)
+      await fs.writeFile(join(wrapperPath, 'Artbook.zip'), 'artbook')
+      await fs.writeFile(join(wrapperPath, 'OST.part1.rar'), 'ost part 1')
+      await fs.writeFile(join(wrapperPath, 'OST.part2.rar'), 'ost part 2')
+      await fs.writeFile(join(wrapperPath, 'readme.txt'), 'keep me')
+
+      const candidates = await findLocalLibraryNestedArchives(wrapperPath)
+      expect(candidates).toEqual([
+        {
+          extractionDestinationDirectory: wrapperPath,
+          folderPath: join(wrapperPath, 'Artbook.zip'),
+          isArchive: true,
+          title: 'Artbook'
+        },
+        {
+          extractionDestinationDirectory: wrapperPath,
+          folderPath: mainArchivePath,
+          isArchive: true,
+          title: 'Main Game'
+        },
+        {
+          extractionDestinationDirectory: wrapperPath,
+          folderPath: join(wrapperPath, 'OST.part1.rar'),
+          isArchive: true,
+          title: 'OST'
+        }
+      ])
+
+      const mainCandidate = candidates[1]
+      const result = await extractLocalLibraryArchive({
+        archivePath: mainCandidate.folderPath,
+        cleanupPath: mainCandidate.cleanupAfterExtractionPath,
+        destinationDirectory: mainCandidate.extractionDestinationDirectory,
+        destinationName: mainCandidate.title,
+        selectedPaths: ['payload.txt']
+      })
+
+      expect(result.folderPath).toBe(join(wrapperPath, 'Main Game'))
+      await expect(
+        fs.readFile(join(result.folderPath, 'payload.txt'), 'utf8')
+      ).resolves.toBe('main game')
+      await expect(
+        fs.readFile(join(wrapperPath, 'readme.txt'), 'utf8')
+      ).resolves.toBe('keep me')
+      await expect(fs.access(join(wrapperPath, 'Artbook.zip'))).resolves.toBe(
+        undefined
+      )
+      await expect(fs.access(mainArchivePath)).resolves.toBe(undefined)
     } finally {
       await fs.rm(rootPath, { recursive: true, force: true })
     }

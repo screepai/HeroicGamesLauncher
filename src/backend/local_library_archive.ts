@@ -393,30 +393,50 @@ async function findLocalLibraryNestedArchives(
   }
 
   const entries = await fs.readdir(resolvedFolderPath, { withFileTypes: true })
-  if (entries.some((entry) => entry.isDirectory())) {
-    return []
-  }
+  const archiveGroups = new Map<
+    string,
+    { archiveName?: string; entryNames: Set<string> }
+  >()
 
-  const archiveEntries = entries
-    .filter(
-      (entry) => entry.isFile() && getArchiveExtension(entry.name) !== undefined
-    )
-    .filter((entry) => (getArchivePart(entry.name)?.partNumber ?? 1) === 1)
-
-  if (archiveEntries.length !== 1) {
-    return []
-  }
-
-  const archiveName = archiveEntries[0].name
-  return [
-    {
-      cleanupAfterExtractionPath: resolvedFolderPath,
-      extractionDestinationDirectory: dirname(resolvedFolderPath),
-      folderPath: join(resolvedFolderPath, archiveName),
-      isArchive: true,
-      title: getArchiveTitle(archiveName)
+  for (const entry of entries) {
+    if (!entry.isFile() || !getArchiveExtension(entry.name)) {
+      continue
     }
-  ]
+
+    const archivePart = getArchivePart(entry.name)
+    const groupKey =
+      archivePart?.signature ?? `file:${entry.name.toLowerCase()}`
+    const group = archiveGroups.get(groupKey) ?? { entryNames: new Set() }
+    group.entryNames.add(entry.name)
+    if (!archivePart || archivePart.partNumber === 1) {
+      group.archiveName = entry.name
+    }
+    archiveGroups.set(groupKey, group)
+  }
+
+  return [...archiveGroups.values()]
+    .filter(
+      (group): group is { archiveName: string; entryNames: Set<string> } =>
+        group.archiveName !== undefined
+    )
+    .sort((left, right) => left.archiveName.localeCompare(right.archiveName))
+    .map(({ archiveName, entryNames }) => {
+      const shouldKeepWrapper = entries.some(
+        (entry) => !entryNames.has(entry.name)
+      )
+
+      return {
+        ...(shouldKeepWrapper
+          ? {}
+          : { cleanupAfterExtractionPath: resolvedFolderPath }),
+        extractionDestinationDirectory: shouldKeepWrapper
+          ? resolvedFolderPath
+          : dirname(resolvedFolderPath),
+        folderPath: join(resolvedFolderPath, archiveName),
+        isArchive: true,
+        title: getArchiveTitle(archiveName)
+      }
+    })
 }
 
 async function extractLocalLibraryArchive({

@@ -33,6 +33,56 @@
   margin: 0;
 }
 
+.archiveNestedCandidates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.archiveNestedCandidate {
+  align-items: center;
+  background: var(--background-darker);
+  border: 1px solid var(--modal-border);
+  border-radius: var(--space-xs);
+  display: flex;
+  gap: var(--space-md);
+  justify-content: space-between;
+  padding: var(--space-sm);
+}
+
+.archiveNestedCandidateInfo {
+  align-items: center;
+  display: flex;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.archiveNestedCandidateInfo > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+
+.archiveNestedCandidateInfo code {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archiveNestedCandidateButton {
+  flex-shrink: 0;
+}
+
+.archiveNestedRetentionNote {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
 .archiveExtractionLoading {
   align-items: center;
   display: flex;
@@ -122,6 +172,16 @@
 .archiveTreeCheckbox.MuiCheckbox-root.Mui-checked,
 .archiveTreeCheckbox.MuiCheckbox-root.MuiCheckbox-indeterminate {
   color: var(--accent, var(--success));
+}
+
+.archiveCleanupOptions {
+  background: var(--background-darker);
+  border: 1px solid var(--modal-border);
+  border-radius: var(--space-xs);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
 }
 
 .archiveDeletePreviousLabel.MuiFormControlLabel-root {
@@ -232,5 +292,10 @@
 @media (max-width: 700px) {
   .archiveExtractionContent {
     min-width: 0;
+  }
+
+  .archiveNestedCandidate {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

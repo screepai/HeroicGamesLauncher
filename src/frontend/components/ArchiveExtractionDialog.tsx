@@ -50,6 +50,7 @@ type Stage =
   | 'multipart-waiting'
   | 'loading'
   | 'selection'
+  | 'nested-selection'
   | 'extracting'
   | 'delete-prompt'
   | 'deleting'
@@ -267,10 +268,17 @@ export default function ArchiveExtractionDialog({
     useState<ExtractedFolder | null>(null)
   const [extractionProgress, setExtractionProgress] =
     useState<LocalLibraryArchiveExtractionProgress>({ percent: 0 })
+  const [nestedArchives, setNestedArchives] = useState<
+    LocalLibraryWatchEntry[]
+  >([])
   const [previousArchivePath, setPreviousArchivePath] = useState<string | null>(
     null
   )
   const [deletePreviousArchive, setDeletePreviousArchive] = useState(false)
+  const [
+    deleteNestedArchiveAfterExtraction,
+    setDeleteNestedArchiveAfterExtraction
+  ] = useState(false)
   const [error, setError] = useState('')
 
   const resetArchiveDialog = useCallback(
@@ -289,8 +297,10 @@ export default function ArchiveExtractionDialog({
       setFinalRootPath(null)
       setExtractedFolder(null)
       setExtractionProgress({ percent: 0 })
+      setNestedArchives([])
       setPreviousArchivePath(nextPreviousArchivePath)
       setDeletePreviousArchive(false)
+      setDeleteNestedArchiveAfterExtraction(false)
       setError('')
     },
     []
@@ -318,6 +328,8 @@ export default function ArchiveExtractionDialog({
     activeArchive.folderPath.split(/[\\/]/).pop() ?? activeArchive.folderPath
   const previousArchiveFileName = previousArchivePath?.split(/[\\/]/).pop()
   const isNestedArchive = previousArchivePath !== null
+  const shouldOfferNestedArchiveCleanup =
+    isNestedArchive && !activeArchive.cleanupAfterExtractionPath
   const displayArchiveName =
     archiveInfo?.isMultipart || getArchivePart(archiveFileName)
       ? activeArchive.title
@@ -367,13 +379,15 @@ export default function ArchiveExtractionDialog({
     }
   }
 
-  const inspectArchive = async (): Promise<LocalLibraryArchiveInfo | null> => {
+  const inspectArchive = async (
+    archiveToInspect = activeArchive
+  ): Promise<LocalLibraryArchiveInfo | null> => {
     setStage('loading')
     setError('')
 
     try {
       const info = await window.api.inspectLocalLibraryArchive(
-        activeArchive.folderPath
+        archiveToInspect.folderPath
       )
       setArchiveInfo(info)
       return info
@@ -391,8 +405,8 @@ export default function ArchiveExtractionDialog({
     }
   }
 
-  const prepareArchive = async () => {
-    const info = await inspectArchive()
+  const prepareArchive = async (archiveToPrepare = activeArchive) => {
+    const info = await inspectArchive(archiveToPrepare)
     if (!info) {
       return
     }
@@ -403,6 +417,17 @@ export default function ArchiveExtractionDialog({
     }
 
     await loadArchive(info.archivePath)
+  }
+
+  const openNestedArchive = (
+    nestedArchive: LocalLibraryWatchEntry,
+    nextPreviousArchivePath: string | null,
+    shouldPrepareImmediately = false
+  ) => {
+    resetArchiveDialog(nestedArchive, nextPreviousArchivePath)
+    if (shouldPrepareImmediately) {
+      void prepareArchive(nestedArchive)
+    }
   }
 
   const finishWaiting = async () => {
@@ -477,20 +502,52 @@ export default function ArchiveExtractionDialog({
         rootPath: finalRootPath ?? undefined,
         selectedPaths: [...selectedPaths]
       })
+      let retainedActiveArchivePath: string | null =
+        archiveInfo?.archivePath ?? activeArchive.folderPath
+      if (
+        deleteNestedArchiveAfterExtraction &&
+        shouldOfferNestedArchiveCleanup
+      ) {
+        try {
+          await window.api.deleteLocalLibraryArchive(retainedActiveArchivePath)
+          retainedActiveArchivePath = null
+        } catch (deletionError) {
+          setError(
+            deletionError instanceof Error
+              ? deletionError.message
+              : t(
+                  'box.local-library-archive.delete-nested-archive-error',
+                  'Unable to delete the selected nested archive.'
+                )
+          )
+        }
+      }
+
       const nestedArchives = await window.api
         .findLocalLibraryNestedArchives(extractedFolder.folderPath)
         .catch(() => [])
 
       if (nestedArchives.length > 0) {
-        resetArchiveDialog(
-          nestedArchives[0],
-          activeArchive.cleanupAfterExtractionPath
-            ? retainedPreviousArchivePath
-            : (archiveInfo?.archivePath ?? activeArchive.folderPath)
-        )
+        const nextPreviousArchivePath = activeArchive.cleanupAfterExtractionPath
+          ? retainedPreviousArchivePath
+          : (retainedActiveArchivePath ?? retainedPreviousArchivePath)
+        const nestedArchive = nestedArchives[0]
+        if (
+          nestedArchives.length === 1 &&
+          nestedArchive.cleanupAfterExtractionPath
+        ) {
+          openNestedArchive(nestedArchive, nextPreviousArchivePath, true)
+          return
+        }
+
+        setNestedArchives(nestedArchives)
+        setExtractedFolder(extractedFolder)
+        setPreviousArchivePath(nextPreviousArchivePath)
+        setStage('nested-selection')
       } else if (
         askToDeleteArchiveAfterExtraction &&
-        !activeArchive.cleanupAfterExtractionPath
+        !activeArchive.cleanupAfterExtractionPath &&
+        retainedActiveArchivePath
       ) {
         setExtractedFolder(extractedFolder)
         setStage('delete-prompt')
@@ -533,6 +590,22 @@ export default function ArchiveExtractionDialog({
     }
   }
 
+  const useExtractedFolderAsIs = () => {
+    if (!extractedFolder) {
+      return
+    }
+
+    setNestedArchives([])
+    if (
+      askToDeleteArchiveAfterExtraction &&
+      !activeArchive.cleanupAfterExtractionPath
+    ) {
+      setStage('delete-prompt')
+    } else {
+      onExtracted(extractedFolder)
+    }
+  }
+
   const deleteArchive = async () => {
     setStage('deleting')
     setError('')
@@ -560,6 +633,56 @@ export default function ArchiveExtractionDialog({
   const folderNameValid = isValidFolderName(folderName)
   const passwordMissing = passwordRequired && password.length === 0
   const closeDialog = stage === 'delete-prompt' ? finishExtraction : onClose
+  const deletePreviousArchiveControl = previousArchivePath && (
+    <FormControlLabel
+      className="archiveDeletePreviousLabel"
+      control={
+        <Checkbox
+          className="archiveDeletePreviousCheckbox"
+          checked={deletePreviousArchive}
+          onChange={(event) => setDeletePreviousArchive(event.target.checked)}
+          size="small"
+        />
+      }
+      label={t(
+        'box.local-library-archive.delete-previous-archive',
+        'Delete the previous archive "{{archive}}" when extracting this one',
+        { archive: previousArchiveFileName }
+      )}
+    />
+  )
+  const deleteNestedArchiveControl = shouldOfferNestedArchiveCleanup && (
+    <FormControlLabel
+      className="archiveDeletePreviousLabel"
+      control={
+        <Checkbox
+          className="archiveDeletePreviousCheckbox"
+          checked={deleteNestedArchiveAfterExtraction}
+          onChange={(event) =>
+            setDeleteNestedArchiveAfterExtraction(event.target.checked)
+          }
+          size="small"
+        />
+      }
+      label={t(
+        'box.local-library-archive.delete-nested-archive',
+        'Delete this nested archive "{{archive}}" after extraction',
+        { archive: archiveFileName }
+      )}
+    />
+  )
+  const archiveCleanupControls = (deleteNestedArchiveControl ||
+    deletePreviousArchiveControl) && (
+    <div
+      className="archiveCleanupOptions"
+      role="group"
+      aria-label={t('box.local-library-archive.cleanup-title', 'Cleanup')}
+    >
+      <strong>{t('box.local-library-archive.cleanup-title', 'Cleanup')}</strong>
+      {deleteNestedArchiveControl}
+      {deletePreviousArchiveControl}
+    </div>
+  )
 
   return (
     <Dialog
@@ -583,15 +706,20 @@ export default function ArchiveExtractionDialog({
                 'box.local-library-archive.multipart-title',
                 'Multipart archive detected'
               )
-            : stage === 'delete-prompt' || stage === 'deleting'
+            : stage === 'nested-selection'
               ? t(
-                  'box.local-library-archive.complete-title',
-                  'Extraction complete'
+                  'box.local-library-archive.nested-archives-title',
+                  'Nested archives found'
                 )
-              : t(
-                  'box.local-library-archive.contents-title',
-                  'Choose archive contents'
-                )}
+              : stage === 'delete-prompt' || stage === 'deleting'
+                ? t(
+                    'box.local-library-archive.complete-title',
+                    'Extraction complete'
+                  )
+                : t(
+                    'box.local-library-archive.contents-title',
+                    'Choose archive contents'
+                  )}
       </DialogHeader>
       <DialogContent className="archiveExtractionContent">
         {stage === 'prompt' && (
@@ -625,26 +753,7 @@ export default function ArchiveExtractionDialog({
               </p>
             )}
             <code className="archivePath">{displayArchiveName}</code>
-            {previousArchivePath && (
-              <FormControlLabel
-                className="archiveDeletePreviousLabel"
-                control={
-                  <Checkbox
-                    className="archiveDeletePreviousCheckbox"
-                    checked={deletePreviousArchive}
-                    onChange={(event) =>
-                      setDeletePreviousArchive(event.target.checked)
-                    }
-                    size="small"
-                  />
-                }
-                label={t(
-                  'box.local-library-archive.delete-previous-archive',
-                  'Delete the previous archive "{{archive}}" when extracting this one',
-                  { archive: previousArchiveFileName }
-                )}
-              />
-            )}
+            {deletePreviousArchiveControl}
           </>
         )}
 
@@ -683,6 +792,65 @@ export default function ArchiveExtractionDialog({
               )}
             </p>
             <code className="archivePath">{displayArchiveName}</code>
+          </>
+        )}
+
+        {stage === 'nested-selection' && extractedFolder && (
+          <>
+            <div className="archiveNestedNotice" role="status">
+              <p>
+                {t(
+                  'box.local-library-archive.nested-candidates-message',
+                  'Heroic found {{count}} nested archive inside "{{folder}}". Extract it, or keep this folder as-is.',
+                  {
+                    count: nestedArchives.length,
+                    folder: extractedFolder.title
+                  }
+                )}
+              </p>
+            </div>
+            <div className="archiveNestedCandidates" role="list">
+              {nestedArchives.map((nestedArchive) => {
+                const nestedArchiveName =
+                  nestedArchive.folderPath.split(/[\\/]/).pop() ??
+                  nestedArchive.folderPath
+                return (
+                  <div
+                    className="archiveNestedCandidate"
+                    key={nestedArchive.folderPath}
+                    role="listitem"
+                  >
+                    <div className="archiveNestedCandidateInfo">
+                      <InsertDriveFileOutlinedIcon aria-hidden="true" />
+                      <div>
+                        <strong>{nestedArchive.title}</strong>
+                        <code title={nestedArchive.folderPath}>
+                          {nestedArchiveName}
+                        </code>
+                      </div>
+                    </div>
+                    <button
+                      className="button is-secondary archiveNestedCandidateButton"
+                      onClick={() =>
+                        openNestedArchive(nestedArchive, previousArchivePath)
+                      }
+                    >
+                      {t(
+                        'box.local-library-archive.extract-this-archive',
+                        'Extract this archive'
+                      )}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            <p className="archiveNestedRetentionNote">
+              {t(
+                'box.local-library-archive.nested-retention-note',
+                'Unselected archives and loose files will remain inside "{{folder}}".',
+                { folder: extractedFolder.title }
+              )}
+            </p>
           </>
         )}
 
@@ -738,6 +906,23 @@ export default function ArchiveExtractionDialog({
 
         {stage === 'selection' && (
           <>
+            {isNestedArchive && (
+              <div className="archiveNestedNotice" role="status">
+                <p>
+                  {t(
+                    'box.local-library-archive.nested-selection-message',
+                    'Heroic opened "{{title}}" from "{{archive}}". Choose the contents to extract.',
+                    {
+                      title: activeArchive.title,
+                      archive: previousArchiveFileName
+                    }
+                  )}
+                </p>
+              </div>
+            )}
+
+            {archiveCleanupControls}
+
             <TextInputField
               htmlId="archive-extraction-folder-name"
               label={t(
@@ -937,6 +1122,17 @@ export default function ArchiveExtractionDialog({
             {t(
               'box.local-library-archive.check-available-parts',
               'Check available parts'
+            )}
+          </button>
+        )}
+        {stage === 'nested-selection' && (
+          <button
+            className="button is-success"
+            onClick={useExtractedFolderAsIs}
+          >
+            {t(
+              'box.local-library-archive.use-folder-as-is',
+              'Use folder as-is'
             )}
           </button>
         )}
