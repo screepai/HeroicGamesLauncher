@@ -30,6 +30,7 @@ import type {
   LocalLibraryArchiveInfo,
   LocalLibraryWatchEntry,
   MoveGameArgs,
+  MoveGameResult,
   RecentGame,
   Release,
   Runner,
@@ -271,7 +272,7 @@ interface AsyncIPCFunctions {
     shoudlRemoveSetting: boolean
   ) => Promise<void>
   repair: (appName: string, runner: Runner) => Promise<void>
-  moveInstall: (args: MoveGameArgs) => Promise<void>
+  moveInstall: (args: MoveGameArgs) => Promise<MoveGameResult>
   importGame: (args: ImportGameArgs) => StatusPromise
   updateGame: (args: UpdateParams) => Promise<void>
   changeInstallPath: (args: MoveGameArgs) => Promise<void>

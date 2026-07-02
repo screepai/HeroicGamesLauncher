@@ -14,10 +14,12 @@ import './index.css'
 import AddGameButton from '../AddGameButton'
 import VndbSyncButton from './VndbSyncButton'
 import BulkGameOptionsDialog from './BulkGameOptionsDialog'
+import BulkGameMigrationDialog from './BulkGameMigrationDialog'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import useAppSetting from 'frontend/hooks/useAppSetting'
 import {
   faCheckDouble,
+  faFolderOpen,
   faSlidersH,
   faTags,
   faTimes
@@ -44,6 +46,7 @@ export default memo(function LibraryHeader({
     openSelectedGamesCategories
   } = useContext(LibraryContext)
   const [showBulkOptions, setShowBulkOptions] = useState(false)
+  const [showBulkMigration, setShowBulkMigration] = useState(false)
   const [archiveToExtract, setArchiveToExtract] =
     useState<LocalLibraryWatchEntry | null>(null)
   const allVisibleGamesSelected =
@@ -136,6 +139,13 @@ export default memo(function LibraryHeader({
               <FontAwesomeIcon icon={faSlidersH} />
               {t('library.bulk-options.button', 'Options')}
             </button>
+            <button
+              className="libraryBulkAction"
+              onClick={() => setShowBulkMigration(true)}
+            >
+              <FontAwesomeIcon icon={faFolderOpen} />
+              {t('library.migration.button', 'Migrate')}
+            </button>
             {enableVndbIntegration && (
               <VndbSyncButton
                 list={selectedGames}
@@ -154,6 +164,12 @@ export default memo(function LibraryHeader({
               <BulkGameOptionsDialog
                 games={selectedGames}
                 onClose={() => setShowBulkOptions(false)}
+              />
+            )}
+            {showBulkMigration && (
+              <BulkGameMigrationDialog
+                games={selectedGames}
+                onClose={() => setShowBulkMigration(false)}
               />
             )}
           </div>

@@ -982,6 +982,7 @@ class GlobalState extends PureComponent<Props> {
         'playing',
         'extracting',
         'launching',
+        'moving',
         'winetricks',
         'redist',
         'queued'

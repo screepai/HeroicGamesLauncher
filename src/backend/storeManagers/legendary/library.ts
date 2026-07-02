@@ -23,7 +23,8 @@ import {
   getLegendaryBin,
   isEpicServiceOffline,
   getFileSize,
-  axiosClient
+  axiosClient,
+  getMigratedExecutablePath
 } from '../../utils'
 import {
   logDebug,
@@ -414,8 +415,14 @@ export default class LegendaryLibraryManager implements LibraryManager {
    */
   async changeGameInstallPath(appName: string, newPath: string) {
     const libraryGameInfo = library.get(appName)
-    if (libraryGameInfo) libraryGameInfo.install.install_path = newPath
-    else {
+    if (libraryGameInfo) {
+      libraryGameInfo.install.executable = getMigratedExecutablePath(
+        libraryGameInfo.install.executable,
+        libraryGameInfo.install.install_path,
+        newPath
+      )
+      libraryGameInfo.install.install_path = newPath
+    } else {
       logWarning(
         `library game info not found in changeGameInstallPath for ${appName}`,
         LogPrefix.Legendary
@@ -423,8 +430,15 @@ export default class LegendaryLibraryManager implements LibraryManager {
     }
 
     const installedGameInfo = installedGames.get(appName)
-    if (installedGameInfo) installedGameInfo.install_path = newPath
-    else {
+    if (installedGameInfo) {
+      installedGameInfo.executable =
+        getMigratedExecutablePath(
+          installedGameInfo.executable,
+          installedGameInfo.install_path,
+          newPath
+        ) ?? installedGameInfo.executable
+      installedGameInfo.install_path = newPath
+    } else {
       logWarning(
         `installed game info not found in changeGameInstallPath for ${appName}`,
         LogPrefix.Legendary

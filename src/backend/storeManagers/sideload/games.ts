@@ -7,7 +7,14 @@ import {
 } from 'common/types'
 import { libraryStore } from './electronStores'
 import { GameConfig } from '../../game_config'
-import { killPattern, sendGameStatusUpdate, shutdownWine } from '../../utils'
+import {
+  getMigratedExecutablePath,
+  killPattern,
+  moveOnUnix,
+  moveOnWindows,
+  sendGameStatusUpdate,
+  shutdownWine
+} from '../../utils'
 import { logInfo, LogPrefix, logWarning } from 'backend/logger'
 import { dirname } from 'path'
 import { existsSync, rmSync } from 'graceful-fs'
@@ -25,6 +32,12 @@ import { isLinux, isMac, isWindows } from 'backend/constants/environment'
 import { removeNonSteamGame } from 'backend/shortcuts/nonesteamgame/nonesteamgame'
 
 import type LogWriter from 'backend/logger/log_writer'
+
+function getExecutableDir(executable: string): string {
+  const usesBackslash = executable.includes('\\')
+  const executableDir = dirname(executable.replaceAll('\\', '/'))
+  return usesBackslash ? executableDir.replaceAll('/', '\\') : executableDir
+}
 
 export default class SideloadGame implements Game {
   private readonly id: string
@@ -188,11 +201,54 @@ export default class SideloadGame implements Game {
     )
   }
 
-  async moveInstall(): Promise<InstallResult> {
-    logWarning(
-      `moveInstall not implemented on Sideload Game Manager. called for ID = ${this.id}`
-    )
-    return { status: 'error' }
+  async moveInstall(newInstallPath: string): Promise<InstallResult> {
+    const gameInfo = this.getGameInfo()
+    const installPath =
+      gameInfo.install.install_path ||
+      gameInfo.folder_name ||
+      (gameInfo.install.executable
+        ? getExecutableDir(gameInfo.install.executable)
+        : undefined)
+
+    if (!installPath) {
+      return { status: 'error', error: 'No install path found' }
+    }
+
+    const moveImpl = isWindows ? moveOnWindows : moveOnUnix
+    const moveResult = await moveImpl(newInstallPath, {
+      ...gameInfo,
+      install: {
+        ...gameInfo.install,
+        install_path: installPath
+      }
+    })
+
+    if (moveResult.status === 'error') {
+      return moveResult
+    }
+
+    const current = libraryStore.get('games', [])
+    const gameIndex = current.findIndex((game) => game.app_name === this.id)
+    if (gameIndex === -1) {
+      return { status: 'done' }
+    }
+
+    current[gameIndex] = {
+      ...current[gameIndex],
+      folder_name: moveResult.installPath,
+      install: {
+        ...current[gameIndex].install,
+        executable: getMigratedExecutablePath(
+          current[gameIndex].install.executable,
+          installPath,
+          moveResult.installPath
+        ),
+        install_path: moveResult.installPath
+      }
+    }
+    libraryStore.set('games', current)
+
+    return { status: 'done' }
   }
 
   async repair(): Promise<ExecResult> {

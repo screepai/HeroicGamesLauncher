@@ -184,6 +184,7 @@
         },
         "local-library-sync-path": "Select local library folder",
         "locale-emulator-path": "Select Locale Emulator executable",
+        "migration-archive-path": "Select migration archive folder",
         "no": "NO",
         "ok": "OK",
         "postpone": "Postpone",
@@ -668,6 +669,9 @@
         "bulk-selected_other": "{{count}} selected",
         "hideAlphabetFilter": "Hide Alphabet Filter",
         "hideCategorySections": "Show one game list",
+        "migration": {
+            "button": "Migrate"
+        },
         "select-all": "Select All",
         "showAlphabetFilter": "Show Alphabet Filter",
         "showCategorySections": "Group by categories",
@@ -1022,6 +1026,15 @@
         },
         "maxRecentGames": "Played Recently to Show",
         "maxworkers": "Maximum Number of Workers when downloading",
+        "migration-archive-path": "Migration archive folder",
+        "migration-archive-path-help": "This does not change the watched local library folder.",
+        "migration-archive-path-placeholder": "Select a folder used to archive migrated games...",
+        "migration-archive-prompt-mode": {
+            "always": "Always remember archive folder",
+            "ask": "Ask every time",
+            "never": "Never remember archive folder"
+        },
+        "migration-archive-prompt-mode-help": "Choose whether Heroic should remember migrated destination folders as an archive location.",
         "minimize-on-launch": "Minimize Heroic After Game Launch",
         "msync": "Enable Msync",
         "no-tray-icon": "Hide System Tray Icon (requires restart)",

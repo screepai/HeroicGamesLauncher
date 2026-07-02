@@ -3,11 +3,18 @@ import { readdirSync } from 'graceful-fs'
 import { dirname, join } from 'path'
 import { libraryStore } from './electronStores'
 import { logWarning } from 'backend/logger'
+import { getMigratedExecutablePath } from 'backend/utils'
 import { addShortcuts } from 'backend/shortcuts/shortcuts/shortcuts'
 import { sendFrontendMessage } from 'backend/ipc'
 import { isMac } from 'backend/constants/environment'
 import { LibraryManager } from 'common/types/game_manager'
 import SideloadGame from './games'
+
+function getExecutableDir(executable: string): string {
+  const usesBackslash = executable.includes('\\')
+  const executableDir = dirname(executable.replaceAll('\\', '/'))
+  return usesBackslash ? executableDir.replaceAll('/', '\\') : executableDir
+}
 
 export default class SideloadLibraryManager implements LibraryManager {
   init = () => Promise.resolve()
@@ -45,7 +52,8 @@ export default class SideloadLibraryManager implements LibraryManager {
         platform,
         is_dlc: false
       },
-      folder_name: executable !== undefined ? dirname(executable) : undefined,
+      folder_name:
+        executable !== undefined ? getExecutableDir(executable) : undefined,
       art_cover,
       is_installed: is_installed !== undefined ? is_installed : true,
       art_square,
@@ -119,10 +127,36 @@ export default class SideloadLibraryManager implements LibraryManager {
     return { stdout: '', stderr: '' }
   }
 
-  async changeGameInstallPath(): Promise<void> {
-    logWarning(
-      `changeGameInstallPath not implemented on Sideload Library Manager`
-    )
+  async changeGameInstallPath(appName: string, newPath: string): Promise<void> {
+    const current = libraryStore.get('games', [])
+    const gameIndex = current.findIndex((value) => value.app_name === appName)
+    if (gameIndex === -1) {
+      logWarning(`sideload game not found in changeGameInstallPath: ${appName}`)
+      return
+    }
+
+    const oldPath =
+      current[gameIndex].install.install_path ||
+      current[gameIndex].folder_name ||
+      (current[gameIndex].install.executable
+        ? getExecutableDir(current[gameIndex].install.executable)
+        : undefined)
+
+    current[gameIndex] = {
+      ...current[gameIndex],
+      folder_name: newPath,
+      install: {
+        ...current[gameIndex].install,
+        executable: getMigratedExecutablePath(
+          current[gameIndex].install.executable,
+          oldPath,
+          newPath
+        ),
+        install_path: newPath
+      }
+    }
+    libraryStore.set('games', current)
+    sendFrontendMessage('refreshLibrary', 'sideload')
   }
 
   async getInstallInfo(): Promise<undefined> {

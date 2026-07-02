@@ -17,6 +17,9 @@ import GameContext from '../GameContext'
 import { openInstallGameModal } from 'frontend/state/InstallGameModal'
 import useGlobalState from 'frontend/state/GlobalStateV2'
 import EditGameDialog from 'frontend/components/UI/EditGameDialog'
+import BulkGameMigrationDialog, {
+  isMigratableGame
+} from 'frontend/screens/Library/components/LibraryHeader/BulkGameMigrationDialog'
 
 import {
   ArrowUpward as ArrowUpwardIcon,
@@ -85,6 +88,7 @@ export default function GamesSubmenu({
   const eosOverlayAppName = '98bc04bc842e4906993fd6d6644ffb8d'
   const [showUninstallModal, setShowUninstallModal] = useState(false)
   const [uninstallAction, setUninstallAction] = useState<UninstallAction>()
+  const [showMigrationDialog, setShowMigrationDialog] = useState(false)
   const [protonDBurl, setProtonDBurl] = useState(
     `https://www.protondb.com/search?q=${title}`
   )
@@ -309,6 +313,12 @@ export default function GamesSubmenu({
             isDlc={false}
           />
         )}
+        {showMigrationDialog && (
+          <BulkGameMigrationDialog
+            games={[gameInfo]}
+            onClose={() => setShowMigrationDialog(false)}
+          />
+        )}
         <div className={`submenu`}>
           {isInstalled && (
             <>
@@ -363,6 +373,16 @@ export default function GamesSubmenu({
                 >
                   <DriveFileMoveIcon />
                   {t('submenu.move', 'Move Game')}
+                </button>
+              )}{' '}
+              {isMigratableGame(gameInfo) && (
+                <button
+                  onClick={() => setShowMigrationDialog(true)}
+                  className="link button is-text is-link buttonWithIcon"
+                  disabled={is.playing || is.moving}
+                >
+                  <DriveFileMoveIcon />
+                  {t('library.migration.game-button', 'Migrate Game')}
                 </button>
               )}{' '}
               {!isSideloaded && !isThirdPartyManaged && (

@@ -132,6 +132,8 @@ export interface AppSettings extends GameSettings {
   hideWindowOnProtocolLaunch: boolean
   libraryTopSection: LibraryTopSectionOptions
   localLibrarySyncExclusions: string[]
+  migrationArchivePath: string
+  migrationArchivePromptMode: 'ask' | 'always' | 'never'
   localeEmulatorPath: string
   localLibrarySyncPath: string
   maxRecentGames: number
@@ -705,6 +707,10 @@ export interface MoveGameArgs {
   path: string
   runner: Runner
 }
+
+export type MoveGameResult =
+  | { status: 'done' }
+  | { status: 'error'; error: string }
 
 export interface DiskSpaceData {
   free: number

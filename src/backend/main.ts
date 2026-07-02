@@ -1,6 +1,11 @@
 import { initImagesCache } from './images_cache'
 import { fetchLastestReleases } from './utils/releases'
-import { DiskSpaceData, StatusPromise, WineInstallation } from 'common/types'
+import {
+  DiskSpaceData,
+  MoveGameResult,
+  StatusPromise,
+  WineInstallation
+} from 'common/types'
 import * as path from 'path'
 import {
   BrowserWindow,
@@ -980,7 +985,7 @@ addHandler('repair', async (event, appName, runner) => {
 
 addHandler(
   'moveInstall',
-  async (event, { appName, path, runner }): Promise<void> => {
+  async (event, { appName, path, runner }): Promise<MoveGameResult> => {
     sendGameStatusUpdate({
       appName,
       runner,
@@ -988,18 +993,45 @@ addHandler(
     })
 
     const { title } = libraryManagerMap[runner].getGame(appName).getGameInfo()
-    notify({ title, body: t('notify.moving', 'Moving Game') })
+    try {
+      notify({ title, body: t('notify.moving', 'Moving Game') })
 
-    const moveRes = await libraryManagerMap[runner]
-      .getGame(appName)
-      .moveInstall(path)
-    if (moveRes.status === 'error') {
+      const moveRes = await libraryManagerMap[runner]
+        .getGame(appName)
+        .moveInstall(path)
+      if (moveRes.status === 'error') {
+        const errorMessage = moveRes.error ?? t('box.error.generic', 'Error')
+        notify({
+          title,
+          body: t('notify.error.move', 'Error Moving Game')
+        })
+        logError(
+          `Error while moving ${appName} to ${path}: ${errorMessage} `,
+          LogPrefix.Backend
+        )
+
+        showDialogBoxModalAuto({
+          event,
+          title: t('box.error.title', 'Error'),
+          message: t('box.error.moving', 'Error Moving Game {{error}}', {
+            error: errorMessage
+          }),
+          type: 'ERROR'
+        })
+        return { status: 'error', error: errorMessage }
+      }
+
+      notify({ title, body: t('notify.moved') })
+      logInfo(`Finished moving ${appName} to ${path}.`, LogPrefix.Backend)
+      return { status: 'done' }
+    } catch (error) {
+      const errorMessage = String(error)
       notify({
         title,
         body: t('notify.error.move', 'Error Moving Game')
       })
       logError(
-        `Error while moving ${appName} to ${path}: ${moveRes.error} `,
+        `Error while moving ${appName} to ${path}: ${errorMessage} `,
         LogPrefix.Backend
       )
 
@@ -1007,22 +1039,18 @@ addHandler(
         event,
         title: t('box.error.title', 'Error'),
         message: t('box.error.moving', 'Error Moving Game {{error}}', {
-          error: moveRes.error
+          error: errorMessage
         }),
         type: 'ERROR'
       })
+      return { status: 'error', error: errorMessage }
+    } finally {
+      sendGameStatusUpdate({
+        appName,
+        runner,
+        status: 'done'
+      })
     }
-
-    if (moveRes.status === 'done') {
-      notify({ title, body: t('notify.moved') })
-      logInfo(`Finished moving ${appName} to ${path}.`, LogPrefix.Backend)
-    }
-
-    sendGameStatusUpdate({
-      appName,
-      runner,
-      status: 'done'
-    })
   }
 )
 

@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Chip } from '@mui/material'
+import { Chip, MenuItem, SelectChangeEvent } from '@mui/material'
 
 import {
   PathSelectionBox,
+  SelectField,
   TextInputField,
   ToggleSwitch
 } from 'frontend/components/UI'
+import type { AppSettings } from 'common/types'
 import useSetting from 'frontend/hooks/useSetting'
 
 import './LocalLibrarySyncPath/index.css'
@@ -30,6 +32,18 @@ const LocalLibrarySyncPath = () => {
   )
   const [localLibrarySyncExclusions, setLocalLibrarySyncExclusions] =
     useSetting('localLibrarySyncExclusions', [])
+  const [migrationArchivePath, setMigrationArchivePath] = useSetting(
+    'migrationArchivePath',
+    ''
+  )
+  const [migrationArchivePromptMode, setMigrationArchivePromptMode] =
+    useSetting('migrationArchivePromptMode', 'ask')
+
+  const onMigrationArchivePromptModeChange = (event: SelectChangeEvent) => {
+    setMigrationArchivePromptMode(
+      event.target.value as AppSettings['migrationArchivePromptMode']
+    )
+  }
 
   const addExclusionRule = () => {
     const rule = newExclusionRule.trim()
@@ -97,6 +111,65 @@ const LocalLibrarySyncPath = () => {
           'setting.askToDeleteArchiveAfterExtraction-description',
           'When disabled, extracted archives are kept without showing a deletion prompt.'
         )}
+      />
+
+      <SelectField
+        htmlId="migration_archive_prompt_mode"
+        value={migrationArchivePromptMode}
+        onChange={onMigrationArchivePromptModeChange}
+        label={t(
+          'setting.migration-archive-prompt-mode',
+          'After migrating games'
+        )}
+        afterSelect={
+          <span className="smallMessage">
+            {t(
+              'setting.migration-archive-prompt-mode-help',
+              'Choose whether Heroic should remember migrated destination folders as an archive location.'
+            )}
+          </span>
+        }
+      >
+        <MenuItem value="ask">
+          {t('setting.migration-archive-prompt-mode.ask', 'Ask every time')}
+        </MenuItem>
+        <MenuItem value="always">
+          {t(
+            'setting.migration-archive-prompt-mode.always',
+            'Always remember archive folder'
+          )}
+        </MenuItem>
+        <MenuItem value="never">
+          {t(
+            'setting.migration-archive-prompt-mode.never',
+            'Never remember archive folder'
+          )}
+        </MenuItem>
+      </SelectField>
+
+      <PathSelectionBox
+        type="directory"
+        onPathChange={setMigrationArchivePath}
+        path={migrationArchivePath}
+        pathDialogTitle={t(
+          'box.migration-archive-path',
+          'Select migration archive folder'
+        )}
+        pathDialogDefaultPath={migrationArchivePath || localLibrarySyncPath}
+        placeholder={t(
+          'setting.migration-archive-path-placeholder',
+          'Select a folder used to archive migrated games...'
+        )}
+        label={t('setting.migration-archive-path', 'Migration archive folder')}
+        htmlId="migration_archive_path"
+        afterInput={
+          <span className="smallMessage">
+            {t(
+              'setting.migration-archive-path-help',
+              'This does not change the watched local library folder.'
+            )}
+          </span>
+        }
       />
 
       <PathSelectionBox

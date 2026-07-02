@@ -1,0 +1,121 @@
+.BulkGameMigrationDialog {
+  width: min(760px, 92vw);
+}
+
+.BulkGameMigrationDialog .button,
+.BulkGameMigrationDialog .button:hover,
+.BulkGameMigrationDialog .button:focus-visible {
+  color: var(--text-tertiary);
+}
+
+.bulkGameMigrationContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.bulkGameMigrationContent p {
+  margin: 0;
+}
+
+.bulkGameMigrationSummary {
+  color: var(--text-secondary);
+}
+
+.bulkGameMigrationRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: min(46vh, 420px);
+  overflow: auto;
+  padding-inline-end: var(--space-xs);
+}
+
+.bulkGameMigrationRow {
+  align-items: center;
+  background: var(--background);
+  border: 1px solid var(--modal-border);
+  border-radius: var(--space-xs);
+  display: grid;
+  gap: var(--space-xs) var(--space-sm);
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  padding: var(--space-sm);
+}
+
+.bulkGameMigrationRow span,
+.bulkGameMigrationRow small,
+.bulkGameMigrationRow em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bulkGameMigrationRow small {
+  color: var(--text-secondary);
+}
+
+.bulkGameMigrationRow strong {
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+}
+
+.bulkGameMigrationRow em {
+  color: var(--danger, #f44336);
+  font-style: normal;
+  grid-column: 1 / -1;
+}
+
+.bulkGameMigrationRow--skipped {
+  opacity: 0.72;
+}
+
+.migrationStatus-done {
+  color: var(--success, #4caf50);
+}
+
+.migrationStatus-error {
+  color: var(--danger, #f44336);
+}
+
+.migrationStatus-moving {
+  color: var(--accent);
+}
+
+.MigrationArchivePromptDialog {
+  width: min(520px, 92vw);
+}
+
+.MigrationArchivePromptDialog .button,
+.MigrationArchivePromptDialog .button:hover,
+.MigrationArchivePromptDialog .button:focus-visible {
+  color: var(--text-tertiary);
+}
+
+.migrationArchivePromptContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.migrationArchivePromptContent p {
+  margin: 0;
+}
+
+.migrationArchivePromptContent strong {
+  background: var(--background);
+  border: 1px solid var(--modal-border);
+  border-radius: var(--space-xs);
+  overflow: hidden;
+  padding: var(--space-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.migrationArchiveRememberChoice {
+  align-items: center;
+  cursor: pointer;
+  display: inline-flex;
+  gap: var(--space-sm);
+}

@@ -355,6 +355,8 @@ class GlobalConfigV0 extends GlobalConfig {
       defaultInstallPath: heroicInstallPath,
       libraryTopSection: 'disabled',
       localLibrarySyncExclusions: [],
+      migrationArchivePath: '',
+      migrationArchivePromptMode: 'ask',
       localeEmulatorPath: '',
       localLibrarySyncPath: '',
       defaultSteamPath: getSteamCompatFolder(),

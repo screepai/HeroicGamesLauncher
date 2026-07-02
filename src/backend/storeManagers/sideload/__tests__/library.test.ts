@@ -3,6 +3,13 @@ const mockLibraryStoreSet = jest.fn()
 const mockAddShortcuts = jest.fn()
 const mockSendFrontendMessage = jest.fn()
 const mockSideloadGame = jest.fn().mockImplementation((id: string) => ({ id }))
+const mockGetMigratedExecutablePath = jest.fn(
+  (
+    executable: string | undefined,
+    oldPath: string | undefined,
+    newPath: string
+  ) => executable?.replace(oldPath ?? '', newPath)
+)
 
 jest.mock('../electronStores', () => ({
   libraryStore: {
@@ -18,6 +25,9 @@ jest.mock('backend/ipc', () => ({
 }))
 jest.mock('backend/logger', () => ({
   logWarning: jest.fn()
+}))
+jest.mock('backend/utils', () => ({
+  getMigratedExecutablePath: mockGetMigratedExecutablePath
 }))
 jest.mock('backend/constants/environment', () => ({
   isMac: false
@@ -121,5 +131,46 @@ describe('SideloadLibraryManager.addNewApp', () => {
       }
     })
     expect(mockAddShortcuts).not.toHaveBeenCalled()
+  })
+})
+
+describe('SideloadLibraryManager.changeGameInstallPath', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('updates folder and executable metadata', async () => {
+    mockLibraryStoreGet.mockReturnValue([makeGame()])
+    mockGetMigratedExecutablePath.mockReturnValue(
+      'D:\\Archive\\Visual Novel\\game.exe'
+    )
+    const manager = new SideloadLibraryManager()
+
+    await manager.changeGameInstallPath(
+      'visual-novel',
+      'D:\\Archive\\Visual Novel'
+    )
+
+    const [storeKey, storedGames] = mockLibraryStoreSet.mock.calls[0] as [
+      string,
+      GameInfo[]
+    ]
+    expect(storeKey).toBe('games')
+    expect(storedGames[0]).toMatchObject({
+      folder_name: 'D:\\Archive\\Visual Novel',
+      install: {
+        executable: 'D:\\Archive\\Visual Novel\\game.exe',
+        install_path: 'D:\\Archive\\Visual Novel'
+      }
+    })
+    expect(mockGetMigratedExecutablePath).toHaveBeenCalledWith(
+      'C:\\Games\\Visual Novel\\game.exe',
+      'C:\\Games\\Visual Novel',
+      'D:\\Archive\\Visual Novel'
+    )
+    expect(mockSendFrontendMessage).toHaveBeenCalledWith(
+      'refreshLibrary',
+      'sideload'
+    )
   })
 })

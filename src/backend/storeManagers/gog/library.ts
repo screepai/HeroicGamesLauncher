@@ -37,7 +37,12 @@ import {
   LogPrefix,
   logWarning
 } from 'backend/logger'
-import { getGOGdlBin, getFileSize, axiosClient } from '../../utils'
+import {
+  getGOGdlBin,
+  getFileSize,
+  axiosClient,
+  getMigratedExecutablePath
+} from '../../utils'
 import {
   libraryStore,
   installedGamesStore,
@@ -867,6 +872,17 @@ export default class GOGLibraryManager implements LibraryManager {
       newInstallPath = join(newInstallPath, cachedGameData.folder_name)
     }
 
+    installedArray[gameIndex].executable =
+      getMigratedExecutablePath(
+        installedArray[gameIndex].executable,
+        installedArray[gameIndex].install_path,
+        newInstallPath
+      ) ?? installedArray[gameIndex].executable
+    cachedGameData.install.executable = getMigratedExecutablePath(
+      cachedGameData.install.executable,
+      cachedGameData.install.install_path,
+      newInstallPath
+    )
     installedArray[gameIndex].install_path = newInstallPath
     cachedGameData.install.install_path = newInstallPath
     installedGamesStore.set('installed', installedArray)

@@ -50,6 +50,7 @@ import {
   DeleteForever,
   Description,
   Download,
+  DriveFileMove,
   Edit,
   Favorite,
   FavoriteBorder,
@@ -66,6 +67,9 @@ import {
 import EditGameDialog from 'frontend/components/UI/EditGameDialog'
 import { openInstallGameModal } from 'frontend/state/InstallGameModal'
 import VndbSyncButton from '../LibraryHeader/VndbSyncButton'
+import BulkGameMigrationDialog, {
+  isMigratableGame
+} from '../LibraryHeader/BulkGameMigrationDialog'
 import useAppSetting from 'frontend/hooks/useAppSetting'
 
 interface Card {
@@ -111,6 +115,7 @@ const GameCard = ({
   const [showUninstallModal, setShowUninstallModal] = useState(false)
   const [uninstallAction, setUninstallAction] = useState<UninstallAction>()
   const [showVndbSyncDialog, setShowVndbSyncDialog] = useState(false)
+  const [showMigrationDialog, setShowMigrationDialog] = useState(false)
   const [isLaunching, setIsLaunching] = useState(false)
 
   const { t } = useTranslation('gamepage')
@@ -483,6 +488,16 @@ const GameCard = ({
       icon: <Description />
     },
     {
+      label: t('library.migration.game-button', 'Migrate Game'),
+      onclick: () => setShowMigrationDialog(true),
+      show:
+        isMigratableGame(gameInfo) &&
+        !isUpdating &&
+        !isPlaying &&
+        !isUninstalling,
+      icon: <DriveFileMove />
+    },
+    {
       label: isSideloaded
         ? t('button.sideload.edit', 'Edit App/Game')
         : t('edit-game.title', 'Edit Game'),
@@ -595,6 +610,12 @@ const GameCard = ({
           hideTrigger
           onMatchesChange={setVndbMatches}
           onClose={() => setShowVndbSyncDialog(false)}
+        />
+      )}
+      {showMigrationDialog && (
+        <BulkGameMigrationDialog
+          games={[gameInfo]}
+          onClose={() => setShowMigrationDialog(false)}
         />
       )}
       <ContextMenu items={items} disabled={isSelectingGames}>

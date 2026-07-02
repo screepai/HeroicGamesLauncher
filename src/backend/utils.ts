@@ -24,7 +24,7 @@ import {
   logWarning,
   logDebug
 } from 'backend/logger'
-import { basename, dirname, join, normalize } from 'path'
+import { basename, dirname, isAbsolute, join, normalize, relative } from 'path'
 import {
   gameInfoStore,
   installStore,
@@ -1250,6 +1250,27 @@ export async function moveOnWindows(
     logError(`Error: ${stderr}`, LogPrefix.Backend)
   }
   return { status: 'done', installPath: newInstallPath }
+}
+
+export function getMigratedExecutablePath(
+  executable: string | undefined,
+  oldInstallPath: string | undefined,
+  newInstallPath: string
+): string | undefined {
+  if (!executable || !oldInstallPath || !isAbsolute(executable)) {
+    return executable
+  }
+
+  const relativeExecutablePath = relative(oldInstallPath, executable)
+  if (
+    !relativeExecutablePath ||
+    relativeExecutablePath.startsWith('..') ||
+    isAbsolute(relativeExecutablePath)
+  ) {
+    return executable
+  }
+
+  return join(newInstallPath, relativeExecutablePath)
 }
 
 export async function moveOnUnix(

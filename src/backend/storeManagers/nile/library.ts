@@ -16,7 +16,12 @@ import {
 } from 'common/types/nile'
 import { existsSync, readFileSync, writeFileSync } from 'graceful-fs'
 import { installStore, libraryStore } from './electronStores'
-import { getFileSize, getNileBin, removeSpecialcharacters } from 'backend/utils'
+import {
+  getFileSize,
+  getMigratedExecutablePath,
+  getNileBin,
+  removeSpecialcharacters
+} from 'backend/utils'
 import { callRunner } from 'backend/launcher'
 import { dirname, join } from 'path'
 import { app } from 'electron'
@@ -397,8 +402,14 @@ export default class NileLibraryManager implements LibraryManager {
    */
   async changeGameInstallPath(appName: string, newAppPath: string) {
     const libraryGameInfo = this.library.get(appName)
-    if (libraryGameInfo) libraryGameInfo.install.install_path = newAppPath
-    else {
+    if (libraryGameInfo) {
+      libraryGameInfo.install.executable = getMigratedExecutablePath(
+        libraryGameInfo.install.executable,
+        libraryGameInfo.install.install_path,
+        newAppPath
+      )
+      libraryGameInfo.install.install_path = newAppPath
+    } else {
       logWarning(
         `library game info not found in changeGameInstallPath for ${appName}`,
         LogPrefix.Nile
