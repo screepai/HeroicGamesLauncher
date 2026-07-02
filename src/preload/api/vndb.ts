@@ -1,4 +1,4 @@
-import { makeHandlerInvoker } from '../ipc'
+import { frontendListenerSlot, makeHandlerInvoker } from '../ipc'
 
 export const vndb = {
   hasApiToken: makeHandlerInvoker('vndb.hasApiToken'),
@@ -11,5 +11,6 @@ export const vndb = {
   getUserOptions: makeHandlerInvoker('vndb.getUserOptions'),
   updateUserOptions: makeHandlerInvoker('vndb.updateUserOptions'),
   updateUserRelease: makeHandlerInvoker('vndb.updateUserRelease'),
-  syncUserData: makeHandlerInvoker('vndb.syncUserData')
+  syncUserData: makeHandlerInvoker('vndb.syncUserData'),
+  onMatchesChanged: frontendListenerSlot('vndbMatchesChanged')
 }

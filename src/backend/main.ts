@@ -1394,6 +1394,22 @@ addListener('addNewApp', (e, args) =>
   libraryManagerMap['sideload'].addNewApp(args)
 )
 
+addHandler('backupLocalLibraryMetadata', (_e, directoryPath) =>
+  libraryManagerMap.sideload.backupMetadata(directoryPath)
+)
+
+addHandler('inspectLocalLibraryMetadataBackup', (_e, backupPath) =>
+  libraryManagerMap.sideload.inspectMetadataBackup(backupPath)
+)
+
+addHandler('restoreLocalLibraryMetadata', (_e, args) =>
+  typeof args === 'string'
+    ? libraryManagerMap.sideload.restoreMetadata(args)
+    : libraryManagerMap.sideload.restoreMetadata(args.backupPath, {
+        pathMapping: args.pathMapping
+      })
+)
+
 addListener('setGameMetadataOverride', (e, args) => {
   const { appName, title, art_cover, art_square, isVisualNovel } = args
   setGameOverrides(appName, {

@@ -187,6 +187,35 @@ interface AsyncIPCFunctions {
     selectedPaths: string[]
   }) => Promise<{ folderPath: string; title: string }>
   deleteLocalLibraryArchive: (archivePath: string) => Promise<void>
+  backupLocalLibraryMetadata: (directoryPath: string) => Promise<string>
+  inspectLocalLibraryMetadataBackup: (backupPath: string) => Promise<{
+    affectedGames: number
+    backupPathStyle: 'windows' | 'posix' | 'unknown'
+    currentPathStyle: 'windows' | 'posix' | 'unknown'
+    sourcePath?: string
+    shouldPromptForPath: boolean
+  }>
+  restoreLocalLibraryMetadata: (args: {
+    backupPath: string
+    pathMapping?: {
+      destinationPath: string
+      sourcePath: string
+    }
+  }) => Promise<{
+    added: number
+    updated: number
+    total: number
+    overrides: number
+    localLibrarySettings?: Pick<
+      AppSettings,
+      | 'askToDeleteArchiveAfterExtraction'
+      | 'detectLocalLibraryArchives'
+      | 'enableLocalLibraryWatcher'
+      | 'localLibrarySyncExclusions'
+    >
+    vndbApiToken: boolean
+    vndbMatches: number
+  }>
   kill: (appName: string, runner: Runner) => Promise<void>
   checkDiskSpace: (folder: string) => Promise<DiskSpaceData>
   callTool: (args: Tools) => Promise<void>
@@ -314,6 +343,7 @@ interface AsyncIPCFunctions {
         title?: string
         art_cover?: string
         art_square?: string
+        isVisualNovel?: boolean
       }
     >
   >
@@ -491,6 +521,7 @@ interface FrontendMessages {
       }
     >
   ) => void
+  vndbMatchesChanged: (matches: Record<string, VndbGameMatch>) => void
 
   // Used inside tests, so we can be a bit lenient with the type checking here
   message: (...params: unknown[]) => void

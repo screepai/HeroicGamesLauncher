@@ -48,6 +48,7 @@
             "message": "Heroic cache cleared.",
             "title": "Cache cleared"
         },
+        "cancel": "Cancel",
         "changelog": "Changelog",
         "choose": "Choose",
         "choose-egs-prefix": "Choose Prefix where EGS is installed",
@@ -182,6 +183,9 @@
             "message": "The folder \"{{title}}\" was added to your watched local library.\n\n{{folderPath}}\n\nDo you want to add it as a game?",
             "title": "New game folder found"
         },
+        "local-library-metadata-backup-folder": "Select metadata backup folder",
+        "local-library-metadata-restore-file": "Select metadata backup",
+        "local-library-metadata-restore-path": "Select replacement game folder",
         "local-library-sync-path": "Select local library folder",
         "locale-emulator-path": "Select Locale Emulator executable",
         "migration-archive-path": "Select migration archive folder",
@@ -203,6 +207,7 @@
                 "title": "Reset Heroic"
             }
         },
+        "restore": "Restore",
         "runexe": {
             "title": "Select EXE to Run"
         },
@@ -961,6 +966,24 @@
             "recently_played_installed": "Recently Played Games (Only Installed)"
         },
         "library_top_section": "Library Top Section",
+        "local-library-metadata-backup": "Back up local library metadata",
+        "local-library-metadata-backup-error": "Could not back up local library metadata",
+        "local-library-metadata-backup-file": "Heroic local library metadata",
+        "local-library-metadata-backup-running": "Backing up...",
+        "local-library-metadata-backup-success": "Local library metadata backup created",
+        "local-library-metadata-choose-replacement-path": "Choose folder",
+        "local-library-metadata-cross-os-message": "This backup points to {{sourcePath}}, but those paths do not match this OS. Choose a replacement folder to remap restored game paths, or restore with the saved paths.",
+        "local-library-metadata-cross-os-title": "Restore paths from another OS?",
+        "local-library-metadata-help": "Backups include local library games, custom metadata overrides, exclusion rules, all VNDB matches, and your VNDB token.",
+        "local-library-metadata-restore": "Restore local library metadata",
+        "local-library-metadata-restore-confirm-message": "This will merge the backup into your current local library. Games with the same app name will be replaced by the backup.",
+        "local-library-metadata-restore-confirm-message-with-path": "This will merge the backup into your current local library. Games with the same app name will be replaced by the backup. Paths under {{sourcePath}} will be remapped to {{destinationPath}}.",
+        "local-library-metadata-restore-confirm-title": "Restore local library metadata?",
+        "local-library-metadata-restore-error": "Could not restore local library metadata",
+        "local-library-metadata-restore-running": "Restoring...",
+        "local-library-metadata-restore-saved-paths": "Use saved paths",
+        "local-library-metadata-restore-success": "Local library metadata restored",
+        "local-library-metadata-restore-success-message": "Restored {{total}} local games ({{added}} new, {{updated}} updated), {{overrides}} metadata overrides, {{vndbMatches}} VNDB matches, local library settings, and {{tokenStatus}}.",
         "local-library-sync-exclusions": "Excluded folder patterns",
         "local-library-sync-exclusions-help": "Rules match top-level folder names and ignore letter case. Use * for any text and ? for one character.",
         "local-library-sync-exclusions-placeholder": "Folder name or wildcard pattern",

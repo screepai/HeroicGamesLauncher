@@ -398,8 +398,17 @@ export default React.memo(function Library(): JSX.Element {
         console.error(error)
       })
 
+    const removeHandleVndbMatchesChanged = window.api.vndb.onMatchesChanged(
+      (_, matches) => {
+        if (isMounted) {
+          setVndbMatches(matches)
+        }
+      }
+    )
+
     return () => {
       isMounted = false
+      removeHandleVndbMatchesChanged()
     }
   }, [enableVndbIntegration])
 

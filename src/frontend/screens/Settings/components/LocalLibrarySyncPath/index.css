@@ -2,6 +2,22 @@
   margin-block-start: var(--space-xs);
 }
 
+.localLibraryMetadataActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-block-start: var(--space-xs);
+}
+
+.localLibraryMetadataActions .button {
+  min-height: 40px;
+}
+
+.localLibraryMetadataHelp {
+  display: block;
+  margin-block: var(--space-xs) var(--space-md);
+}
+
 .localLibraryExclusionInput .rightButton {
   height: 40px;
   margin-inline-start: var(--space-xs);
