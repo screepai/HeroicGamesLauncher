@@ -24,7 +24,7 @@ import {
   logWarning,
   logDebug
 } from 'backend/logger'
-import { basename, dirname, isAbsolute, join, normalize, relative } from 'path'
+import { basename, dirname, join, normalize, posix, win32 } from 'path'
 import {
   gameInfoStore,
   installStore,
@@ -1298,21 +1298,30 @@ export function getMigratedExecutablePath(
   oldInstallPath: string | undefined,
   newInstallPath: string
 ): string | undefined {
-  if (!executable || !oldInstallPath || !isAbsolute(executable)) {
+  const pathTools =
+    executable?.includes('\\') ||
+    oldInstallPath?.includes('\\') ||
+    newInstallPath.includes('\\')
+      ? win32
+      : posix
+
+  if (!executable || !oldInstallPath || !pathTools.isAbsolute(executable)) {
     return executable
   }
 
-  const relativeExecutablePath = relative(oldInstallPath, executable)
+  const relativeExecutablePath = pathTools.relative(oldInstallPath, executable)
   if (
     !relativeExecutablePath ||
     relativeExecutablePath.startsWith('..') ||
-    isAbsolute(relativeExecutablePath)
+    pathTools.isAbsolute(relativeExecutablePath)
   ) {
     return executable
   }
 
-  return join(newInstallPath, relativeExecutablePath)
+  return pathTools.join(newInstallPath, relativeExecutablePath)
 }
+
+const isSuccessfulMoveExitCode = (code: number | null) => code === 0
 
 export async function moveOnUnix(
   newInstallPath: string,
@@ -1410,7 +1419,7 @@ export async function moveOnUnix(
         })
       }
     )
-    if (code !== 1) {
+    if (isSuccessfulMoveExitCode(code)) {
       logInfo(`Finished Moving ${title}`, LogPrefix.Backend)
       // remove the old install path
       await spawnAsync('rm', ['-rf', install_path])
@@ -1424,7 +1433,7 @@ export async function moveOnUnix(
       install_path,
       destination
     ])
-    if (code !== 1) {
+    if (isSuccessfulMoveExitCode(code)) {
       return { status: 'done', installPath: destination }
     } else {
       logError(`Error: ${stderr}`, LogPrefix.Backend)
@@ -1889,5 +1898,6 @@ export {
 export const testingExportsUtils = {
   formatPlaytimeSinceInstallForRPC,
   formatTotalPlayedForRPC,
+  isSuccessfulMoveExitCode,
   semverGt
 }

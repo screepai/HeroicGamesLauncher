@@ -1,8 +1,12 @@
 import { promises as fs } from 'fs'
-import { isAbsolute, join, relative } from 'path'
+import { isAbsolute, join, posix, relative } from 'path'
 
 import type { GameInfo } from 'common/types'
-import { getMigratedExecutablePath, moveOnWindows } from '../utils'
+import {
+  getMigratedExecutablePath,
+  moveOnWindows,
+  testingExportsUtils
+} from '../utils'
 
 jest.mock('electron')
 jest.mock('../logger')
@@ -128,5 +132,34 @@ describeIfWindows('getMigratedExecutablePath', () => {
         'V:\\Games\\New Game'
       )
     ).toBe('V:\\Tools\\CustomLauncher.exe')
+  })
+})
+
+describe('Linux migration helpers', () => {
+  it('migrates POSIX executable paths inside the old install path', () => {
+    expect(
+      getMigratedExecutablePath(
+        '/mnt/games/Old Game/bin/game.sh',
+        '/mnt/games/Old Game',
+        '/mnt/archive/Old Game'
+      )
+    ).toBe(posix.join('/mnt/archive/Old Game', 'bin/game.sh'))
+  })
+
+  it('leaves POSIX executable paths outside the old install path unchanged', () => {
+    expect(
+      getMigratedExecutablePath(
+        '/usr/bin/custom-launcher',
+        '/mnt/games/Old Game',
+        '/mnt/archive/Old Game'
+      )
+    ).toBe('/usr/bin/custom-launcher')
+  })
+
+  it('only treats zero as a successful Unix move exit code', () => {
+    expect(testingExportsUtils.isSuccessfulMoveExitCode(0)).toBe(true)
+    expect(testingExportsUtils.isSuccessfulMoveExitCode(1)).toBe(false)
+    expect(testingExportsUtils.isSuccessfulMoveExitCode(23)).toBe(false)
+    expect(testingExportsUtils.isSuccessfulMoveExitCode(null)).toBe(false)
   })
 })
