@@ -60,6 +60,21 @@ describe('backend/utils.ts', () => {
     })
   })
 
+  test('formats Discord Rich Presence playtime without install date', () => {
+    expect(
+      utils.testingExportsUtils.formatPlaytimeSinceInstallForRPC(45, undefined)
+    ).toBe('Played for 45m')
+  })
+
+  test('formats Discord Rich Presence playtime since install date', () => {
+    expect(
+      utils.testingExportsUtils.formatPlaytimeSinceInstallForRPC(
+        125,
+        '2026-01-02T03:04:05.000Z'
+      )
+    ).toBe('Played for 2h5m since Jan 2, 2026')
+  })
+
   test('semverGt', () => {
     // target: vx.x.x or vx.x.x-beta.x
     // base: x.x.x or x.x.x-beta.x

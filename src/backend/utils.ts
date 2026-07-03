@@ -656,7 +656,10 @@ function constructAndUpdateRPC(gameInfo: GameInfo): RpcClient {
       type: 0,
       startTimestamp: startedAt,
       details: activityDetails,
-      state: `Total time played: ${formatTotalPlayedForRPC(getCurrentTotalPlayed())}`,
+      state: formatPlaytimeSinceInstallForRPC(
+        getCurrentTotalPlayed(),
+        gameInfo.install.installed_at
+      ),
       statusDisplayType: 0, // Use game title for name plate
       ...vndbButtons,
       ...overrides
@@ -740,11 +743,49 @@ function getVndbRichPresenceButtons(
 }
 
 const formatTotalPlayedForRPC = (mins: number) => {
-  let h: string | number = Math.floor(mins / 60)
-  let m: string | number = mins % 60
-  h = h < 10 ? '0' + h : h
-  m = m < 10 ? '0' + m : m
-  return `${h}:${m}`
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+
+  if (h === 0) {
+    return `${m}m`
+  }
+
+  if (m === 0) {
+    return `${h}h`
+  }
+
+  return `${h}h${m}m`
+}
+
+const formatInstallDateForRPC = (installedAt: string | undefined) => {
+  if (!installedAt) {
+    return undefined
+  }
+
+  const installedDate = new Date(installedAt)
+  if (Number.isNaN(installedDate.getTime())) {
+    return undefined
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  }).format(installedDate)
+}
+
+const formatPlaytimeSinceInstallForRPC = (
+  mins: number,
+  installedAt: string | undefined
+) => {
+  const playedFor = `Played for ${formatTotalPlayedForRPC(mins)}`
+  const installDate = formatInstallDateForRPC(installedAt)
+
+  if (!installDate) {
+    return playedFor
+  }
+
+  return `${playedFor} since ${installDate}`
 }
 
 const specialCharactersRegex =
@@ -1846,5 +1887,7 @@ export {
 // Exported only for testing purpose
 // ts-prune-ignore-next
 export const testingExportsUtils = {
+  formatPlaytimeSinceInstallForRPC,
+  formatTotalPlayedForRPC,
   semverGt
 }
