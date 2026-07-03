@@ -398,7 +398,7 @@ const LocalLibrarySyncPath = () => {
         value={migrationArchivePromptMode}
         onChange={onMigrationArchivePromptModeChange}
         label={t(
-          'setting.migration-archive-prompt-mode',
+          'setting.migration-archive-prompt-mode-label',
           'After migrating games'
         )}
         afterSelect={

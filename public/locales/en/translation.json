@@ -1058,6 +1058,7 @@
             "never": "Never remember archive folder"
         },
         "migration-archive-prompt-mode-help": "Choose whether Heroic should remember migrated destination folders as an archive location.",
+        "migration-archive-prompt-mode-label": "After migrating games",
         "minimize-on-launch": "Minimize Heroic After Game Launch",
         "msync": "Enable Msync",
         "no-tray-icon": "Hide System Tray Icon (requires restart)",
