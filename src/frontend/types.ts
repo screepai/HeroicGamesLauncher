@@ -80,6 +80,10 @@ export interface ContextType {
     removeCategory: (category: string) => void
     renameCategory: (oldName: string, newName: string) => void
     setCategoryOrder: (categories: string[]) => void
+    restore: (categories: {
+      customCategories: Record<string, string[]>
+      customCategoriesOrder: string[]
+    }) => void
   }
   currentCustomCategories: string[]
   setCurrentCustomCategories: (newCustomCategories: string[]) => void

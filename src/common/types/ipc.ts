@@ -203,16 +203,40 @@ interface AsyncIPCFunctions {
     }
   }) => Promise<{
     added: number
+    categories: number
+    customCategories?: {
+      customCategories: Record<string, string[]>
+      customCategoriesOrder: string[]
+    }
+    gameSettings: number
     updated: number
     total: number
     overrides: number
     localLibrarySettings?: Pick<
       AppSettings,
       | 'askToDeleteArchiveAfterExtraction'
+      | 'autoVndbSyncNewGames'
+      | 'defaultInstallPath'
+      | 'defaultSteamPath'
+      | 'defaultWinePrefixDir'
       | 'detectLocalLibraryArchives'
+      | 'disablePlaytimeSync'
+      | 'egsLinkedPath'
+      | 'enableVndbIntegration'
       | 'enableLocalLibraryWatcher'
+      | 'localeEmulatorPath'
       | 'localLibrarySyncExclusions'
+      | 'localLibrarySyncPath'
+      | 'migrationArchivePath'
+      | 'migrationArchivePromptMode'
+      | 'showVndbActionsOnGameCards'
+      | 'syncVndbUserData'
+      | 'useVndbDiscordRichPresence'
+      | 'vndbCategoryLabelSyncMode'
+      | 'vndbLabelCategorySyncMode'
     >
+    playtime: number
+    steamGridDbApiKey: boolean
     vndbApiToken: boolean
     vndbMatches: number
   }>

@@ -1,10 +1,10 @@
-import { AppSettings, ExecResult, GameInfo } from 'common/types'
+import { AppSettings, ExecResult, GameInfo, GameSettings } from 'common/types'
 import { readFile, writeFile } from 'node:fs/promises'
 import { readdirSync } from 'graceful-fs'
 import { dirname, join, posix, win32 } from 'path'
 import { libraryStore } from './electronStores'
 import { logWarning } from 'backend/logger'
-import { getMigratedExecutablePath } from 'backend/utils'
+import { getMigratedExecutablePath, writeConfig } from 'backend/utils'
 import { addShortcuts } from 'backend/shortcuts/shortcuts/shortcuts'
 import { sendFrontendMessage } from 'backend/ipc'
 import { isLinux, isMac, isWindows } from 'backend/constants/environment'
@@ -16,20 +16,61 @@ import { getDecryptedApiToken, setStoredApiToken } from 'backend/vndb/client'
 import { GlobalConfig } from 'backend/config'
 import type { VndbGameMatch } from 'common/types/vndb'
 import SideloadGame from './games'
+import { configStore, tsStore } from 'backend/constants/key_value_stores'
+import { gamesConfigPath } from 'backend/constants/paths'
+import {
+  decryptApiKey,
+  encryptApiKey,
+  isEncryptedValue
+} from 'backend/steamgrid/secureKey'
 
 type LocalLibraryMetadataSettings = Pick<
   AppSettings,
   | 'askToDeleteArchiveAfterExtraction'
+  | 'autoVndbSyncNewGames'
+  | 'defaultInstallPath'
+  | 'defaultSteamPath'
+  | 'defaultWinePrefixDir'
   | 'detectLocalLibraryArchives'
+  | 'disablePlaytimeSync'
+  | 'egsLinkedPath'
+  | 'enableVndbIntegration'
   | 'enableLocalLibraryWatcher'
+  | 'localeEmulatorPath'
   | 'localLibrarySyncExclusions'
+  | 'localLibrarySyncPath'
+  | 'migrationArchivePath'
+  | 'migrationArchivePromptMode'
+  | 'showVndbActionsOnGameCards'
+  | 'syncVndbUserData'
+  | 'useVndbDiscordRichPresence'
+  | 'vndbCategoryLabelSyncMode'
+  | 'vndbLabelCategorySyncMode'
+>
+
+type LocalLibraryMetadataCategories = {
+  customCategories: Record<string, string[]>
+  customCategoriesOrder: string[]
+}
+
+type LocalLibraryMetadataPlaytime = Record<
+  string,
+  {
+    firstPlayed?: string
+    lastPlayed?: string
+    totalPlayed?: number
+  }
 >
 
 type SideloadLibraryMetadataBackup = {
+  categories?: LocalLibraryMetadataCategories
   exportedAt: string
+  gameSettings?: Record<string, Partial<GameSettings>>
   games: GameInfo[]
   gameOverrides: Record<string, GameMetadataOverride>
   localLibrarySettings: LocalLibraryMetadataSettings
+  playtime?: LocalLibraryMetadataPlaytime
+  steamGridDbApiKey: string
   vndbApiToken: string
   vndbMatches: Record<string, VndbGameMatch>
   version: 1
@@ -37,10 +78,15 @@ type SideloadLibraryMetadataBackup = {
 
 type RestoreSideloadLibraryMetadataResult = {
   added: number
+  categories: number
+  customCategories?: LocalLibraryMetadataCategories
+  gameSettings: number
   updated: number
   total: number
   overrides: number
   localLibrarySettings?: LocalLibraryMetadataSettings
+  playtime: number
+  steamGridDbApiKey: boolean
   vndbApiToken: boolean
   vndbMatches: number
 }
@@ -388,9 +434,287 @@ function getLocalLibrarySettings(): LocalLibraryMetadataSettings {
   return {
     askToDeleteArchiveAfterExtraction:
       settings.askToDeleteArchiveAfterExtraction,
+    autoVndbSyncNewGames: settings.autoVndbSyncNewGames,
+    defaultInstallPath: settings.defaultInstallPath,
+    defaultSteamPath: settings.defaultSteamPath,
+    defaultWinePrefixDir: settings.defaultWinePrefixDir,
     detectLocalLibraryArchives: settings.detectLocalLibraryArchives,
+    disablePlaytimeSync: settings.disablePlaytimeSync,
+    egsLinkedPath: settings.egsLinkedPath,
+    enableVndbIntegration: settings.enableVndbIntegration,
     enableLocalLibraryWatcher: settings.enableLocalLibraryWatcher,
-    localLibrarySyncExclusions: settings.localLibrarySyncExclusions
+    localeEmulatorPath: settings.localeEmulatorPath,
+    localLibrarySyncPath: settings.localLibrarySyncPath,
+    localLibrarySyncExclusions: settings.localLibrarySyncExclusions,
+    migrationArchivePath: settings.migrationArchivePath,
+    migrationArchivePromptMode: settings.migrationArchivePromptMode,
+    showVndbActionsOnGameCards: settings.showVndbActionsOnGameCards,
+    syncVndbUserData: settings.syncVndbUserData,
+    useVndbDiscordRichPresence: settings.useVndbDiscordRichPresence,
+    vndbCategoryLabelSyncMode: settings.vndbCategoryLabelSyncMode,
+    vndbLabelCategorySyncMode: settings.vndbLabelCategorySyncMode
+  }
+}
+
+function getSideloadGameCategoryId(game: GameInfo): string {
+  return `${game.app_name}_${game.runner}`
+}
+
+function getSteamGridDbApiKey(): string {
+  const stored = GlobalConfig.get().getSettings().steamGridDbApiKey ?? ''
+
+  if (!stored) {
+    return ''
+  }
+
+  return isEncryptedValue(stored) ? decryptApiKey(stored) : stored
+}
+
+function setSteamGridDbApiKey(apiKey: string): void {
+  const trimmed = apiKey.trim()
+  GlobalConfig.get().setSetting(
+    'steamGridDbApiKey',
+    trimmed ? encryptApiKey(trimmed) : ''
+  )
+}
+
+function parseGamePlaytime(value: unknown) {
+  if (!isRecord(value)) {
+    return undefined
+  }
+
+  const playtime: LocalLibraryMetadataPlaytime[string] = {}
+
+  if (typeof value.firstPlayed === 'string') {
+    playtime.firstPlayed = value.firstPlayed
+  }
+
+  if (typeof value.lastPlayed === 'string') {
+    playtime.lastPlayed = value.lastPlayed
+  }
+
+  if (
+    typeof value.totalPlayed === 'number' &&
+    Number.isFinite(value.totalPlayed)
+  ) {
+    playtime.totalPlayed = value.totalPlayed
+  }
+
+  return Object.keys(playtime).length > 0 ? playtime : undefined
+}
+
+function getLocalLibraryPlaytime(
+  games: GameInfo[]
+): LocalLibraryMetadataPlaytime {
+  const sideloadAppNames = new Set(games.map((game) => game.app_name))
+
+  return Object.fromEntries(
+    Object.entries(tsStore.raw_store)
+      .filter(([appName]) => sideloadAppNames.has(appName))
+      .map(([appName, value]) => [appName, parseGamePlaytime(value)])
+      .filter(
+        (entry): entry is [string, LocalLibraryMetadataPlaytime[string]] =>
+          Boolean(entry[1])
+      )
+  )
+}
+
+function restoreLocalLibraryPlaytime(
+  playtime: LocalLibraryMetadataPlaytime
+): void {
+  for (const [appName, value] of Object.entries(playtime)) {
+    if (value.firstPlayed) {
+      tsStore.set(`${appName}.firstPlayed`, value.firstPlayed)
+    }
+    if (value.lastPlayed) {
+      tsStore.set(`${appName}.lastPlayed`, value.lastPlayed)
+    }
+    if (typeof value.totalPlayed === 'number') {
+      tsStore.set(`${appName}.totalPlayed`, value.totalPlayed)
+    }
+  }
+}
+
+async function readGameSettingsBackup(
+  appName: string
+): Promise<Partial<GameSettings> | undefined> {
+  const rawConfig = await readFile(
+    join(gamesConfigPath, `${appName}.json`),
+    'utf8'
+  ).catch(() => undefined)
+
+  if (!rawConfig) {
+    return undefined
+  }
+
+  const parsed: unknown = JSON.parse(rawConfig)
+
+  if (!isRecord(parsed) || !isRecord(parsed[appName])) {
+    return undefined
+  }
+
+  return parsed[appName] as Partial<GameSettings>
+}
+
+async function getLocalLibraryGameSettings(
+  games: GameInfo[]
+): Promise<Record<string, Partial<GameSettings>>> {
+  const settings = await Promise.all(
+    games.map(async (game) => [
+      game.app_name,
+      await readGameSettingsBackup(game.app_name).catch(() => undefined)
+    ])
+  )
+
+  return Object.fromEntries(
+    settings.filter((entry): entry is [string, Partial<GameSettings>] =>
+      isRecord(entry[1])
+    )
+  )
+}
+
+function parseLocalLibraryGameSettings(
+  value: unknown
+): Record<string, Partial<GameSettings>> {
+  if (!isRecord(value)) {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, Partial<GameSettings>] => isRecord(entry[1])
+    )
+  )
+}
+
+function restoreLocalLibraryGameSettings(
+  gameSettings: Record<string, Partial<GameSettings>>,
+  restoredAppNames: Set<string>
+): void {
+  for (const [appName, settings] of Object.entries(gameSettings)) {
+    if (restoredAppNames.has(appName)) {
+      writeConfig(appName, settings as Partial<AppSettings>)
+    }
+  }
+}
+
+function parseLocalLibraryPlaytime(
+  value: unknown
+): LocalLibraryMetadataPlaytime {
+  if (!isRecord(value)) {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([appName, playtime]) => [appName, parseGamePlaytime(playtime)])
+      .filter(
+        (entry): entry is [string, LocalLibraryMetadataPlaytime[string]] =>
+          Boolean(entry[1])
+      )
+  )
+}
+
+function getLocalLibraryCategories(
+  games: GameInfo[]
+): LocalLibraryMetadataCategories {
+  const sideloadGameIds = new Set(games.map(getSideloadGameCategoryId))
+  const customCategories = configStore.get('games.customCategories', {})
+  const filteredCategories = Object.fromEntries(
+    Object.entries(customCategories).map(([category, gameIds]) => [
+      category,
+      gameIds.filter((gameId) => sideloadGameIds.has(gameId))
+    ])
+  )
+  const backupCategoryNames = Object.keys(filteredCategories)
+  const customCategoriesOrder = configStore
+    .get('games.customCategoriesOrder', [])
+    .filter((category) => backupCategoryNames.includes(category))
+
+  return {
+    customCategories: filteredCategories,
+    customCategoriesOrder
+  }
+}
+
+function parseLocalLibraryCategories(
+  value: unknown
+): LocalLibraryMetadataCategories | undefined {
+  if (!isRecord(value)) {
+    return undefined
+  }
+
+  const customCategories = isRecord(value.customCategories)
+    ? Object.fromEntries(
+        Object.entries(value.customCategories).filter(
+          (entry): entry is [string, string[]] =>
+            Array.isArray(entry[1]) &&
+            entry[1].every((gameId) => typeof gameId === 'string')
+        )
+      )
+    : {}
+  const categoryNames = Object.keys(customCategories)
+  const customCategoriesOrder = Array.isArray(value.customCategoriesOrder)
+    ? value.customCategoriesOrder.filter(
+        (category): category is string =>
+          typeof category === 'string' && categoryNames.includes(category)
+      )
+    : []
+
+  return {
+    customCategories,
+    customCategoriesOrder
+  }
+}
+
+function restoreLocalLibraryCategories(
+  categories: LocalLibraryMetadataCategories,
+  games: GameInfo[]
+): LocalLibraryMetadataCategories {
+  const restoredGameIds = new Set(games.map(getSideloadGameCategoryId))
+  const storedCategories = configStore.get('games.customCategories', {})
+  const currentCategories = isRecord(storedCategories) ? storedCategories : {}
+  const restoredCategoryNames = Object.keys(categories.customCategories)
+  const nextCategories: Record<string, string[]> = Object.fromEntries(
+    Object.entries(currentCategories).map(([category, gameIds]) => [
+      category,
+      gameIds.filter((gameId) => !restoredGameIds.has(gameId))
+    ])
+  )
+
+  for (const [category, gameIds] of Object.entries(
+    categories.customCategories
+  )) {
+    nextCategories[category] = [
+      ...new Set([...(nextCategories[category] ?? []), ...gameIds])
+    ]
+  }
+
+  const storedCategoryOrder = configStore.get('games.customCategoriesOrder', [])
+  const currentCategoryOrder = Array.isArray(storedCategoryOrder)
+    ? storedCategoryOrder.filter(
+        (category): category is string => typeof category === 'string'
+      )
+    : []
+  const nextCategoryOrder = [
+    ...currentCategoryOrder.filter(
+      (category) => !restoredCategoryNames.includes(category)
+    ),
+    ...categories.customCategoriesOrder,
+    ...restoredCategoryNames.filter(
+      (category) => !categories.customCategoriesOrder.includes(category)
+    )
+  ].filter(
+    (category, index, allCategories) =>
+      nextCategories[category] && allCategories.indexOf(category) === index
+  )
+
+  configStore.set('games.customCategories', nextCategories)
+  configStore.set('games.customCategoriesOrder', nextCategoryOrder)
+
+  return {
+    customCategories: nextCategories,
+    customCategoriesOrder: nextCategoryOrder
   }
 }
 
@@ -408,12 +732,48 @@ function parseLocalLibrarySettings(
       value.askToDeleteArchiveAfterExtraction
   }
 
+  if (typeof value.autoVndbSyncNewGames === 'boolean') {
+    settings.autoVndbSyncNewGames = value.autoVndbSyncNewGames
+  }
+
+  if (typeof value.defaultInstallPath === 'string') {
+    settings.defaultInstallPath = value.defaultInstallPath
+  }
+
+  if (typeof value.defaultSteamPath === 'string') {
+    settings.defaultSteamPath = value.defaultSteamPath
+  }
+
+  if (typeof value.defaultWinePrefixDir === 'string') {
+    settings.defaultWinePrefixDir = value.defaultWinePrefixDir
+  }
+
   if (typeof value.detectLocalLibraryArchives === 'boolean') {
     settings.detectLocalLibraryArchives = value.detectLocalLibraryArchives
   }
 
+  if (typeof value.disablePlaytimeSync === 'boolean') {
+    settings.disablePlaytimeSync = value.disablePlaytimeSync
+  }
+
+  if (typeof value.egsLinkedPath === 'string') {
+    settings.egsLinkedPath = value.egsLinkedPath
+  }
+
+  if (typeof value.enableVndbIntegration === 'boolean') {
+    settings.enableVndbIntegration = value.enableVndbIntegration
+  }
+
   if (typeof value.enableLocalLibraryWatcher === 'boolean') {
     settings.enableLocalLibraryWatcher = value.enableLocalLibraryWatcher
+  }
+
+  if (typeof value.localeEmulatorPath === 'string') {
+    settings.localeEmulatorPath = value.localeEmulatorPath
+  }
+
+  if (typeof value.localLibrarySyncPath === 'string') {
+    settings.localLibrarySyncPath = value.localLibrarySyncPath
   }
 
   if (
@@ -421,6 +781,45 @@ function parseLocalLibrarySettings(
     value.localLibrarySyncExclusions.every((rule) => typeof rule === 'string')
   ) {
     settings.localLibrarySyncExclusions = value.localLibrarySyncExclusions
+  }
+
+  if (typeof value.migrationArchivePath === 'string') {
+    settings.migrationArchivePath = value.migrationArchivePath
+  }
+
+  if (
+    value.migrationArchivePromptMode === 'ask' ||
+    value.migrationArchivePromptMode === 'always' ||
+    value.migrationArchivePromptMode === 'never'
+  ) {
+    settings.migrationArchivePromptMode = value.migrationArchivePromptMode
+  }
+
+  if (typeof value.showVndbActionsOnGameCards === 'boolean') {
+    settings.showVndbActionsOnGameCards = value.showVndbActionsOnGameCards
+  }
+
+  if (typeof value.syncVndbUserData === 'boolean') {
+    settings.syncVndbUserData = value.syncVndbUserData
+  }
+
+  if (typeof value.useVndbDiscordRichPresence === 'boolean') {
+    settings.useVndbDiscordRichPresence = value.useVndbDiscordRichPresence
+  }
+
+  if (
+    value.vndbCategoryLabelSyncMode === 'ask' ||
+    value.vndbCategoryLabelSyncMode === 'disabled'
+  ) {
+    settings.vndbCategoryLabelSyncMode = value.vndbCategoryLabelSyncMode
+  }
+
+  if (
+    value.vndbLabelCategorySyncMode === 'ask' ||
+    value.vndbLabelCategorySyncMode === 'automatic' ||
+    value.vndbLabelCategorySyncMode === 'disabled'
+  ) {
+    settings.vndbLabelCategorySyncMode = value.vndbLabelCategorySyncMode
   }
 
   return {
@@ -455,10 +854,12 @@ function parseMetadataBackup(rawBackup: string): SideloadLibraryMetadataBackup {
     : {}
 
   return {
+    categories: parseLocalLibraryCategories(parsed.categories),
     exportedAt:
       typeof parsed.exportedAt === 'string'
         ? parsed.exportedAt
         : new Date().toISOString(),
+    gameSettings: parseLocalLibraryGameSettings(parsed.gameSettings),
     games: parsed.games,
     gameOverrides: isRecord(parsed.gameOverrides)
       ? (parsed.gameOverrides as Record<string, GameMetadataOverride>)
@@ -466,6 +867,11 @@ function parseMetadataBackup(rawBackup: string): SideloadLibraryMetadataBackup {
     localLibrarySettings:
       parseLocalLibrarySettings(parsed.localLibrarySettings) ??
       getLocalLibrarySettings(),
+    playtime: parseLocalLibraryPlaytime(parsed.playtime),
+    steamGridDbApiKey:
+      typeof parsed.steamGridDbApiKey === 'string'
+        ? parsed.steamGridDbApiKey
+        : '',
     vndbApiToken:
       typeof parsed.vndbApiToken === 'string' ? parsed.vndbApiToken : '',
     vndbMatches,
@@ -577,10 +983,14 @@ export default class SideloadLibraryManager implements LibraryManager {
   async backupMetadata(directoryPath: string): Promise<string> {
     const games = libraryStore.get('games', [])
     const backup: SideloadLibraryMetadataBackup = {
+      categories: getLocalLibraryCategories(games),
       exportedAt: new Date().toISOString(),
+      gameSettings: await getLocalLibraryGameSettings(games),
       games,
       gameOverrides: getSideloadGameOverrides(games),
       localLibrarySettings: getLocalLibrarySettings(),
+      playtime: getLocalLibraryPlaytime(games),
+      steamGridDbApiKey: getSteamGridDbApiKey(),
       vndbApiToken: getDecryptedApiToken(),
       vndbMatches: getAllVndbMatches(),
       version: 1
@@ -637,6 +1047,18 @@ export default class SideloadLibraryManager implements LibraryManager {
       ([appName]) => restoredAppNames.has(appName)
     )
     const restoredVndbMatches = Object.entries(backup.vndbMatches)
+    const restoredCategoryCount = backup.categories
+      ? Object.keys(backup.categories.customCategories).length
+      : 0
+    const restoredGameSettings = Object.entries(
+      backup.gameSettings ?? {}
+    ).filter(([appName]) => restoredAppNames.has(appName))
+    const restoredPlaytime = Object.fromEntries(
+      Object.entries(backup.playtime ?? {}).filter(([appName]) =>
+        restoredAppNames.has(appName)
+      )
+    )
+    let restoredCategories: LocalLibraryMetadataCategories | undefined
 
     for (const [appName, override] of restoredOverrides) {
       setGameOverrides(appName, override)
@@ -649,6 +1071,23 @@ export default class SideloadLibraryManager implements LibraryManager {
     if (backup.vndbApiToken) {
       setStoredApiToken(backup.vndbApiToken)
     }
+
+    if (backup.steamGridDbApiKey) {
+      setSteamGridDbApiKey(backup.steamGridDbApiKey)
+    }
+
+    if (backup.categories) {
+      restoredCategories = restoreLocalLibraryCategories(
+        backup.categories,
+        backupGames
+      )
+    }
+
+    restoreLocalLibraryGameSettings(
+      Object.fromEntries(restoredGameSettings),
+      restoredAppNames
+    )
+    restoreLocalLibraryPlaytime(restoredPlaytime)
 
     const currentVndbMatches = vndbMatchesStore.get('matches', {})
     for (const [key, match] of restoredVndbMatches) {
@@ -664,10 +1103,15 @@ export default class SideloadLibraryManager implements LibraryManager {
 
     return {
       added,
+      categories: restoredCategoryCount,
+      customCategories: restoredCategories,
+      gameSettings: restoredGameSettings.length,
       updated,
       total: restoredGames.length,
       overrides: restoredOverrides.length,
       localLibrarySettings: backup.localLibrarySettings,
+      playtime: Object.keys(restoredPlaytime).length,
+      steamGridDbApiKey: Boolean(backup.steamGridDbApiKey),
       vndbApiToken: Boolean(backup.vndbApiToken),
       vndbMatches: restoredVndbMatches.length
     }

@@ -22,7 +22,7 @@ type LocalLibraryMetadataPathMapping = {
 
 const LocalLibrarySyncPath = () => {
   const { t } = useTranslation()
-  const { showDialogModal } = useContext(ContextProvider)
+  const { customCategories, showDialogModal } = useContext(ContextProvider)
   const [newExclusionRule, setNewExclusionRule] = useState('')
   const [isBackingUpMetadata, setIsBackingUpMetadata] = useState(false)
   const [isRestoringMetadata, setIsRestoringMetadata] = useState(false)
@@ -161,6 +161,18 @@ const LocalLibrarySyncPath = () => {
         setLocalLibrarySyncExclusions(
           result.localLibrarySettings.localLibrarySyncExclusions
         )
+        setLocalLibrarySyncPath(
+          result.localLibrarySettings.localLibrarySyncPath
+        )
+        setMigrationArchivePath(
+          result.localLibrarySettings.migrationArchivePath
+        )
+        setMigrationArchivePromptMode(
+          result.localLibrarySettings.migrationArchivePromptMode
+        )
+      }
+      if (result.customCategories) {
+        customCategories.restore(result.customCategories)
       }
       if (result.vndbApiToken) {
         dispatchVndbApiTokenChanged(true)
@@ -172,9 +184,18 @@ const LocalLibrarySyncPath = () => {
         ),
         t(
           'setting.local-library-metadata-restore-success-message',
-          'Restored {{total}} local games ({{added}} new, {{updated}} updated), {{overrides}} metadata overrides, {{vndbMatches}} VNDB matches, local library settings, and {{tokenStatus}}.',
+          'Restored {{total}} local games ({{added}} new, {{updated}} updated), {{overrides}} metadata overrides, {{categories}} categories, {{playtime}} playtime records, {{gameSettings}} game settings, {{vndbMatches}} VNDB matches, local library settings, {{steamGridDbStatus}}, and {{tokenStatus}}.',
           {
             ...result,
+            steamGridDbStatus: result.steamGridDbApiKey
+              ? t(
+                  'setting.local-library-metadata-steamgriddb-restored',
+                  'SteamGridDB API key'
+                )
+              : t(
+                  'setting.local-library-metadata-steamgriddb-not-restored',
+                  'no SteamGridDB API key'
+                ),
             tokenStatus: result.vndbApiToken
               ? t('setting.local-library-metadata-token-restored', 'VNDB token')
               : t(

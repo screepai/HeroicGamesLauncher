@@ -983,7 +983,7 @@
         "local-library-metadata-restore-running": "Restoring...",
         "local-library-metadata-restore-saved-paths": "Use saved paths",
         "local-library-metadata-restore-success": "Local library metadata restored",
-        "local-library-metadata-restore-success-message": "Restored {{total}} local games ({{added}} new, {{updated}} updated), {{overrides}} metadata overrides, {{vndbMatches}} VNDB matches, local library settings, and {{tokenStatus}}.",
+        "local-library-metadata-restore-success-message": "Restored {{total}} local games ({{added}} new, {{updated}} updated), {{overrides}} metadata overrides, {{categories}} categories, {{playtime}} playtime records, {{gameSettings}} game settings, {{vndbMatches}} VNDB matches, local library settings, {{steamGridDbStatus}}, and {{tokenStatus}}.",
         "local-library-sync-exclusions": "Excluded folder patterns",
         "local-library-sync-exclusions-help": "Rules match top-level folder names and ignore letter case. Use * for any text and ? for one character.",
         "local-library-sync-exclusions-placeholder": "Folder name or wildcard pattern",

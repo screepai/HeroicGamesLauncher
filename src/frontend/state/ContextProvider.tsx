@@ -72,7 +72,8 @@ const initialContext: ContextType = {
     addCategory: () => null,
     removeCategory: () => null,
     renameCategory: () => null,
-    setCategoryOrder: () => null
+    setCategoryOrder: () => null,
+    restore: () => null
   },
   theme: 'midnightMirage',
   setTheme: () => null,

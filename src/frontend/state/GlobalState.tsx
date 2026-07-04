@@ -532,6 +532,21 @@ class GlobalState extends PureComponent<Props> {
     configStore.set('games.customCategoriesOrder', newCustomCategoriesOrder)
   }
 
+  restoreCustomCategories = ({
+    customCategories,
+    customCategoriesOrder
+  }: {
+    customCategories: Record<string, string[]>
+    customCategoriesOrder: string[]
+  }) => {
+    this.setState({
+      customCategories,
+      customCategoriesOrder
+    })
+    configStore.set('games.customCategories', customCategories)
+    configStore.set('games.customCategoriesOrder', customCategoriesOrder)
+  }
+
   addGameToCustomCategory = (category: string, appName: string) => {
     const gamesInCategory = this.state.customCategories[category] || []
     gamesInCategory.push(appName)
@@ -1323,7 +1338,8 @@ class GlobalState extends PureComponent<Props> {
             addCategory: this.setCustomCategory,
             removeCategory: this.removeCustomCategory,
             renameCategory: this.renameCustomCategory,
-            setCategoryOrder: this.setCustomCategoriesOrder
+            setCategoryOrder: this.setCustomCategoriesOrder,
+            restore: this.restoreCustomCategories
           },
           handleLibraryTopSection: this.handleLibraryTopSection,
           handleExperimentalFeatures: this.handleExperimentalFeatures,
