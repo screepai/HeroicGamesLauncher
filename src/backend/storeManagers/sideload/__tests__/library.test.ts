@@ -509,6 +509,49 @@ describe('SideloadLibraryManager metadata backup and restore', () => {
     })
   })
 
+  it('detects Windows drive-root backup paths when restoring on Linux', async () => {
+    mockEnvironment.isLinux = true
+    mockEnvironment.isWindows = false
+    const backupPath = join(tempDirectory, 'backup.json')
+    await writeFile(
+      backupPath,
+      JSON.stringify({
+        exportedAt: '2026-07-02T00:00:00.000Z',
+        games: [
+          makeGame({
+            app_name: 'visual-novel-one',
+            folder_name: 'V:\\Visual Novel One',
+            install: {
+              executable: 'V:\\Visual Novel One\\game.exe',
+              platform: 'Windows'
+            },
+            title: 'Visual Novel One'
+          }),
+          makeGame({
+            app_name: 'visual-novel-two',
+            folder_name: 'V:\\Visual Novel Two',
+            install: {
+              executable: 'V:\\Visual Novel Two\\game.exe',
+              platform: 'Windows'
+            },
+            title: 'Visual Novel Two'
+          })
+        ],
+        version: 1
+      }),
+      'utf8'
+    )
+    const manager = new SideloadLibraryManager()
+
+    await expect(manager.inspectMetadataBackup(backupPath)).resolves.toEqual({
+      affectedGames: 2,
+      backupPathStyle: 'windows',
+      currentPathStyle: 'posix',
+      shouldPromptForPath: true,
+      sourcePath: 'V:\\'
+    })
+  })
+
   it('remaps restored Windows paths to a selected Linux folder', async () => {
     mockEnvironment.isLinux = true
     mockEnvironment.isWindows = false
@@ -547,6 +590,47 @@ describe('SideloadLibraryManager metadata backup and restore', () => {
         install: expect.objectContaining({
           executable: '/mnt/games/Visual Novel/game.exe',
           install_path: '/mnt/games/Visual Novel'
+        })
+      })
+    ])
+  })
+
+  it('remaps restored Windows drive-root paths to a selected Linux folder', async () => {
+    mockEnvironment.isLinux = true
+    mockEnvironment.isWindows = false
+    const backupPath = join(tempDirectory, 'backup.json')
+    await writeFile(
+      backupPath,
+      JSON.stringify({
+        exportedAt: '2026-07-02T00:00:00.000Z',
+        games: [
+          makeGame({
+            folder_name: 'V:\\Aibeya',
+            install: {
+              executable: 'V:\\Aibeya\\aibeya.exe',
+              platform: 'Windows'
+            }
+          })
+        ],
+        version: 1
+      }),
+      'utf8'
+    )
+    mockLibraryStoreGet.mockReturnValue([])
+    const manager = new SideloadLibraryManager()
+
+    await manager.restoreMetadata(backupPath, {
+      pathMapping: {
+        destinationPath: '/mnt/games',
+        sourcePath: 'V:\\'
+      }
+    })
+
+    expect(mockLibraryStoreSet).toHaveBeenCalledWith('games', [
+      expect.objectContaining({
+        folder_name: '/mnt/games/Aibeya',
+        install: expect.objectContaining({
+          executable: '/mnt/games/Aibeya/aibeya.exe'
         })
       })
     ])

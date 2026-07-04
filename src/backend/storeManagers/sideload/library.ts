@@ -156,10 +156,13 @@ function pathStartsWithRoot(
   const separator = pathStyle === 'windows' ? '\\' : '/'
   const comparableValue = getComparablePath(value, pathStyle)
   const comparableRoot = getComparablePath(root, pathStyle)
+  const comparableRootWithSeparator = comparableRoot.endsWith(separator)
+    ? comparableRoot
+    : `${comparableRoot}${separator}`
 
   return (
     comparableValue === comparableRoot ||
-    comparableValue.startsWith(`${comparableRoot}${separator}`)
+    comparableValue.startsWith(comparableRootWithSeparator)
   )
 }
 
