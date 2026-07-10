@@ -962,7 +962,9 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
   useEffect(() => {
     const shouldHydrateReleases =
       (match?.releases?.length ?? 0) <= 1 ||
-      releasesNeedLanguageTitles(match?.releases)
+      releasesNeedLanguageTitles(match?.releases) ||
+      (match !== null &&
+        getSelectedVndbReleases(match).some((release) => !release.engineKnown))
     const shouldHydrateDetails = match
       ? matchNeedsVisualNovelDetails(match)
       : false
@@ -972,7 +974,6 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
     }
 
     const selectedReleases = getSelectedVndbReleases(match)
-    const selectedRelease = selectedReleases[0]
     const mainVersion = getMainVersionInfo(match)
     if (!mainVersion.id.startsWith('v')) {
       return
@@ -1001,6 +1002,12 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
               selectedReleases
             )
           : mainResult.releases
+        const hydratedSelectedReleases = selectedReleases.map(
+          (selectedRelease) =>
+            releases?.find((release) => release.id === selectedRelease.id) ??
+            selectedRelease
+        )
+        const selectedRelease = hydratedSelectedReleases[0]
         const hasReleaseUpdate =
           releasesNeedLanguageTitles(match.releases) ||
           (releases?.length ?? 0) > (match.releases?.length ?? 0)
@@ -1037,7 +1044,10 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
               (match.selectedReleases !== undefined
                 ? undefined
                 : (match.latestRelease ?? mainResult.latestRelease)),
-            selectedReleases: match.selectedReleases,
+            selectedReleases:
+              match.selectedReleases === undefined
+                ? undefined
+                : hydratedSelectedReleases,
             releases,
             releaseVns:
               selectedRelease?.vns ??

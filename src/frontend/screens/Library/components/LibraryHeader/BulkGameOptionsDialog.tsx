@@ -144,8 +144,8 @@ export default function BulkGameOptionsDialog({ games, onClose }: Props) {
                 jpLocale === null
                   ? mixedLabel
                   : t(
-                      'setting.jp-locale-description',
-                      'Launch these games through the configured Locale Emulator executable.'
+                      'setting.jp-locale-bulk-description',
+                      'Enable the Japanese locale launch setting for these games.'
                     )
               }
             />

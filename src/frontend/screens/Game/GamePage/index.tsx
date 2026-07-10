@@ -70,6 +70,7 @@ import Requirements from './components/Requirements'
 import Scores from './components/Scores'
 import SettingsButton from './components/SettingsButton'
 import VndbInfo from './components/VndbInfo'
+import VnCompatibilityInfo from './components/VnCompatibilityInfo'
 import { hasAnticheatInfo } from 'frontend/hooks/hasAnticheatInfo'
 import { hasHelp } from 'frontend/hooks/hasHelp'
 import Genres from './components/Genres'
@@ -104,7 +105,9 @@ function vndbMatchNeedsGamePageDetails(match: VndbGameMatch) {
     match.rating === undefined ||
     match.lengthMinutes === undefined ||
     match.description === undefined ||
-    match.tags === undefined
+    match.tags === undefined ||
+    getSelectedVndbReleases(match).some((release) => !release.engineKnown) ||
+    match.releases?.some((release) => !release.engineKnown) === true
   )
 }
 
@@ -113,7 +116,8 @@ const gamePageTabs = [
   'achievements',
   'extra',
   'requirements',
-  'vndb'
+  'vndb',
+  'linuxCompatibility'
 ] as const
 
 type GamePageTab = (typeof gamePageTabs)[number]
@@ -379,13 +383,18 @@ export default React.memo(function GamePage(): JSX.Element | null {
         }
 
         const selectedReleases = getSelectedVndbReleases(vndbMatch)
-        const selectedRelease = selectedReleases[0]
         const releases = selectedReleases.length
           ? getVndbReleasesWithSelectedReleases(
               mainResult.releases,
               selectedReleases
             )
           : (mainResult.releases ?? vndbMatch.releases)
+        const hydratedSelectedReleases = selectedReleases.map(
+          (selectedRelease) =>
+            releases?.find((release) => release.id === selectedRelease.id) ??
+            selectedRelease
+        )
+        const selectedRelease = hydratedSelectedReleases[0]
         const updatedMatches = await window.api.vndb.syncGameMatches([
           {
             appName: vndbMatch.appName,
@@ -414,7 +423,10 @@ export default React.memo(function GamePage(): JSX.Element | null {
               (vndbMatch.selectedReleases !== undefined
                 ? undefined
                 : (vndbMatch.latestRelease ?? mainResult.latestRelease)),
-            selectedReleases: vndbMatch.selectedReleases,
+            selectedReleases:
+              vndbMatch.selectedReleases === undefined
+                ? undefined
+                : hydratedSelectedReleases,
             releases,
             releaseVns:
               selectedRelease?.vns ??
@@ -439,8 +451,10 @@ export default React.memo(function GamePage(): JSX.Element | null {
 
   useEffect(() => {
     if (
-      currentTab === 'vndb' &&
-      (!enableVndbIntegration || !gameInfo.isVisualNovel || !vndbMatch)
+      (currentTab === 'vndb' &&
+        (!enableVndbIntegration || !gameInfo.isVisualNovel || !vndbMatch)) ||
+      (currentTab === 'linuxCompatibility' &&
+        (!isLinux || !gameInfo.isVisualNovel))
     ) {
       setCurrentTab('info')
     }
@@ -712,6 +726,18 @@ export default React.memo(function GamePage(): JSX.Element | null {
                                 icon={<MenuBook className="gameInfoTabsIcon" />}
                               />
                             )}
+                          {isLinux && gameInfo.isVisualNovel && (
+                            <Tab
+                              className="tabButton"
+                              value={'linuxCompatibility'}
+                              label={t(
+                                'game.linux-compatibility',
+                                'Linux compatibility'
+                              )}
+                              iconPosition="start"
+                              icon={<MenuBook className="gameInfoTabsIcon" />}
+                            />
+                          )}
                           {hasRequirements && (
                             <Tab
                               className="tabButton"
@@ -783,6 +809,19 @@ export default React.memo(function GamePage(): JSX.Element | null {
                               />
                             </TabPanel>
                           )}
+
+                        {isLinux && gameInfo.isVisualNovel && (
+                          <TabPanel
+                            value={currentTab}
+                            index="linuxCompatibility"
+                            className="vnCompatibilityTab"
+                          >
+                            <VnCompatibilityInfo
+                              gameInfo={gameInfo}
+                              vndbMatch={vndbMatch}
+                            />
+                          </TabPanel>
+                        )}
 
                         <TabPanel
                           className="tabPanelRequirements"

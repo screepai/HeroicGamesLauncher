@@ -244,15 +244,19 @@ const InstalledInfo = ({ gameInfo, onIsVisualNovelChange }: Props) => {
             <b>{t('info.path')}:</b>{' '}
             <div className="truncatedPath">{appLocation}</div>
           </div>
-          {is.win && (
+          {(is.win || is.linux) && (
             <ToggleSwitch
               htmlId="jp-locale"
               value={jpLocale}
               handleChange={() => setJpLocale(!jpLocale)}
               title={t('setting.jp-locale', 'JP locale')}
               description={t(
-                'setting.jp-locale-description',
-                'Launch this game through the configured Locale Emulator executable.'
+                is.win
+                  ? 'setting.jp-locale-description'
+                  : 'setting.jp-locale-linux-description',
+                is.win
+                  ? 'Launch this game through the configured Locale Emulator executable.'
+                  : 'Set a Japanese locale and the Asia/Tokyo timezone when launching this game.'
               )}
             />
           )}

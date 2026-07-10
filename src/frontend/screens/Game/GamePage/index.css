@@ -512,6 +512,178 @@
         }
       }
 
+      & div.vnCompatibilityTab {
+        .vnCompatibilityInfo {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-md);
+          min-width: 0;
+          padding: var(--space-unit-fixed);
+        }
+
+        .vnCompatibilityHeader {
+          align-items: start;
+          border-bottom: 1px solid var(--neutral-04);
+          display: flex;
+          gap: var(--space-md);
+          justify-content: space-between;
+          padding-bottom: var(--space-unit-fixed);
+
+          h2 {
+            font-size: var(--text-lg);
+            margin: 0;
+          }
+
+          p {
+            color: var(--text-secondary);
+            margin: var(--space-3xs) 0 0;
+          }
+        }
+
+        .vnCompatibilitySource {
+          align-self: start;
+          background: none;
+          border: 0;
+          color: var(--accent);
+          cursor: pointer;
+          font: inherit;
+          padding: 0;
+          text-align: start;
+          white-space: nowrap;
+
+          &:hover,
+          &:focus-visible {
+            text-decoration: underline;
+          }
+        }
+
+        .vnCompatibilityEntries {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-md);
+        }
+
+        .vnCompatibilityEngineNotes {
+          background: var(--background-secondary, var(--background-lighter));
+          border-inline-start: 3px solid var(--accent);
+          padding: var(--space-unit-fixed);
+
+          h3 {
+            font-size: var(--text-md);
+            margin: 0;
+          }
+
+          ul {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+            margin: var(--space-sm) 0 0;
+            padding-inline-start: var(--space-xl);
+          }
+
+          li {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-3xs);
+            overflow-wrap: anywhere;
+          }
+
+          small {
+            color: var(--text-secondary);
+          }
+        }
+
+        .vnCompatibilityBasics,
+        .vnCompatibilitySetup {
+          background: var(--background-secondary, var(--background-lighter));
+          border-inline-start: 3px solid var(--accent);
+          padding: var(--space-unit-fixed);
+
+          h3,
+          h4 {
+            font-size: var(--text-md);
+            margin: 0;
+          }
+
+          p {
+            margin: var(--space-sm) 0 0;
+          }
+
+          ul {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-3xs);
+            margin: var(--space-sm) 0 0;
+            padding-inline-start: var(--space-xl);
+          }
+        }
+
+        .vnCompatibilitySetup {
+          border-block-start: 1px solid var(--neutral-04);
+          border-inline: 0;
+
+          & > div {
+            margin-top: var(--space-sm);
+            overflow-wrap: anywhere;
+          }
+
+          .vnCompatibilitySource {
+            margin-inline-start: var(--space-sm);
+          }
+
+          & > .vnCompatibilitySource {
+            display: block;
+            margin-top: var(--space-sm);
+          }
+        }
+
+        .vnCompatibilityEntry {
+          border: 1px solid var(--neutral-04);
+          border-radius: var(--space-3xs);
+          overflow: hidden;
+
+          h3 {
+            font-size: var(--text-md);
+            margin: 0;
+            padding: var(--space-unit-fixed);
+          }
+
+          dl {
+            margin: 0;
+
+            div {
+              border-top: 1px solid var(--neutral-04);
+              display: grid;
+              gap: var(--space-md-fixed);
+              grid-template-columns: minmax(120px, 0.4fr) minmax(0, 1fr);
+              padding: var(--space-unit-fixed);
+            }
+
+            dt {
+              font-weight: var(--bold);
+            }
+
+            dd {
+              margin: 0;
+              overflow-wrap: anywhere;
+            }
+          }
+        }
+
+        .vnCompatibilityNotes {
+          border-top: 1px solid var(--neutral-04);
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-3xs);
+          margin: 0;
+          padding: var(--space-unit-fixed) var(--space-xl);
+
+          li {
+            overflow-wrap: anywhere;
+          }
+        }
+      }
+
       & div.vndbTab {
         & > div {
           min-width: 0;

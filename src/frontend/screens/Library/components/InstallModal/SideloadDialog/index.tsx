@@ -563,15 +563,19 @@ export default function SideloadDialog({
                     'Identify this sideloaded game as a visual novel.'
                   )}
                 />
-                {platform === 'win32' && (
+                {(platform === 'win32' || platform === 'linux') && (
                   <ToggleSwitch
                     htmlId="jp-locale"
                     value={jpLocale}
                     handleChange={() => setJpLocale(!jpLocale)}
                     title={t('setting.jp-locale', 'JP locale')}
                     description={t(
-                      'setting.jp-locale-description',
-                      'Launch this game through the configured Locale Emulator executable.'
+                      platform === 'win32'
+                        ? 'setting.jp-locale-description'
+                        : 'setting.jp-locale-linux-description',
+                      platform === 'win32'
+                        ? 'Launch this game through the configured Locale Emulator executable.'
+                        : 'Set a Japanese locale and the Asia/Tokyo timezone when launching this game.'
                     )}
                   />
                 )}

@@ -7,6 +7,7 @@ import * as Wine from './wine'
 import * as DownloadManager from './downloadmanager'
 import * as Zoom from './zoom'
 import * as Vndb from './vndb'
+import * as VnCompatibility from './vnCompatibility'
 
 export default {
   ...Misc,
@@ -17,5 +18,6 @@ export default {
   ...Wine,
   ...DownloadManager,
   ...Zoom,
-  ...Vndb
+  ...Vndb,
+  ...VnCompatibility
 }

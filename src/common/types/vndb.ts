@@ -61,6 +61,8 @@ export interface VndbReleaseVisualNovel {
 export interface VndbRelease {
   id: string
   title: string
+  engine?: string
+  engineKnown?: boolean
   imageUrl?: string
   released?: string | null
   official?: boolean

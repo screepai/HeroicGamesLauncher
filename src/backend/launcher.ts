@@ -16,6 +16,7 @@ import {
   LaunchParams,
   StatusPromise
 } from 'common/types'
+import { japaneseLocaleEnv } from 'common/japaneseLocale'
 // This handles launching games, prefix creation etc..
 
 import i18next from 'i18next'
@@ -1087,6 +1088,12 @@ function setupEnvVars(gameSettings: GameSettings, installPath?: string) {
   if (isLinux && installPath) {
     // Used by steam runtime to mount the game directory to the container
     ret.STEAM_COMPAT_INSTALL_PATH = installPath
+  }
+
+  if (isLinux && gameSettings.jpLocale) {
+    // LC_ALL takes precedence for Wine and native games. HOST_LC_ALL makes
+    // the same locale available to Wine-GE and Proton-GE launch environments.
+    Object.assign(ret, japaneseLocaleEnv)
   }
 
   if (gameSettings.enviromentOptions) {

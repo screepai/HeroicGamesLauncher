@@ -65,6 +65,7 @@ import type {
   VndbUserDataSyncResult,
   VndbUserDataSyncTarget
 } from './vndb'
+import type { VnCompatibilityResult } from './vnCompatibility'
 import type { GetLogFileArgs } from 'backend/logger/paths'
 
 // ts-prune-ignore-next
@@ -492,6 +493,10 @@ interface AsyncIPCFunctions {
   'vndb.syncUserData': (
     targets: VndbUserDataSyncTarget[]
   ) => Promise<VndbUserDataSyncResult>
+  'vnCompatibility.get': (args: {
+    titles: string[]
+    engine?: string
+  }) => Promise<VnCompatibilityResult | null>
 }
 
 interface FrontendMessages {

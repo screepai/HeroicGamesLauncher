@@ -30,6 +30,7 @@ Heroic is built with Web Technologies:
 - [Heroic Games Launcher](#heroic-games-launcher)
   - [Index](#index)
   - [Features available right now](#features-available-right-now)
+  - [Features this fork has to offer](#features-this-fork-has-to-offer)
   - [Planned features](#planned-features)
   - [Supported Operating Systems](#supported-operating-systems)
   - [Language Support](#language-support)
@@ -86,7 +87,7 @@ Heroic is built with Web Technologies:
 - Type-to-search directly within the library, including matched VNDB titles and aliases
 - Local library folder watcher with persistent state, customizable exclusion rules, and optional archive detection
 - Built-in archive inspection and extraction with content selection, password-protected and multipart archive support, incomplete-archive diagnostics, and optional source cleanup
-- Per-game Visual Novel and Japanese Locale controls, including Locale Emulator support on Windows and locale launch flags on Linux [Windows, for now]
+- Per-game Visual Novel and Japanese Locale controls, including Locale Emulator support on Windows and locale launch flags on Linux
 - Bulk selection with Select All/Unselect All, batch categorization, and batch Visual Novel or Japanese Locale settings
 - Granular settings to enable or disable VNDB integration, VNDB account writes, game-card actions, VNDB Discord details, local-folder watching, archive detection, and post-extraction cleanup prompts
 

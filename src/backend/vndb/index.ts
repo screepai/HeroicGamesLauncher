@@ -124,6 +124,7 @@ type PartialVndbRelease = Partial<
     | 'official'
     | 'patch'
     | 'freeware'
+    | 'engine'
     | 'languages'
     | 'platforms'
   >
@@ -192,6 +193,7 @@ const releaseSearchFields = [
   'official',
   'patch',
   'freeware',
+  'engine',
   'languages{lang,title,latin,main,mtl}',
   'platforms',
   'vns{id,title,alttitle,titles{title,latin},aliases,rtype,released,image{url},relations{id,title,relation,relation_official,released,image{url}}}'
@@ -374,6 +376,8 @@ function mapReleaseSummary(release: PartialVndbRelease): VndbRelease {
   return {
     id: release.id,
     title: release.title,
+    engine: release.engine ?? undefined,
+    engineKnown: true,
     imageUrl: releaseVns.find((releaseVn) => releaseVn.imageUrl)?.imageUrl,
     released: release.released,
     official: release.official,
