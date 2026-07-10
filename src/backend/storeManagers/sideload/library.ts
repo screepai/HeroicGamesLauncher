@@ -110,6 +110,18 @@ type InspectSideloadLibraryMetadataBackupResult = {
   shouldPromptForPath: boolean
 }
 
+type PreparedSideloadLibraryMetadataRestore = {
+  added: number
+  backupGames: GameInfo[]
+  restoredAppNames: Set<string>
+  restoredGameSettings: Array<[string, Partial<GameSettings>]>
+  restoredGames: GameInfo[]
+  restoredOverrides: Array<[string, GameMetadataOverride]>
+  restoredPlaytime: LocalLibraryMetadataPlaytime
+  restoredVndbMatches: Array<[string, VndbGameMatch]>
+  updated: number
+}
+
 function getExecutableDir(executable: string): string {
   const pathStyle = getPathStyle(executable)
 
@@ -876,6 +888,54 @@ function parseMetadataBackup(rawBackup: string): SideloadLibraryMetadataBackup {
   }
 }
 
+function prepareMetadataRestore(
+  backup: SideloadLibraryMetadataBackup,
+  currentGames: GameInfo[],
+  pathMapping: RestoreSideloadLibraryMetadataPathMapping | undefined
+): PreparedSideloadLibraryMetadataRestore {
+  const backupGames = backup.games.map((game) =>
+    applyRestorePathMapping(game, pathMapping)
+  )
+  const currentByAppName = new Map(
+    currentGames.map((game) => [game.app_name, game])
+  )
+  let added = 0
+  let updated = 0
+
+  for (const game of backupGames) {
+    if (currentByAppName.has(game.app_name)) {
+      updated++
+    } else {
+      added++
+    }
+    currentByAppName.set(game.app_name, game)
+  }
+
+  const restoredAppNames = new Set(backupGames.map((game) => game.app_name))
+
+  return {
+    added,
+    backupGames,
+    restoredAppNames,
+    restoredGameSettings: Object.entries(backup.gameSettings ?? {}).filter(
+      (entry): entry is [string, Partial<GameSettings>] =>
+        restoredAppNames.has(entry[0]) && isRecord(entry[1])
+    ),
+    restoredGames: [...currentByAppName.values()],
+    restoredOverrides: Object.entries(backup.gameOverrides).filter(
+      (entry): entry is [string, GameMetadataOverride] =>
+        restoredAppNames.has(entry[0])
+    ),
+    restoredPlaytime: Object.fromEntries(
+      Object.entries(backup.playtime ?? {}).filter(([appName]) =>
+        restoredAppNames.has(appName)
+      )
+    ),
+    restoredVndbMatches: Object.entries(backup.vndbMatches),
+    updated
+  }
+}
+
 function getSideloadGameOverrides(
   games: GameInfo[]
 ): Record<string, GameMetadataOverride> {
@@ -1020,44 +1080,17 @@ export default class SideloadLibraryManager implements LibraryManager {
     options: RestoreSideloadLibraryMetadataOptions = {}
   ): Promise<RestoreSideloadLibraryMetadataResult> {
     const backup = parseMetadataBackup(await readFile(backupPath, 'utf8'))
-    const backupGames = backup.games.map((game) =>
-      applyRestorePathMapping(game, options.pathMapping)
+    const restore = prepareMetadataRestore(
+      backup,
+      libraryStore.get('games', []),
+      options.pathMapping
     )
-    const currentGames = libraryStore.get('games', [])
-    const currentByAppName = new Map(
-      currentGames.map((game) => [game.app_name, game])
-    )
-    let added = 0
-    let updated = 0
-
-    for (const game of backupGames) {
-      if (currentByAppName.has(game.app_name)) {
-        updated += 1
-      } else {
-        added += 1
-      }
-      currentByAppName.set(game.app_name, game)
-    }
-
-    const restoredAppNames = new Set(backupGames.map((game) => game.app_name))
-    const restoredOverrides = Object.entries(backup.gameOverrides).filter(
-      ([appName]) => restoredAppNames.has(appName)
-    )
-    const restoredVndbMatches = Object.entries(backup.vndbMatches)
     const restoredCategoryCount = backup.categories
       ? Object.keys(backup.categories.customCategories).length
       : 0
-    const restoredGameSettings = Object.entries(
-      backup.gameSettings ?? {}
-    ).filter(([appName]) => restoredAppNames.has(appName))
-    const restoredPlaytime = Object.fromEntries(
-      Object.entries(backup.playtime ?? {}).filter(([appName]) =>
-        restoredAppNames.has(appName)
-      )
-    )
     let restoredCategories: LocalLibraryMetadataCategories | undefined
 
-    for (const [appName, override] of restoredOverrides) {
+    for (const [appName, override] of restore.restoredOverrides) {
       setGameOverrides(appName, override)
     }
 
@@ -1076,41 +1109,40 @@ export default class SideloadLibraryManager implements LibraryManager {
     if (backup.categories) {
       restoredCategories = restoreLocalLibraryCategories(
         backup.categories,
-        backupGames
+        restore.backupGames
       )
     }
 
     restoreLocalLibraryGameSettings(
-      Object.fromEntries(restoredGameSettings),
-      restoredAppNames
+      Object.fromEntries(restore.restoredGameSettings),
+      restore.restoredAppNames
     )
-    restoreLocalLibraryPlaytime(restoredPlaytime)
+    restoreLocalLibraryPlaytime(restore.restoredPlaytime)
 
     const currentVndbMatches = vndbMatchesStore.get('matches', {})
-    for (const [key, match] of restoredVndbMatches) {
+    for (const [key, match] of restore.restoredVndbMatches) {
       currentVndbMatches[key] = match
     }
 
-    const restoredGames = [...currentByAppName.values()]
-    libraryStore.set('games', restoredGames)
+    libraryStore.set('games', restore.restoredGames)
     vndbMatchesStore.set('matches', currentVndbMatches)
     sendFrontendMessage('metadataChanged', getAllGameOverrides())
     sendFrontendMessage('vndbMatchesChanged', currentVndbMatches)
     sendFrontendMessage('refreshLibrary', 'sideload')
 
     return {
-      added,
+      added: restore.added,
       categories: restoredCategoryCount,
       customCategories: restoredCategories,
-      gameSettings: restoredGameSettings.length,
-      updated,
-      total: restoredGames.length,
-      overrides: restoredOverrides.length,
+      gameSettings: restore.restoredGameSettings.length,
+      updated: restore.updated,
+      total: restore.restoredGames.length,
+      overrides: restore.restoredOverrides.length,
       localLibrarySettings: backup.localLibrarySettings,
-      playtime: Object.keys(restoredPlaytime).length,
+      playtime: Object.keys(restore.restoredPlaytime).length,
       steamGridDbApiKey: Boolean(backup.steamGridDbApiKey),
       vndbApiToken: Boolean(backup.vndbApiToken),
-      vndbMatches: restoredVndbMatches.length
+      vndbMatches: restore.restoredVndbMatches.length
     }
   }
 

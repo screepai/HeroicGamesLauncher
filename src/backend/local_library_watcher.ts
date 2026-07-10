@@ -25,6 +25,7 @@ type LocalLibraryFolder = {
 type LocalLibraryWatcherOptions = {
   entryStableChecks?: number
   entryStabilityIntervalMs?: number
+  maxConcurrentStabilityChecks?: number
   watchDebounceMs?: number
 }
 
@@ -33,6 +34,7 @@ type EntryStabilitySignature = string | null | undefined
 const WATCH_DEBOUNCE_MS = 500
 const ENTRY_STABILITY_INTERVAL_MS = 1000
 const ENTRY_STABLE_CHECKS = 2
+const MAX_CONCURRENT_STABILITY_CHECKS = 2
 
 function getLibraryEntryNames(
   entries: Dirent[],
@@ -205,6 +207,8 @@ class LocalLibraryWatcher {
   private pendingEntries = new Set<string>()
   private queuedEntries: LocalLibraryFolder[] = []
   private suppressedEntries = new Set<string>()
+  private activeStabilityChecks = 0
+  private stabilityCheckQueue: Array<() => void> = []
   private exclusionRules: string[] = []
   private detectArchives = true
   private watcher: FSWatcher | undefined
@@ -212,6 +216,7 @@ class LocalLibraryWatcher {
   private revision = 0
   private readonly entryStableChecks: number
   private readonly entryStabilityIntervalMs: number
+  private readonly maxConcurrentStabilityChecks: number
   private readonly watchDebounceMs: number
 
   constructor(
@@ -222,6 +227,10 @@ class LocalLibraryWatcher {
     this.entryStableChecks = options.entryStableChecks ?? ENTRY_STABLE_CHECKS
     this.entryStabilityIntervalMs =
       options.entryStabilityIntervalMs ?? ENTRY_STABILITY_INTERVAL_MS
+    this.maxConcurrentStabilityChecks = Math.max(
+      1,
+      options.maxConcurrentStabilityChecks ?? MAX_CONCURRENT_STABILITY_CHECKS
+    )
     this.watchDebounceMs = options.watchDebounceMs ?? WATCH_DEBOUNCE_MS
   }
 
@@ -479,11 +488,32 @@ class LocalLibraryWatcher {
     }
   }
 
+  private async acquireStabilityCheck(): Promise<() => void> {
+    if (this.activeStabilityChecks < this.maxConcurrentStabilityChecks) {
+      this.activeStabilityChecks++
+    } else {
+      await new Promise<void>((resolve) => {
+        this.stabilityCheckQueue.push(resolve)
+      })
+    }
+
+    return () => {
+      const nextCheck = this.stabilityCheckQueue.shift()
+      if (nextCheck) {
+        nextCheck()
+      } else {
+        this.activeStabilityChecks--
+      }
+    }
+  }
+
   private async reportAddedEntryWhenReady(
     entryName: string,
     rootPath: string,
     revision: number
   ): Promise<void> {
+    const releaseStabilityCheck = await this.acquireStabilityCheck()
+
     try {
       const archiveExtension = getArchiveExtension(entryName)
       const folderPath = join(rootPath, entryName)
@@ -511,6 +541,7 @@ class LocalLibraryWatcher {
       await this.queueEntry(rootPath, folder)
       this.onFolderAdded(folder)
     } finally {
+      releaseStabilityCheck()
       this.pendingEntries.delete(entryName)
 
       if (rootPath === this.rootPath && revision === this.revision) {
