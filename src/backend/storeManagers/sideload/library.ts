@@ -538,22 +538,19 @@ function restoreLocalLibraryPlaytime(
 async function readGameSettingsBackup(
   appName: string
 ): Promise<Partial<GameSettings> | undefined> {
-  const rawConfig = await readFile(
-    join(gamesConfigPath, `${appName}.json`),
-    'utf8'
-  ).catch(() => undefined)
+  try {
+    const rawConfig = await readFile(
+      join(gamesConfigPath, `${appName}.json`),
+      'utf8'
+    )
+    const parsed: unknown = JSON.parse(rawConfig)
 
-  if (!rawConfig) {
+    return isRecord(parsed) && isRecord(parsed[appName])
+      ? (parsed[appName] as Partial<GameSettings>)
+      : undefined
+  } catch {
     return undefined
   }
-
-  const parsed: unknown = JSON.parse(rawConfig)
-
-  if (!isRecord(parsed) || !isRecord(parsed[appName])) {
-    return undefined
-  }
-
-  return parsed[appName] as Partial<GameSettings>
 }
 
 async function getLocalLibraryGameSettings(
@@ -562,7 +559,7 @@ async function getLocalLibraryGameSettings(
   const settings = await Promise.all(
     games.map(async (game) => [
       game.app_name,
-      await readGameSettingsBackup(game.app_name).catch(() => undefined)
+      await readGameSettingsBackup(game.app_name)
     ])
   )
 

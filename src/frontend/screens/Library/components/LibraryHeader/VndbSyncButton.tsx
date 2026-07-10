@@ -10,8 +10,7 @@ import type {
   VndbGameMatch,
   VndbGameMatchSuggestion,
   VndbRelease,
-  VndbSearchResult,
-  VndbUserDataSyncTarget
+  VndbSearchResult
 } from 'common/types/vndb'
 import {
   CachedImage,
@@ -26,6 +25,11 @@ import {
   DialogHeader
 } from 'frontend/components/UI/Dialog'
 import fallbackImage from 'frontend/assets/heroic_card.jpg'
+import {
+  getGameVndbMatchKey,
+  getVndbMatchKey,
+  getVndbUserDataSyncTarget
+} from 'common/vndb'
 import {
   getVndbReleasesWithSelectedReleases,
   getVndbReleaseMainVisualNovelId,
@@ -63,14 +67,6 @@ type PickerResultSection = {
   language?: string
   isMainSection: boolean
   items: PickerResultItem[]
-}
-
-function getGameKey(game: Pick<GameInfo, 'runner' | 'app_name'>): string {
-  return `${game.runner}:${game.app_name}`
-}
-
-function getMatchKey(match: Pick<VndbGameMatch, 'runner' | 'appName'>): string {
-  return `${match.runner}:${match.appName}`
 }
 
 function storedMatchToResult(match: VndbGameMatch): VndbSearchResult {
@@ -121,15 +117,6 @@ function isMatchableGame(game: GameInfo): boolean {
     Boolean(getDisplayTitle(game).trim()) &&
     !game.install.is_dlc
   )
-}
-
-function getVndbUserDataSyncTarget(game: GameInfo): VndbUserDataSyncTarget {
-  return {
-    appName: game.app_name,
-    runner: game.runner,
-    installedAt: game.install.installed_at,
-    installPath: game.install.install_path || game.folder_name
-  }
 }
 
 function getSortedReleases(result: VndbSearchResult) {
@@ -538,7 +525,9 @@ export default function VndbSyncButton({
   const matchableGames = useMemo(() => list.filter(isMatchableGame), [list])
   const matchableGamesByKey = useMemo(
     () =>
-      new Map(matchableGames.map((game) => [getGameKey(game), game] as const)),
+      new Map(
+        matchableGames.map((game) => [getGameVndbMatchKey(game), game] as const)
+      ),
     [matchableGames]
   )
 
@@ -557,25 +546,25 @@ export default function VndbSyncButton({
       }))
       const storedMatches = await window.api.vndb.getAllGameMatches()
       const unmatchedTargets = targets.filter(
-        (target) => !storedMatches[getMatchKey(target)]
+        (target) => !storedMatches[getVndbMatchKey(target)]
       )
       const matchedSuggestions = unmatchedTargets.length
         ? await window.api.vndb.matchGames(unmatchedTargets)
         : []
       const matchedResults = new Map(
         matchedSuggestions.map((suggestion) => [
-          getMatchKey(suggestion.game),
+          getVndbMatchKey(suggestion.game),
           suggestion.result
         ])
       )
       const nextSuggestions = targets.map((game) => ({
         game,
-        result: matchedResults.get(getMatchKey(game)) ?? null
+        result: matchedResults.get(getVndbMatchKey(game)) ?? null
       }))
       const nextSelectedMatches: MatchState = {}
 
       for (const suggestion of nextSuggestions) {
-        const key = getMatchKey(suggestion.game)
+        const key = getVndbMatchKey(suggestion.game)
         const storedMatch = storedMatches[key]
         nextSelectedMatches[key] =
           getSelectedMatchFromStoredMatch(storedMatch) ?? suggestion.result
@@ -635,7 +624,7 @@ export default function VndbSyncButton({
   }
 
   function openPicker(suggestion: VndbGameMatchSuggestion) {
-    const key = getMatchKey({
+    const key = getVndbMatchKey({
       appName: suggestion.game.appName,
       runner: suggestion.game.runner
     })
@@ -726,7 +715,7 @@ export default function VndbSyncButton({
     try {
       const updatedMatches = await window.api.vndb.syncGameMatches(
         suggestions.map((suggestion) => {
-          const key = getMatchKey({
+          const key = getVndbMatchKey({
             appName: suggestion.game.appName,
             runner: suggestion.game.runner
           })
@@ -763,7 +752,7 @@ export default function VndbSyncButton({
         })
       )
       await window.api.vndb.syncUserData(
-        matchableGames.map(getVndbUserDataSyncTarget)
+        matchableGames.map((game) => getVndbUserDataSyncTarget(game))
       )
       onMatchesChange?.(updatedMatches)
       closeDialog()
@@ -781,7 +770,7 @@ export default function VndbSyncButton({
 
     try {
       await window.api.vndb.syncUserData(
-        matchableGames.map(getVndbUserDataSyncTarget)
+        matchableGames.map((game) => getVndbUserDataSyncTarget(game))
       )
     } catch (err) {
       console.error(err)
@@ -795,7 +784,7 @@ export default function VndbSyncButton({
 
   const pickerSuggestion = suggestions.find(
     (suggestion) =>
-      getMatchKey({
+      getVndbMatchKey({
         appName: suggestion.game.appName,
         runner: suggestion.game.runner
       }) === pickerGameKey
@@ -1021,7 +1010,7 @@ export default function VndbSyncButton({
 
                 <div className="vndbSyncRows">
                   {suggestions.map((suggestion) => {
-                    const key = getMatchKey({
+                    const key = getVndbMatchKey({
                       appName: suggestion.game.appName,
                       runner: suggestion.game.runner
                     })

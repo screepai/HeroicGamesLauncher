@@ -57,6 +57,10 @@
   margin-top: 0;
 }
 
+.generalSettings .smallMessage {
+  text-align: start;
+}
+
 .settingsWrapper > .backButton {
   position: absolute;
   top: 2rem;

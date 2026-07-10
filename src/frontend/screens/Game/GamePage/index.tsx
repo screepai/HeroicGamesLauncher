@@ -40,6 +40,7 @@ import {
   GameAchievement
 } from 'common/types'
 import type { VndbGameMatch } from 'common/types/vndb'
+import { getVndbMatchKey } from 'common/vndb'
 
 import GamePicture from '../GamePicture'
 import TimeContainer from '../TimeContainer'
@@ -81,10 +82,6 @@ import SettingsContext from 'frontend/screens/Settings/SettingsContext'
 import useGlobalState from 'frontend/state/GlobalStateV2'
 import Achievements from './components/Achievements'
 import { LaunchOptionSelector } from 'frontend/screens/Settings/components'
-
-function getVndbMatchKey(match: Pick<VndbGameMatch, 'runner' | 'appName'>) {
-  return `${match.runner}:${match.appName}`
-}
 
 function getVndbMatchMainVisualNovelId(
   match: VndbGameMatch

@@ -36,6 +36,7 @@ const PASSWORD_ERROR_PATTERN =
   /cannot open encrypted archive|wrong password|data error in encrypted file/i
 const INCOMPLETE_ARCHIVE_ERROR_PATTERN =
   /unexpected end of archive|missing volume|cannot find volume/i
+const BACKSPACE_CHARACTER = String.fromCharCode(8)
 
 function getArchivePasswordArgument(password?: string): string {
   return `-p${password ?? ''}`
@@ -342,6 +343,10 @@ async function pruneExtractedTree(
   }
 }
 
+async function removeStagingPath(stagingPath: string): Promise<void> {
+  await fs.rm(stagingPath, { recursive: true, force: true }).catch(() => {})
+}
+
 async function moveExtractionResult(
   stagingPath: string,
   destinationPath: string,
@@ -350,7 +355,7 @@ async function moveExtractionResult(
 ): Promise<void> {
   if (rootPath) {
     await fs.rename(join(stagingPath, ...rootPath.split('/')), destinationPath)
-    await fs.rm(stagingPath, { recursive: true, force: true }).catch(() => {})
+    await removeStagingPath(stagingPath)
     return
   }
 
@@ -376,7 +381,7 @@ async function moveExtractionResult(
     }
 
     await fs.rename(extractionRoot, destinationPath)
-    await fs.rm(stagingPath, { recursive: true, force: true }).catch(() => {})
+    await removeStagingPath(stagingPath)
     return
   }
 
@@ -545,9 +550,9 @@ async function extractLocalLibraryArchive({
       outputBuffer = lines.pop() ?? ''
 
       for (const outputLine of lines) {
-        const line = outputLine.trim()
-        const percentMatch = /^(\d{1,3})%/.exec(line)
-        const fileMatch = /^-\s+(.+)$/.exec(line)
+        const line = outputLine.replaceAll(BACKSPACE_CHARACTER, '').trim()
+        const percentMatch = /(\d{1,3})%/.exec(line)
+        const fileMatch = /(?:^|\s)-\s+(.+)$/.exec(line)
         const extractedPath = fileMatch?.[1]
         const nextPercent =
           line === 'Everything is Ok'
@@ -584,6 +589,7 @@ async function extractLocalLibraryArchive({
       { windowsHide: true },
       handleOutput
     )
+    handleOutput('\n')
 
     if (code !== 0) {
       throw getArchiveCommandError(
@@ -610,7 +616,7 @@ async function extractLocalLibraryArchive({
       title: normalizedDestinationName
     }
   } catch (error) {
-    await fs.rm(stagingPath, { recursive: true, force: true }).catch(() => {})
+    await removeStagingPath(stagingPath)
     throw error
   }
 }

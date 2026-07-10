@@ -18,7 +18,7 @@ export default function VndbApiToken() {
   const onChange = (newValue: string) => {
     setValue(newValue)
     void window.api.vndb.setApiToken(newValue).then(() => {
-      const nextHasToken = !!newValue
+      const nextHasToken = Boolean(newValue.trim())
       setHasToken(nextHasToken)
       dispatchVndbApiTokenChanged(nextHasToken)
     })

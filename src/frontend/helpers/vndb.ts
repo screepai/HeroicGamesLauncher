@@ -189,13 +189,6 @@ export function sortVndbReleasesByDate(releases: VndbRelease[]): VndbRelease[] {
   return sortVndbItemsByDate(releases)
 }
 
-export function getVndbReleasesWithSelectedRelease(
-  releases: VndbRelease[] | undefined,
-  selectedRelease: VndbRelease
-): VndbRelease[] {
-  return getVndbReleasesWithSelectedReleases(releases, [selectedRelease])
-}
-
 export function getVndbReleasesWithSelectedReleases(
   releases: VndbRelease[] | undefined,
   selectedReleases: VndbRelease[]
@@ -296,10 +289,9 @@ export function normalizeVndbSelectedMatch(
   const mainVisualNovel = getReleaseMainVisualNovel(result)
 
   if (mainResult?.source === 'visualNovel') {
-    const releases = getVndbReleasesWithSelectedRelease(
-      mainResult.releases,
+    const releases = getVndbReleasesWithSelectedReleases(mainResult.releases, [
       release
-    )
+    ])
 
     return {
       ...mainResult,
@@ -338,7 +330,7 @@ export function normalizeVndbSelectedMatch(
     mainRelation: mainVisualNovel.mainRelation,
     latestRelease: release,
     selectedReleases: [release],
-    releases: getVndbReleasesWithSelectedRelease(result.releases, release),
+    releases: getVndbReleasesWithSelectedReleases(result.releases, [release]),
     releaseVns: release.vns
   }
 }

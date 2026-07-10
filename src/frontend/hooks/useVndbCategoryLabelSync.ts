@@ -5,6 +5,7 @@ import {
   getVndbCategorySyncPlan,
   getVndbMatchVisualNovelId
 } from 'common/vndbCategorySync'
+import { getGameVndbMatchKey } from 'common/vndb'
 import ContextProvider from 'frontend/state/ContextProvider'
 import { useCallback, useContext } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -16,10 +17,6 @@ interface CategoryLabelSyncCandidate {
   vnId: string
   nextLabelIds: number[]
   previousCategory: string | undefined
-}
-
-function getMatchKey(game: GameInfo): string {
-  return `${game.runner}:${game.app_name}`
 }
 
 function getDisplayTitle(game: GameInfo): string {
@@ -49,7 +46,8 @@ export default function useVndbCategoryLabelSync() {
       }
       const preparationResults = await Promise.allSettled(
         games.map(async (game): Promise<CategoryLabelSyncCandidate | null> => {
-          const match: VndbGameMatch | undefined = matches[getMatchKey(game)]
+          const match: VndbGameMatch | undefined =
+            matches[getGameVndbMatchKey(game)]
           if (!match) {
             return null
           }

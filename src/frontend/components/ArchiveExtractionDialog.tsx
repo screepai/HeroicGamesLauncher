@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Checkbox,
@@ -6,11 +6,9 @@ import {
   FormControlLabel,
   LinearProgress
 } from '@mui/material'
-import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
 import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
 
 import type {
-  LocalLibraryArchiveEntry,
   LocalLibraryArchiveExtractionProgress,
   LocalLibraryArchiveInfo,
   LocalLibraryWatchEntry
@@ -24,13 +22,21 @@ import {
   DialogFooter,
   DialogHeader
 } from 'frontend/components/UI/Dialog'
+import {
+  ArchiveTreeItem,
+  buildArchiveTree,
+  getAllSelectablePaths,
+  getSelectablePaths,
+  type ArchiveTreeNode
+} from './ArchiveExtractionDialog/ArchiveTree'
+import {
+  isArchivePartsError,
+  isIncompleteArchiveError,
+  isPasswordError,
+  isValidFolderName
+} from './ArchiveExtractionDialog/logic'
 
 import './ArchiveExtractionDialog/index.css'
-
-type ArchiveTreeNode = LocalLibraryArchiveEntry & {
-  children: ArchiveTreeNode[]
-  name: string
-}
 
 type Props = {
   archive: LocalLibraryWatchEntry
@@ -54,194 +60,6 @@ type Stage =
   | 'extracting'
   | 'delete-prompt'
   | 'deleting'
-
-const PASSWORD_ERROR_MESSAGE = 'Archive password is required or incorrect'
-const INCOMPLETE_ARCHIVE_ERROR_MESSAGE =
-  'The archive is incomplete. Add the remaining parts and try again.'
-const MISSING_ARCHIVE_PARTS_ERROR_MESSAGE = 'Archive parts are missing:'
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : ''
-}
-
-function isPasswordError(error: unknown): boolean {
-  return getErrorMessage(error).includes(PASSWORD_ERROR_MESSAGE)
-}
-
-function isIncompleteArchiveError(error: unknown): boolean {
-  return getErrorMessage(error).includes(INCOMPLETE_ARCHIVE_ERROR_MESSAGE)
-}
-
-function isMissingArchivePartsError(error: unknown): boolean {
-  return getErrorMessage(error).includes(MISSING_ARCHIVE_PARTS_ERROR_MESSAGE)
-}
-
-function isArchivePartsError(error: unknown): boolean {
-  return isIncompleteArchiveError(error) || isMissingArchivePartsError(error)
-}
-
-function buildArchiveTree(
-  entries: LocalLibraryArchiveEntry[]
-): ArchiveTreeNode[] {
-  const nodes = new Map<string, ArchiveTreeNode>()
-
-  for (const entry of entries) {
-    nodes.set(entry.path, {
-      ...entry,
-      children: [],
-      name: entry.path.split('/').pop() ?? entry.path
-    })
-  }
-
-  const roots: ArchiveTreeNode[] = []
-  for (const node of nodes.values()) {
-    const separatorIndex = node.path.lastIndexOf('/')
-    const parentPath =
-      separatorIndex === -1 ? undefined : node.path.slice(0, separatorIndex)
-    const parent = parentPath ? nodes.get(parentPath) : undefined
-
-    if (parent) {
-      parent.children.push(node)
-    } else {
-      roots.push(node)
-    }
-  }
-
-  const sortNodes = (treeNodes: ArchiveTreeNode[]) => {
-    treeNodes.sort(
-      (left, right) =>
-        Number(right.isDirectory) - Number(left.isDirectory) ||
-        left.name.localeCompare(right.name)
-    )
-    treeNodes.forEach((node) => sortNodes(node.children))
-  }
-  sortNodes(roots)
-
-  return roots
-}
-
-function getSelectablePaths(node: ArchiveTreeNode): string[] {
-  if (!node.isDirectory || node.children.length === 0) {
-    return [node.path]
-  }
-
-  return node.children.flatMap(getSelectablePaths)
-}
-
-function getAllSelectablePaths(nodes: ArchiveTreeNode[]): string[] {
-  return nodes.flatMap(getSelectablePaths)
-}
-
-function isValidFolderName(folderName: string): boolean {
-  const normalizedName = folderName.trim()
-  const hasControlCharacter = [...normalizedName].some(
-    (character) => character.charCodeAt(0) < 32
-  )
-  return (
-    normalizedName.length > 0 &&
-    normalizedName !== '.' &&
-    normalizedName !== '..' &&
-    !hasControlCharacter &&
-    !/[<>:"/\\|?*]/.test(normalizedName) &&
-    !/[. ]$/.test(normalizedName)
-  )
-}
-
-const ArchiveTreeItem = memo(function ArchiveTreeItem({
-  node,
-  selectedPaths,
-  finalRootPath,
-  onToggle,
-  onSelectFinalRoot
-}: {
-  node: ArchiveTreeNode
-  selectedPaths: Set<string>
-  finalRootPath: string | null
-  onToggle: (paths: string[], selected: boolean) => void
-  onSelectFinalRoot: (node: ArchiveTreeNode) => void
-}) {
-  const { t } = useTranslation()
-  const selectablePaths = getSelectablePaths(node)
-  const selectedCount = selectablePaths.filter((path) =>
-    selectedPaths.has(path)
-  ).length
-  const checked = selectedCount === selectablePaths.length
-  const indeterminate = selectedCount > 0 && !checked
-  const selectableWithinRoot =
-    !finalRootPath ||
-    node.path === finalRootPath ||
-    node.path.startsWith(`${finalRootPath}/`)
-
-  return (
-    <li>
-      <div className="archiveTreeRow">
-        <FormControlLabel
-          className="archiveTreeLabel"
-          control={
-            <Checkbox
-              className="archiveTreeCheckbox"
-              checked={checked}
-              disabled={!selectableWithinRoot}
-              indeterminate={indeterminate}
-              onChange={() => onToggle(selectablePaths, !checked)}
-              size="small"
-            />
-          }
-          label={
-            <span className="archiveTreeEntry">
-              {node.isDirectory ? (
-                <FolderOutlinedIcon fontSize="small" />
-              ) : (
-                <InsertDriveFileOutlinedIcon fontSize="small" />
-              )}
-              <span>{node.name}</span>
-            </span>
-          }
-        />
-        {node.isDirectory && (
-          <button
-            className={[
-              'archiveFinalRootButton',
-              finalRootPath === node.path ? 'is-selected' : ''
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            type="button"
-            aria-pressed={finalRootPath === node.path}
-            aria-label={t(
-              'box.local-library-archive.use-folder-as-final',
-              'Use {{folder}} as the final folder',
-              { folder: node.name }
-            )}
-            onClick={() => onSelectFinalRoot(node)}
-          >
-            {finalRootPath === node.path && <span aria-hidden="true">✓</span>}
-            {finalRootPath === node.path
-              ? t('box.local-library-archive.final-folder', 'Final folder')
-              : t(
-                  'box.local-library-archive.use-as-final-folder',
-                  'Use as final'
-                )}
-          </button>
-        )}
-      </div>
-      {node.children.length > 0 && (
-        <ul>
-          {node.children.map((child) => (
-            <ArchiveTreeItem
-              key={child.path}
-              node={child}
-              selectedPaths={selectedPaths}
-              finalRootPath={finalRootPath}
-              onToggle={onToggle}
-              onSelectFinalRoot={onSelectFinalRoot}
-            />
-          ))}
-        </ul>
-      )}
-    </li>
-  )
-})
 
 export default function ArchiveExtractionDialog({
   archive,

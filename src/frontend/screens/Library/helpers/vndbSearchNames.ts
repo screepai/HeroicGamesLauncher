@@ -1,11 +1,5 @@
-import type { GameInfo } from 'common/types'
 import type { VndbGameMatch } from 'common/types/vndb'
-
-export function getGameVndbMatchKey(
-  game: Pick<GameInfo, 'runner' | 'app_name'>
-) {
-  return `${game.runner}:${game.app_name}`
-}
+export { getGameVndbMatchKey } from 'common/vndb'
 
 function getUniqueSearchNames(values: Array<string | null | undefined>) {
   return [

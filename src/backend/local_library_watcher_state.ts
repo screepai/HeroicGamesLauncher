@@ -117,6 +117,32 @@ async function readStateData(): Promise<LocalLibraryWatcherStateData> {
   }
 }
 
+async function writeStateData(stateData: LocalLibraryWatcherStateData) {
+  try {
+    await fs.mkdir(dirname(statePath), { recursive: true })
+    const temporaryPath = `${statePath}.tmp`
+    await fs.writeFile(temporaryPath, JSON.stringify(stateData, null, 2))
+    await fs.rename(temporaryPath, statePath)
+  } catch (error) {
+    logWarning(
+      ['Unable to save the local library watcher state:', error],
+      LogPrefix.Backend
+    )
+  }
+}
+
+function saveStateData(
+  update: (stateData: LocalLibraryWatcherStateData) => void
+): Promise<void> {
+  pendingWrite = pendingWrite.then(async () => {
+    const stateData = await readStateData()
+    update(stateData)
+    await writeStateData(stateData)
+  })
+
+  return pendingWrite
+}
+
 const localLibraryWatcherState: LocalLibraryWatcherState = {
   async load(rootPath) {
     await pendingWrite
@@ -130,45 +156,15 @@ const localLibraryWatcherState: LocalLibraryWatcherState = {
   },
 
   save(rootPath, entries) {
-    pendingWrite = pendingWrite.then(async () => {
-      const stateData = await readStateData()
+    return saveStateData((stateData) => {
       stateData.snapshots[resolve(rootPath)] = [...entries].sort()
-
-      try {
-        await fs.mkdir(dirname(statePath), { recursive: true })
-        const temporaryPath = `${statePath}.tmp`
-        await fs.writeFile(temporaryPath, JSON.stringify(stateData, null, 2))
-        await fs.rename(temporaryPath, statePath)
-      } catch (error) {
-        logWarning(
-          ['Unable to save the local library watcher state:', error],
-          LogPrefix.Backend
-        )
-      }
     })
-
-    return pendingWrite
   },
 
   saveQueue(rootPath, entries) {
-    pendingWrite = pendingWrite.then(async () => {
-      const stateData = await readStateData()
+    return saveStateData((stateData) => {
       stateData.queues[resolve(rootPath)] = entries
-
-      try {
-        await fs.mkdir(dirname(statePath), { recursive: true })
-        const temporaryPath = `${statePath}.tmp`
-        await fs.writeFile(temporaryPath, JSON.stringify(stateData, null, 2))
-        await fs.rename(temporaryPath, statePath)
-      } catch (error) {
-        logWarning(
-          ['Unable to save the local library watcher state:', error],
-          LogPrefix.Backend
-        )
-      }
     })
-
-    return pendingWrite
   }
 }
 

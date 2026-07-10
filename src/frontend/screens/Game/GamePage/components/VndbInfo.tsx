@@ -1,5 +1,4 @@
 import type {
-  VndbUserDataSyncTarget,
   VndbGameMatch,
   VndbRelation,
   VndbRelease,
@@ -26,6 +25,7 @@ import useAppSetting, {
   APP_SETTING_CHANGED_EVENT
 } from 'frontend/hooks/useAppSetting'
 import { getVndbCategorySyncPlan } from 'common/vndbCategorySync'
+import { getVndbMatchKey, getVndbUserDataSyncTarget } from 'common/vndb'
 import ContextProvider from 'frontend/state/ContextProvider'
 import {
   getSelectedVndbRelease,
@@ -117,20 +117,6 @@ function getLanguageList(languages: string[], locale: string): string {
 
 function getRelationTitle(relation: VndbRelation): string {
   return `${relation.title} (${relation.relationLabel})`
-}
-
-function getMatchKey(match: Pick<VndbGameMatch, 'runner' | 'appName'>): string {
-  return `${match.runner}:${match.appName}`
-}
-
-function getVndbUserDataSyncTarget(gameInfo: GameInfo): VndbUserDataSyncTarget {
-  return {
-    appName: gameInfo.app_name,
-    runner: gameInfo.runner,
-    installedAt: gameInfo.install.installed_at,
-    installPath: gameInfo.install.install_path || gameInfo.folder_name,
-    includeReleases: false
-  }
 }
 
 function getSortedReleases(match: VndbGameMatch): VndbRelease[] {
@@ -899,7 +885,7 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
     useState<VndbUserOptionsState>({ status: 'idle' })
   const userOptionsVnId = match ? getMainVersionInfo(match).id : ''
   const userDataSyncTarget = useMemo(
-    () => getVndbUserDataSyncTarget(gameInfo),
+    () => getVndbUserDataSyncTarget(gameInfo, false),
     [gameInfo]
   )
   const applyCategorySync = useCallback(
@@ -1062,7 +1048,7 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
         ])
 
         if (isMounted) {
-          onMatchChange(updatedMatches[getMatchKey(match)])
+          onMatchChange(updatedMatches[getVndbMatchKey(match)])
         }
       })
       .catch((error) => {
@@ -1192,7 +1178,7 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
         }
       ])
 
-      onMatchChange(updatedMatches[getMatchKey(match)] ?? nextMatch)
+      onMatchChange(updatedMatches[getVndbMatchKey(match)] ?? nextMatch)
     } catch (error) {
       console.error(error)
       setReleaseSaveError(

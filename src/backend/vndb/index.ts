@@ -30,6 +30,7 @@ import type {
   VndbUserOptionsUpdate
 } from 'common/types/vndb'
 import type { AppSettings } from 'common/types'
+import { getVndbMatchKey } from 'common/vndb'
 
 import {
   hasStoredApiToken,
@@ -250,13 +251,6 @@ function getSearchCacheKey(query: string, limit: number): string {
 
 function getSearchId(query: string): ReturnType<typeof parseVndbId> {
   return parseVndbId(query.toLocaleLowerCase())
-}
-
-function getMatchKey({
-  runner,
-  appName
-}: Pick<VndbGameMatch, 'runner' | 'appName'>): string {
-  return `${runner}:${appName}`
 }
 
 function getRelationLabel(relation: string): string {
@@ -998,7 +992,7 @@ export async function syncVndbUserData(
 
   const storedMatches = getAllStoredMatches()
   const targetMatches = targets.map((target) => {
-    const match = storedMatches[getMatchKey(target)]
+    const match = storedMatches[getVndbMatchKey(target)]
     return {
       match,
       visualNovelId: match ? getStoredMatchMainVisualNovelId(match) : undefined
@@ -1264,7 +1258,7 @@ export function getVndbGameMatch(
   appName: string,
   runner: VndbGameMatch['runner']
 ): VndbGameMatch | null {
-  return getAllStoredMatches()[getMatchKey({ appName, runner })] ?? null
+  return getAllStoredMatches()[getVndbMatchKey({ appName, runner })] ?? null
 }
 
 export function getAllVndbGameMatches(): Record<string, VndbGameMatch> {
@@ -1278,7 +1272,7 @@ export function syncVndbGameMatches(
   const syncedAt = new Date().toISOString()
 
   for (const update of updates) {
-    const key = getMatchKey(update)
+    const key = getVndbMatchKey(update)
     const previousMatch = currentMatches[key]
     if (!update.vndbId) {
       delete currentMatches[key]

@@ -33,7 +33,7 @@ export default function GeneralSettings() {
   const { t } = useTranslation()
 
   return (
-    <div>
+    <div className="generalSettings">
       <h3 className="settingSubheader">{t('settings.navbar.general')}</h3>
 
       <LanguageSelector />

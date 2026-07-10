@@ -25,6 +25,10 @@ export default function VndbLabelCategorySync() {
     'setting.vndbTokenRequired',
     'Requires a VNDB API token.'
   )
+  const tokenWarning =
+    enableVndbIntegration && !hasVndbApiToken ? (
+      <span className="smallMessage">{tokenRequiredMessage}</span>
+    ) : undefined
 
   return (
     <>
@@ -41,11 +45,7 @@ export default function VndbLabelCategorySync() {
           'setting.vndbLabelCategorySyncMode.label',
           'When VNDB labels change'
         )}
-        afterSelect={
-          enableVndbIntegration && !hasVndbApiToken ? (
-            <span className="smallMessage">{tokenRequiredMessage}</span>
-          ) : undefined
-        }
+        afterSelect={tokenWarning}
       >
         <MenuItem value="ask">
           {t('setting.vndbLabelCategorySyncMode.ask', 'Ask before changing')}
@@ -73,11 +73,7 @@ export default function VndbLabelCategorySync() {
           'setting.vndbCategoryLabelSyncMode.label',
           'When library categories change'
         )}
-        afterSelect={
-          enableVndbIntegration && !hasVndbApiToken ? (
-            <span className="smallMessage">{tokenRequiredMessage}</span>
-          ) : undefined
-        }
+        afterSelect={tokenWarning}
       >
         <MenuItem value="ask">
           {t('setting.vndbCategoryLabelSyncMode.ask', 'Ask before changing')}

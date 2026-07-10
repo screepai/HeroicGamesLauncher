@@ -12,6 +12,7 @@ import type { AppSettings } from 'common/types'
 import useSetting from 'frontend/hooks/useSetting'
 import ContextProvider from 'frontend/state/ContextProvider'
 import { dispatchVndbApiTokenChanged } from 'frontend/hooks/useHasVndbApiToken'
+import MetadataActions from './LocalLibrarySyncPath/MetadataActions'
 
 import './LocalLibrarySyncPath/index.css'
 
@@ -270,12 +271,14 @@ const LocalLibrarySyncPath = () => {
       )
     })
 
-    if (destinationPath) {
-      confirmRestoreLocalLibraryMetadata(backupPath, {
-        destinationPath,
-        sourcePath
-      })
+    if (!destinationPath) {
+      return
     }
+
+    confirmRestoreLocalLibraryMetadata(backupPath, {
+      destinationPath,
+      sourcePath
+    })
   }
 
   const confirmCrossOsMetadataRestorePath = (
@@ -343,27 +346,29 @@ const LocalLibrarySyncPath = () => {
       )
     })
 
-    if (backupPath) {
-      try {
-        const restoreInfo =
-          await window.api.inspectLocalLibraryMetadataBackup(backupPath)
+    if (!backupPath) {
+      return
+    }
 
-        if (restoreInfo.shouldPromptForPath && restoreInfo.sourcePath) {
-          confirmCrossOsMetadataRestorePath(backupPath, restoreInfo.sourcePath)
-          return
-        }
+    try {
+      const restoreInfo =
+        await window.api.inspectLocalLibraryMetadataBackup(backupPath)
 
-        confirmRestoreLocalLibraryMetadata(backupPath)
-      } catch (error) {
-        showMetadataMessage(
-          t(
-            'setting.local-library-metadata-restore-error',
-            'Could not restore local library metadata'
-          ),
-          getErrorMessage(error),
-          'ERROR'
-        )
+      if (restoreInfo.shouldPromptForPath && restoreInfo.sourcePath) {
+        confirmCrossOsMetadataRestorePath(backupPath, restoreInfo.sourcePath)
+        return
       }
+
+      confirmRestoreLocalLibraryMetadata(backupPath)
+    } catch (error) {
+      showMetadataMessage(
+        t(
+          'setting.local-library-metadata-restore-error',
+          'Could not restore local library metadata'
+        ),
+        getErrorMessage(error),
+        'ERROR'
+      )
     }
   }
 
@@ -502,47 +507,12 @@ const LocalLibrarySyncPath = () => {
         }
       />
 
-      <div className="localLibraryMetadataActions">
-        <button
-          className="button is-secondary"
-          disabled={isBackingUpMetadata || isRestoringMetadata}
-          onClick={backupLocalLibraryMetadata}
-          type="button"
-        >
-          {isBackingUpMetadata
-            ? t(
-                'setting.local-library-metadata-backup-running',
-                'Backing up...'
-              )
-            : t(
-                'setting.local-library-metadata-backup',
-                'Back up local library metadata'
-              )}
-        </button>
-        <button
-          className="button is-secondary"
-          disabled={isBackingUpMetadata || isRestoringMetadata}
-          onClick={selectLocalLibraryMetadataBackup}
-          type="button"
-        >
-          {isRestoringMetadata
-            ? t(
-                'setting.local-library-metadata-restore-running',
-                'Restoring...'
-              )
-            : t(
-                'setting.local-library-metadata-restore',
-                'Restore local library metadata'
-              )}
-        </button>
-      </div>
-
-      <span className="smallMessage localLibraryMetadataHelp">
-        {t(
-          'setting.local-library-metadata-help',
-          'Backups include local library games, custom metadata overrides, exclusion rules, all VNDB matches, and your VNDB token.'
-        )}
-      </span>
+      <MetadataActions
+        isBackingUp={isBackingUpMetadata}
+        isRestoring={isRestoringMetadata}
+        onBackup={() => void backupLocalLibraryMetadata()}
+        onRestore={() => void selectLocalLibraryMetadataBackup()}
+      />
 
       <TextInputField
         htmlId="local_library_sync_exclusion"
