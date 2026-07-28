@@ -305,9 +305,17 @@ export default function SideloadDialog({
 
     const gameSettings = await getGameSettings(app_name, 'sideload')
     if (gameSettings) {
+      const selectedWineSettings =
+        !editMode && appPlatform === 'Windows' && platform !== 'win32'
+          ? {
+              winePrefix,
+              wineVersion: wineVersion ?? gameSettings.wineVersion
+            }
+          : {}
+
       await writeConfig({
         appName: app_name,
-        config: { ...gameSettings, jpLocale }
+        config: { ...gameSettings, ...selectedWineSettings, jpLocale }
       })
     }
 
