@@ -65,7 +65,14 @@ import type {
   VndbUserDataSyncResult,
   VndbUserDataSyncTarget
 } from './vndb'
-import type { VnCompatibilityResult } from './vnCompatibility'
+import type {
+  VnCompatibilityCodecInstallResult,
+  VnCompatibilityCodecInstallArgs,
+  VnCompatibilityCodecProgress,
+  VnCompatibilityPrefixCreateResult,
+  VnCompatibilityPrefixCreateArgs,
+  VnCompatibilityResult
+} from './vnCompatibility'
 import type { GetLogFileArgs } from 'backend/logger/paths'
 
 // ts-prune-ignore-next
@@ -497,10 +504,19 @@ interface AsyncIPCFunctions {
     titles: string[]
     engine?: string
   }) => Promise<VnCompatibilityResult | null>
+  'vnCompatibility.installCodecs': (
+    args: VnCompatibilityCodecInstallArgs
+  ) => Promise<VnCompatibilityCodecInstallResult>
+  'vnCompatibility.createDedicatedPrefix': (
+    args: VnCompatibilityPrefixCreateArgs
+  ) => Promise<VnCompatibilityPrefixCreateResult>
 }
 
 interface FrontendMessages {
   gameStatusUpdate: (status: GameStatus) => void
+  'vnCompatibility.codecProgress': (
+    progress: VnCompatibilityCodecProgress
+  ) => void
   localLibraryFolderAdded: (folder: LocalLibraryWatchEntry) => void
   localLibraryArchiveExtractionProgress: (
     archivePath: string,

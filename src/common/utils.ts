@@ -7,3 +7,7 @@ export const storeMap: { [key in Runner]: string | undefined } = {
   sideload: undefined,
   zoom: 'zoom'
 }
+
+export function isWindowsPlatform(platform?: string): boolean {
+  return ['windows', 'win32'].includes(platform?.toLocaleLowerCase() ?? '')
+}

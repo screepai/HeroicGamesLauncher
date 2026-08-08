@@ -1,0 +1,85 @@
+.vnCompatibilityTab {
+  .vnCompatibilityCurrentPrefix {
+    background: var(--background-secondary, var(--background-lighter));
+    border-inline-start: 3px solid var(--accent);
+    padding: var(--space-unit-fixed);
+
+    h3 {
+      font-size: var(--text-md);
+      margin: 0;
+    }
+
+    p {
+      margin: var(--space-sm) 0 0;
+    }
+
+    code {
+      background: var(--background);
+      border: 1px solid var(--neutral-04);
+      border-radius: var(--space-3xs);
+      display: block;
+      margin-top: var(--space-sm);
+      overflow: hidden;
+      padding: var(--space-sm);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .vnCompatibilityPrefixActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    margin-top: var(--space-sm);
+  }
+
+  .vnCompatibilityInstallCodecs {
+    display: block;
+    margin-inline-start: 0;
+    margin-top: var(--space-sm);
+  }
+}
+
+.SpecialCodecSetupDialog {
+  width: min(720px, 92vw);
+
+  .specialCodecSetupContent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+
+    & > p,
+    & > dl {
+      margin: 0;
+    }
+
+    dl div {
+      display: grid;
+      gap: var(--space-sm);
+      grid-template-columns: minmax(140px, 0.35fr) minmax(0, 1fr);
+      padding-block: var(--space-xs);
+    }
+
+    dt {
+      font-weight: var(--bold);
+    }
+
+    dd {
+      margin: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .specialCodecSetupLog {
+    background: #1e1e1e;
+    border-radius: var(--space-xs);
+    color: var(--text-default);
+    margin: 0;
+    max-height: min(42vh, 360px);
+    overflow: auto;
+    padding: var(--space-sm);
+    white-space: pre-wrap;
+  }
+}

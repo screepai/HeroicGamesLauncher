@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next'
 import type { GameInfo } from 'common/types'
 import type {
   VnCompatibilityEntry,
-  VnCompatibilityPrefixSetup,
   VnCompatibilityResult
 } from 'common/types/vnCompatibility'
 import type { VndbGameMatch } from 'common/types/vndb'
 import { getSelectedVndbReleases } from 'frontend/helpers/vndb'
+import VnCompatibilityActions from './VnCompatibilityActions'
 
 interface Props {
   gameInfo: GameInfo
@@ -21,9 +21,6 @@ type CompatibilityState =
 
 const vnWikiCompatibilityUrl =
   'https://www.vnwiki.xyz/visual-novel-compatibility-list.html'
-const vnWikiWinePrefixesUrl = 'https://www.vnwiki.xyz/linux/wineprefixes.html'
-const vnWikiSpecialCodecsUrl =
-  'https://www.vnwiki.xyz/linux/special-codecs.html'
 
 function getTitles(gameInfo: GameInfo, match: VndbGameMatch | null): string[] {
   const selectedReleases = match ? getSelectedVndbReleases(match) : []
@@ -70,103 +67,6 @@ function getCompiledEngineNotes(entries: VnCompatibilityEntry[]) {
   }))
 }
 
-function PrefixSetup({
-  prefix,
-  setup
-}: {
-  prefix: string
-  setup: VnCompatibilityPrefixSetup | undefined
-}) {
-  const { t } = useTranslation('gamepage')
-
-  if (!setup) return null
-
-  return (
-    <section className="vnCompatibilitySetup">
-      <h4>{t('compatibility.setup-title', 'Guided setup')}</h4>
-      <p>
-        {t(
-          'compatibility.setup-prefix',
-          'Create a fresh {{architecture}} Wine prefix for the {{prefix}} template.',
-          { architecture: setup.architecture, prefix }
-        )}
-      </p>
-      {setup.specialCodecs.length > 0 && (
-        <div>
-          <b>{t('compatibility.special-codecs', 'Special Codecs')}:</b>{' '}
-          {setup.specialCodecs.join(', ')}
-          <button
-            className="vnCompatibilitySource"
-            onClick={() => window.api.openExternalUrl(vnWikiSpecialCodecsUrl)}
-          >
-            {t('compatibility.open-codecs-guide', 'Open codec guide')}
-          </button>
-        </div>
-      )}
-      {setup.winetricks.length > 0 && (
-        <div>
-          <b>{t('compatibility.winetricks', 'Winetricks components')}:</b>{' '}
-          {setup.winetricks.join(', ')}
-        </div>
-      )}
-      <button
-        className="vnCompatibilitySource"
-        onClick={() => window.api.openExternalUrl(vnWikiWinePrefixesUrl)}
-      >
-        {t('compatibility.open-prefix-guide', 'Open prefix setup guide')}
-      </button>
-    </section>
-  )
-}
-
-function CompatibilityEntry({
-  entry,
-  prefixSetup
-}: {
-  entry: VnCompatibilityEntry
-  prefixSetup: VnCompatibilityPrefixSetup | undefined
-}) {
-  const { t } = useTranslation('gamepage')
-
-  return (
-    <article className="vnCompatibilityEntry">
-      <h3>{entry.title}</h3>
-      <dl>
-        <div>
-          <dt>{t('compatibility.linux', 'Linux')}</dt>
-          <dd>{entry.linux || '❓'}</dd>
-        </div>
-        <div>
-          <dt>{t('compatibility.steam-deck', 'Steam Deck')}</dt>
-          <dd>{entry.steamDeck || '❓'}</dd>
-        </div>
-        {entry.engine && (
-          <div>
-            <dt>{t('compatibility.engine', 'Engine')}</dt>
-            <dd>{entry.engine}</dd>
-          </div>
-        )}
-        <div>
-          <dt>{t('compatibility.wine-prefix', 'Wine prefix')}</dt>
-          <dd>{entry.winePrefix || '—'}</dd>
-        </div>
-        <div>
-          <dt>{t('compatibility.wine-version', 'Wine/Proton version')}</dt>
-          <dd>{entry.wineVersion || '—'}</dd>
-        </div>
-      </dl>
-      <PrefixSetup prefix={entry.winePrefix} setup={prefixSetup} />
-      {entry.notes.length > 0 && (
-        <ul className="vnCompatibilityNotes">
-          {entry.notes.map((note) => (
-            <li key={note}>{note}</li>
-          ))}
-        </ul>
-      )}
-    </article>
-  )
-}
-
 const VnCompatibilityInfo = ({ gameInfo, vndbMatch }: Props) => {
   const { t } = useTranslation('gamepage')
   const titles = useMemo(
@@ -177,7 +77,6 @@ const VnCompatibilityInfo = ({ gameInfo, vndbMatch }: Props) => {
   const [state, setState] = useState<CompatibilityState>({
     status: 'loading'
   })
-
   useEffect(() => {
     let isMounted = true
     setState({ status: 'loading' })
@@ -305,15 +204,7 @@ const VnCompatibilityInfo = ({ gameInfo, vndbMatch }: Props) => {
           </ul>
         </section>
       )}
-      <div className="vnCompatibilityEntries">
-        {result.entries.map((entry) => (
-          <CompatibilityEntry
-            key={`${entry.title}:${entry.winePrefix}:${entry.wineVersion}`}
-            entry={entry}
-            prefixSetup={result.prefixSetups[entry.winePrefix]}
-          />
-        ))}
-      </div>
+      <VnCompatibilityActions gameInfo={gameInfo} result={result} />
     </div>
   )
 }

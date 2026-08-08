@@ -13,7 +13,7 @@ jest.mock('backend/cache', () => ({
   }
 }))
 
-import { getVnCompatibility, parsePrefixSetups } from '..'
+import { findPrefixSetup, getVnCompatibility, parsePrefixSetups } from '..'
 
 const fetchMock = jest.fn()
 const originalFetch = global.fetch
@@ -126,5 +126,24 @@ winetricks -q --force wmp10 && sh ~/Documents/vn_winestuff-main/codec.sh quartz2
         winetricks: ['wmp10']
       }
     })
+  })
+
+  it('finds the most specific recipe inside a combined recommendation', () => {
+    const setups = {
+      vanilla: {
+        architecture: '64-bit' as const,
+        specialCodecs: [],
+        winetricks: []
+      },
+      wmp11quartz: {
+        architecture: '64-bit' as const,
+        specialCodecs: ['wmp11', 'quartz2'],
+        winetricks: []
+      }
+    }
+
+    expect(findPrefixSetup('wmp11quartz or vanilla', setups)).toBe(
+      setups.wmp11quartz
+    )
   })
 })

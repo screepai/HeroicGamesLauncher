@@ -184,10 +184,23 @@ function getPrefixSetups(
   return Object.fromEntries(
     entries.flatMap((entry) => {
       const prefix = entry.winePrefix
-      const setup = prefixSetups[normalizePrefix(prefix)]
+      const setup = findPrefixSetup(prefix, prefixSetups)
       return prefix && setup ? [[prefix, setup]] : []
     })
   )
+}
+
+export function findPrefixSetup(
+  recommendation: string,
+  prefixSetups: Record<string, VnCompatibilityPrefixSetup>
+): VnCompatibilityPrefixSetup | undefined {
+  const normalizedRecommendation = normalizePrefix(recommendation)
+  const exactMatch = prefixSetups[normalizedRecommendation]
+  if (exactMatch) return exactMatch
+
+  return Object.entries(prefixSetups)
+    .filter(([prefix]) => normalizedRecommendation.includes(prefix))
+    .sort(([left], [right]) => right.length - left.length)[0]?.[1]
 }
 
 export async function getVnCompatibility(
