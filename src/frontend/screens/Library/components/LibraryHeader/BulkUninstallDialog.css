@@ -1,0 +1,85 @@
+.BulkUninstallDialog {
+  width: min(680px, 92vw);
+}
+
+.BulkUninstallDialog .button,
+.BulkUninstallDialog .button:hover,
+.BulkUninstallDialog .button:focus-visible {
+  color: var(--text-tertiary);
+}
+
+.bulkUninstallContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.bulkUninstallContent p {
+  margin: 0;
+}
+
+.bulkUninstallSummary {
+  color: var(--text-secondary);
+}
+
+.bulkUninstallRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: min(46vh, 420px);
+  overflow: auto;
+  padding-inline-end: var(--space-xs);
+}
+
+.bulkUninstallRow {
+  align-items: center;
+  background: var(--background);
+  border: 1px solid var(--modal-border);
+  border-radius: var(--space-xs);
+  display: grid;
+  gap: var(--space-xs) var(--space-sm);
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  padding: var(--space-sm);
+}
+
+.bulkUninstallRow span,
+.bulkUninstallRow small,
+.bulkUninstallRow em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bulkUninstallRow small {
+  color: var(--text-secondary);
+  grid-row: 2;
+}
+
+.bulkUninstallRow strong {
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+}
+
+.bulkUninstallRow em {
+  color: var(--danger, #f44336);
+  font-style: normal;
+  grid-column: 1 / -1;
+}
+
+.bulkUninstallRow--skipped {
+  opacity: 0.72;
+}
+
+.uninstallStatus-done {
+  color: var(--success, #4caf50);
+}
+
+.uninstallStatus-error {
+  color: var(--danger, #f44336);
+}
+
+.uninstallStatus-uninstalling {
+  color: var(--accent);
+}

@@ -15,13 +15,18 @@ import AddGameButton from '../AddGameButton'
 import VndbSyncButton from './VndbSyncButton'
 import BulkGameOptionsDialog from './BulkGameOptionsDialog'
 import BulkGameMigrationDialog from './BulkGameMigrationDialog'
+import BulkUninstallDialog, {
+  type BulkUninstallAction
+} from './BulkUninstallDialog'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import useAppSetting from 'frontend/hooks/useAppSetting'
 import {
   faCheckDouble,
   faFolderOpen,
+  faMinusCircle,
   faSlidersH,
   faTags,
+  faTrash,
   faTimes
 } from '@fortawesome/free-solid-svg-icons'
 
@@ -47,10 +52,16 @@ export default memo(function LibraryHeader({
   } = useContext(LibraryContext)
   const [showBulkOptions, setShowBulkOptions] = useState(false)
   const [showBulkMigration, setShowBulkMigration] = useState(false)
+  const [bulkUninstallAction, setBulkUninstallAction] =
+    useState<BulkUninstallAction | null>(null)
   const [archiveToExtract, setArchiveToExtract] =
     useState<LocalLibraryWatchEntry | null>(null)
   const allVisibleGamesSelected =
     list.length > 0 && list.every((game) => isGameSelected(game))
+  const installedGames = selectedGames.filter((game) => game.is_installed)
+  const canUninstallInHeroic = installedGames.some(
+    (game) => !game.install.is_dlc
+  )
 
   const numberOfGames = useMemo(() => {
     if (!list) {
@@ -146,6 +157,22 @@ export default memo(function LibraryHeader({
               <FontAwesomeIcon icon={faFolderOpen} />
               {t('library.migration.button', 'Migrate')}
             </button>
+            <button
+              className="libraryBulkAction"
+              onClick={() => setBulkUninstallAction('heroicOnly')}
+              disabled={!canUninstallInHeroic}
+            >
+              <FontAwesomeIcon icon={faMinusCircle} />
+              {t('gamepage:box.uninstall.heroicOnly', 'Uninstall in Heroic')}
+            </button>
+            <button
+              className="libraryBulkAction libraryBulkAction--danger"
+              onClick={() => setBulkUninstallAction('entirely')}
+              disabled={installedGames.length === 0}
+            >
+              <FontAwesomeIcon icon={faTrash} />
+              {t('gamepage:box.uninstall.entirely', 'Uninstall entirely')}
+            </button>
             {enableVndbIntegration && (
               <VndbSyncButton
                 list={selectedGames}
@@ -170,6 +197,17 @@ export default memo(function LibraryHeader({
               <BulkGameMigrationDialog
                 games={selectedGames}
                 onClose={() => setShowBulkMigration(false)}
+              />
+            )}
+            {bulkUninstallAction && (
+              <BulkUninstallDialog
+                action={bulkUninstallAction}
+                games={selectedGames}
+                onClose={() => setBulkUninstallAction(null)}
+                onComplete={() => {
+                  setBulkUninstallAction(null)
+                  clearGameSelection()
+                }}
               />
             )}
           </div>

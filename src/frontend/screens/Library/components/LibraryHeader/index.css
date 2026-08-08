@@ -93,6 +93,10 @@
   opacity: 0.55;
 }
 
+.libraryBulkAction--danger:not(:disabled) {
+  border-color: var(--danger, #f44336);
+}
+
 .BulkGameOptionsDialog {
   width: min(520px, 92vw);
 }
