@@ -32,6 +32,16 @@ type ExtractArchiveOptions = {
   onProgress?: (progress: LocalLibraryArchiveExtractionProgress) => void
 }
 
+type ArchiveExtractionPlan = {
+  archivePath: string
+  cleanupPath?: string
+  destinationName: string
+  destinationPath: string
+  rootPath?: string
+  selectedPaths: Set<string>
+  stagingPath: string
+}
+
 const PASSWORD_ERROR_PATTERN =
   /cannot open encrypted archive|wrong password|data error in encrypted file/i
 const INCOMPLETE_ARCHIVE_ERROR_PATTERN =
@@ -137,50 +147,61 @@ function normalizeArchiveEntryPath(entryPath: string): string {
   return pathParts.join('/')
 }
 
+function parseArchiveListingBlock(
+  block: string
+): LocalLibraryArchiveEntry | undefined {
+  const values = new Map<string, string>()
+  for (const line of block.split(/\r?\n/)) {
+    const separatorIndex = line.indexOf(' = ')
+    if (separatorIndex !== -1) {
+      values.set(line.slice(0, separatorIndex), line.slice(separatorIndex + 3))
+    }
+  }
+
+  const listedPath = values.get('Path')
+  if (!listedPath) {
+    return
+  }
+
+  const path = normalizeArchiveEntryPath(listedPath)
+  const size = Number.parseInt(values.get('Size') ?? '0', 10)
+  return {
+    path,
+    isDirectory:
+      values.get('Folder') === '+' ||
+      values.get('Attributes')?.startsWith('D') === true,
+    size: Number.isFinite(size) ? size : 0,
+    ...(values.get('Encrypted') === '+' ? { isEncrypted: true } : {})
+  }
+}
+
+function addImplicitParentDirectories(
+  entries: Map<string, LocalLibraryArchiveEntry>,
+  entryPath: string
+): void {
+  const pathParts = entryPath.split('/')
+  pathParts.pop()
+  while (pathParts.length > 0) {
+    const parentPath = pathParts.join('/')
+    if (!entries.has(parentPath)) {
+      entries.set(parentPath, {
+        path: parentPath,
+        isDirectory: true,
+        size: 0
+      })
+    }
+    pathParts.pop()
+  }
+}
+
 function parseArchiveListing(output: string): LocalLibraryArchiveEntry[] {
   const entries = new Map<string, LocalLibraryArchiveEntry>()
 
   for (const block of output.split(/\r?\n\r?\n/)) {
-    const values = new Map<string, string>()
-
-    for (const line of block.split(/\r?\n/)) {
-      const separatorIndex = line.indexOf(' = ')
-      if (separatorIndex === -1) {
-        continue
-      }
-
-      values.set(line.slice(0, separatorIndex), line.slice(separatorIndex + 3))
-    }
-
-    const listedPath = values.get('Path')
-    if (!listedPath) {
-      continue
-    }
-
-    const entryPath = normalizeArchiveEntryPath(listedPath)
-    const isDirectory =
-      values.get('Folder') === '+' ||
-      values.get('Attributes')?.startsWith('D') === true
-    const size = Number.parseInt(values.get('Size') ?? '0', 10)
-    entries.set(entryPath, {
-      path: entryPath,
-      isDirectory,
-      size: Number.isFinite(size) ? size : 0,
-      ...(values.get('Encrypted') === '+' ? { isEncrypted: true } : {})
-    })
-
-    const pathParts = entryPath.split('/')
-    pathParts.pop()
-    while (pathParts.length > 0) {
-      const parentPath = pathParts.join('/')
-      if (!entries.has(parentPath)) {
-        entries.set(parentPath, {
-          path: parentPath,
-          isDirectory: true,
-          size: 0
-        })
-      }
-      pathParts.pop()
+    const entry = parseArchiveListingBlock(block)
+    if (entry) {
+      entries.set(entry.path, entry)
+      addImplicitParentDirectories(entries, entry.path)
     }
   }
 
@@ -388,6 +409,184 @@ async function moveExtractionResult(
   await fs.rename(stagingPath, destinationPath)
 }
 
+function getFileSystemErrorCode(error: unknown): string | undefined {
+  return typeof error === 'object' && error !== null && 'code' in error
+    ? String(error.code)
+    : undefined
+}
+
+async function requireDirectory(
+  directoryPath: string,
+  invalidMessage: string
+): Promise<void> {
+  try {
+    const stats = await fs.stat(directoryPath)
+    if (stats.isDirectory()) {
+      return
+    }
+  } catch (error) {
+    if (getFileSystemErrorCode(error) !== 'ENOENT') {
+      throw error
+    }
+  }
+
+  throw new Error(invalidMessage)
+}
+
+async function ensureDestinationDoesNotExist(
+  destinationPath: string,
+  destinationName: string
+): Promise<void> {
+  try {
+    await fs.access(destinationPath)
+  } catch (error) {
+    if (getFileSystemErrorCode(error) === 'ENOENT') {
+      return
+    }
+    throw error
+  }
+
+  throw new Error(`The folder "${destinationName}" already exists`)
+}
+
+function validateSelectedArchivePaths(
+  selectedPaths: Set<string>,
+  hasMatchingEntry: boolean,
+  rootPath?: string
+): void {
+  if (selectedPaths.size === 0) {
+    throw new Error('Select at least one file or directory to extract')
+  }
+  if (!hasMatchingEntry) {
+    throw new Error('The selected archive entries no longer exist')
+  }
+  if (
+    rootPath &&
+    ![...selectedPaths].some(
+      (selectedPath) =>
+        selectedPath === rootPath || selectedPath.startsWith(`${rootPath}/`)
+    )
+  ) {
+    throw new Error('Select at least one item inside the final folder')
+  }
+}
+
+async function createArchiveExtractionPlan(
+  options: ExtractArchiveOptions
+): Promise<ArchiveExtractionPlan> {
+  const archiveInfo = await inspectLocalLibraryArchive(options.archivePath)
+  const archivePath = archiveInfo.archivePath
+  const entries = await listLocalLibraryArchive(archivePath, options.password)
+  const { paths: selectedPaths, hasMatchingEntry } = expandSelectedPaths(
+    entries,
+    options.selectedPaths
+  )
+  const rootPath = validateExtractionRoot(entries, options.rootPath)
+  validateSelectedArchivePaths(selectedPaths, hasMatchingEntry, rootPath)
+
+  const destinationName = validateDestinationName(options.destinationName)
+  const destinationDirectory = resolve(
+    options.destinationDirectory ?? dirname(archivePath)
+  )
+  await requireDirectory(
+    destinationDirectory,
+    'The extraction destination must be an existing directory'
+  )
+
+  const destinationPath = join(destinationDirectory, destinationName)
+  const cleanupPath = options.cleanupPath
+    ? resolve(options.cleanupPath)
+    : undefined
+  if (cleanupPath) {
+    await requireDirectory(cleanupPath, 'The cleanup path must be a directory')
+    const [realArchivePath, realCleanupPath, realDestinationDirectory] =
+      await Promise.all([
+        fs.realpath(archivePath),
+        fs.realpath(cleanupPath),
+        fs.realpath(destinationDirectory)
+      ])
+    const realDestinationPath = join(realDestinationDirectory, destinationName)
+
+    if (!isPathInside(realCleanupPath, realArchivePath)) {
+      throw new Error('The archive must be inside the cleanup folder')
+    }
+    if (
+      realDestinationPath === realCleanupPath ||
+      isPathInside(realCleanupPath, realDestinationPath)
+    ) {
+      throw new Error(
+        'The extraction folder must be outside the cleanup folder'
+      )
+    }
+  }
+
+  await ensureDestinationDoesNotExist(destinationPath, destinationName)
+
+  return {
+    archivePath,
+    cleanupPath,
+    destinationName,
+    destinationPath,
+    rootPath,
+    selectedPaths,
+    stagingPath: join(destinationDirectory, `.heroic-extract-${randomUUID()}`)
+  }
+}
+
+function parseExtractionProgressLine(
+  outputLine: string,
+  currentProgress: LocalLibraryArchiveExtractionProgress
+): LocalLibraryArchiveExtractionProgress {
+  const line = outputLine.replaceAll(BACKSPACE_CHARACTER, '').trim()
+  const percentMatch = /(\d{1,3})%/.exec(line)
+  const fileMatch = /(?:^|\s)-\s+(.+)$/.exec(line)
+  const extractedPath = fileMatch?.[1]
+  const percent =
+    line === 'Everything is Ok'
+      ? 100
+      : percentMatch
+        ? Math.min(Number.parseInt(percentMatch[1], 10), 100)
+        : currentProgress.percent
+  const file =
+    extractedPath && !/[\\/]$/.test(extractedPath)
+      ? extractedPath
+      : currentProgress.file
+
+  return { percent, file }
+}
+
+function createExtractionProgressReporter(
+  onProgress?: (progress: LocalLibraryArchiveExtractionProgress) => void
+) {
+  let outputBuffer = ''
+  let progress: LocalLibraryArchiveExtractionProgress = { percent: 0 }
+
+  return {
+    start: () => {
+      onProgress?.(progress)
+    },
+    handleOutput: (data: string) => {
+      outputBuffer += data
+      const lines = outputBuffer.split(/\r\n|\r|\n/)
+      outputBuffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        const nextProgress = parseExtractionProgressLine(line, progress)
+        if (
+          nextProgress.percent !== progress.percent ||
+          nextProgress.file !== progress.file
+        ) {
+          progress = nextProgress
+          onProgress?.(progress)
+        }
+      }
+    },
+    complete: () => {
+      onProgress?.({ ...progress, percent: 100 })
+    }
+  }
+}
+
 async function findLocalLibraryNestedArchives(
   folderPath: string
 ): Promise<LocalLibraryWatchEntry[]> {
@@ -444,135 +643,19 @@ async function findLocalLibraryNestedArchives(
     })
 }
 
-async function extractLocalLibraryArchive({
-  archivePath,
-  cleanupPath,
-  destinationDirectory,
-  destinationName,
-  password,
-  rootPath,
-  selectedPaths,
-  onBeforePathCreated,
-  onProgress
-}: ExtractArchiveOptions): Promise<{ folderPath: string; title: string }> {
-  const archiveInfo = await inspectLocalLibraryArchive(archivePath)
-  const canonicalArchivePath = archiveInfo.archivePath
-  const entries = await listLocalLibraryArchive(canonicalArchivePath, password)
-  const { paths: selected, hasMatchingEntry } = expandSelectedPaths(
-    entries,
-    selectedPaths
-  )
-  const normalizedRootPath = validateExtractionRoot(entries, rootPath)
-  if (selected.size === 0) {
-    throw new Error('Select at least one file or directory to extract')
-  }
-  if (!hasMatchingEntry) {
-    throw new Error('The selected archive entries no longer exist')
-  }
-  if (
-    normalizedRootPath &&
-    ![...selected].some(
-      (selectedPath) =>
-        selectedPath === normalizedRootPath ||
-        selectedPath.startsWith(`${normalizedRootPath}/`)
-    )
-  ) {
-    throw new Error('Select at least one item inside the final folder')
-  }
+async function extractLocalLibraryArchive(
+  options: ExtractArchiveOptions
+): Promise<{ folderPath: string; title: string }> {
+  const { onBeforePathCreated, onProgress, password } = options
+  const plan = await createArchiveExtractionPlan(options)
+  const progressReporter = createExtractionProgressReporter(onProgress)
 
-  const normalizedDestinationName = validateDestinationName(destinationName)
-  const archiveDirectory = resolve(dirname(canonicalArchivePath))
-  const resolvedDestinationDirectory = destinationDirectory
-    ? resolve(destinationDirectory)
-    : archiveDirectory
-  const destinationDirectoryStats = await fs.stat(resolvedDestinationDirectory)
-  if (!destinationDirectoryStats.isDirectory()) {
-    throw new Error('The extraction destination must be a directory')
-  }
-
-  const destinationPath = resolve(
-    resolvedDestinationDirectory,
-    normalizedDestinationName
-  )
-  if (dirname(destinationPath) !== resolvedDestinationDirectory) {
-    throw new Error('The extraction folder must be beside the archive')
-  }
-
-  const resolvedCleanupPath = cleanupPath ? resolve(cleanupPath) : undefined
-  if (resolvedCleanupPath) {
-    const cleanupPathStats = await fs.stat(resolvedCleanupPath)
-    if (!cleanupPathStats.isDirectory()) {
-      throw new Error('The cleanup path must be a directory')
-    }
-    if (!isPathInside(resolvedCleanupPath, canonicalArchivePath)) {
-      throw new Error('The archive must be inside the cleanup folder')
-    }
-    if (dirname(resolvedCleanupPath) !== resolvedDestinationDirectory) {
-      throw new Error('The cleanup folder must be beside the extraction folder')
-    }
-    if (destinationPath === resolvedCleanupPath) {
-      throw new Error(
-        'The extraction folder cannot be the same as the cleanup folder'
-      )
-    }
-  }
+  onBeforePathCreated?.(plan.stagingPath)
+  onBeforePathCreated?.(plan.destinationPath)
+  await fs.mkdir(plan.stagingPath)
 
   try {
-    await fs.access(destinationPath)
-    throw new Error(`The folder "${normalizedDestinationName}" already exists`)
-  } catch (error) {
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      error.code === 'ENOENT'
-    ) {
-      // The destination must not exist before extraction.
-    } else {
-      throw error
-    }
-  }
-
-  const stagingPath = join(
-    resolvedDestinationDirectory,
-    `.heroic-extract-${randomUUID()}`
-  )
-  onBeforePathCreated?.(stagingPath)
-  onBeforePathCreated?.(destinationPath)
-  await fs.mkdir(stagingPath)
-
-  try {
-    let outputBuffer = ''
-    let progress: LocalLibraryArchiveExtractionProgress = { percent: 0 }
-    const handleOutput = (data: string) => {
-      outputBuffer += data
-      const lines = outputBuffer.split(/\r\n|\r|\n/)
-      outputBuffer = lines.pop() ?? ''
-
-      for (const outputLine of lines) {
-        const line = outputLine.replaceAll(BACKSPACE_CHARACTER, '').trim()
-        const percentMatch = /(\d{1,3})%/.exec(line)
-        const fileMatch = /(?:^|\s)-\s+(.+)$/.exec(line)
-        const extractedPath = fileMatch?.[1]
-        const nextPercent =
-          line === 'Everything is Ok'
-            ? 100
-            : percentMatch
-              ? Math.min(Number.parseInt(percentMatch[1], 10), 100)
-              : progress.percent
-        const nextFile =
-          extractedPath && !/[\\/]$/.test(extractedPath)
-            ? extractedPath
-            : progress.file
-
-        if (nextPercent !== progress.percent || nextFile !== progress.file) {
-          progress = { percent: nextPercent, file: nextFile }
-          onProgress?.(progress)
-        }
-      }
-    }
-
-    onProgress?.(progress)
+    progressReporter.start()
     const { code, stdout, stderr } = await spawnAsync(
       fixAsarPath(path7z),
       [
@@ -582,14 +665,14 @@ async function extractLocalLibraryArchive({
         '-bsp1',
         '-sccUTF-8',
         getArchivePasswordArgument(password),
-        `-o${stagingPath}`,
+        `-o${plan.stagingPath}`,
         '--',
-        canonicalArchivePath
+        plan.archivePath
       ],
       { windowsHide: true },
-      handleOutput
+      progressReporter.handleOutput
     )
-    handleOutput('\n')
+    progressReporter.handleOutput('\n')
 
     if (code !== 0) {
       throw getArchiveCommandError(
@@ -599,24 +682,24 @@ async function extractLocalLibraryArchive({
       )
     }
 
-    await pruneExtractedTree(stagingPath, selected)
+    await pruneExtractedTree(plan.stagingPath, plan.selectedPaths)
     await moveExtractionResult(
-      stagingPath,
-      destinationPath,
-      canonicalArchivePath,
-      normalizedRootPath
+      plan.stagingPath,
+      plan.destinationPath,
+      plan.archivePath,
+      plan.rootPath
     )
-    if (resolvedCleanupPath) {
-      await fs.rm(resolvedCleanupPath, { recursive: true, force: true })
+    if (plan.cleanupPath) {
+      await fs.rm(plan.cleanupPath, { recursive: true, force: true })
     }
-    onProgress?.({ ...progress, percent: 100 })
+    progressReporter.complete()
 
     return {
-      folderPath: destinationPath,
-      title: normalizedDestinationName
+      folderPath: plan.destinationPath,
+      title: plan.destinationName
     }
   } catch (error) {
-    await removeStagingPath(stagingPath)
+    await removeStagingPath(plan.stagingPath)
     throw error
   }
 }

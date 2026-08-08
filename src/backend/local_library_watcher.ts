@@ -27,6 +27,7 @@ type LocalLibraryWatcherOptions = {
   entryStabilityIntervalMs?: number
   maxConcurrentStabilityChecks?: number
   watchDebounceMs?: number
+  watchPollIntervalMs?: number
 }
 
 type EntryStabilitySignature = string | null | undefined
@@ -35,6 +36,7 @@ const WATCH_DEBOUNCE_MS = 500
 const ENTRY_STABILITY_INTERVAL_MS = 1000
 const ENTRY_STABLE_CHECKS = 2
 const MAX_CONCURRENT_STABILITY_CHECKS = 2
+const WATCH_POLL_INTERVAL_MS = 5000
 
 function getLibraryEntryNames(
   entries: Dirent[],
@@ -213,11 +215,15 @@ class LocalLibraryWatcher {
   private detectArchives = true
   private watcher: FSWatcher | undefined
   private reconcileTimeout: NodeJS.Timeout | undefined
+  private reconcileInterval: NodeJS.Timeout | undefined
+  private reconcileRequested = false
+  private reconcileRunning = false
   private revision = 0
   private readonly entryStableChecks: number
   private readonly entryStabilityIntervalMs: number
   private readonly maxConcurrentStabilityChecks: number
   private readonly watchDebounceMs: number
+  private readonly watchPollIntervalMs: number
 
   constructor(
     private readonly onFolderAdded: (folder: LocalLibraryFolder) => void,
@@ -232,6 +238,10 @@ class LocalLibraryWatcher {
       options.maxConcurrentStabilityChecks ?? MAX_CONCURRENT_STABILITY_CHECKS
     )
     this.watchDebounceMs = options.watchDebounceMs ?? WATCH_DEBOUNCE_MS
+    this.watchPollIntervalMs = Math.max(
+      1,
+      options.watchPollIntervalMs ?? WATCH_POLL_INTERVAL_MS
+    )
   }
 
   setExclusionRules(exclusionRules: string[]): void {
@@ -344,6 +354,12 @@ class LocalLibraryWatcher {
     if (revision !== this.revision) {
       return
     }
+
+    // Native watch notifications can be dropped on some platforms/filesystems.
+    this.reconcileInterval = setInterval(() => {
+      this.requestReconcile()
+    }, this.watchPollIntervalMs)
+    this.reconcileInterval.unref()
   }
 
   stop(): void {
@@ -354,8 +370,14 @@ class LocalLibraryWatcher {
       this.reconcileTimeout = undefined
     }
 
+    if (this.reconcileInterval) {
+      clearInterval(this.reconcileInterval)
+      this.reconcileInterval = undefined
+    }
+
     this.watcher?.close()
     this.watcher = undefined
+    this.reconcileRequested = false
     this.rootPath = ''
     this.knownEntries = new Set()
     this.pendingEntries = new Set()
@@ -379,8 +401,27 @@ class LocalLibraryWatcher {
 
     this.reconcileTimeout = setTimeout(() => {
       this.reconcileTimeout = undefined
-      void this.reconcile()
+      this.requestReconcile()
     }, this.watchDebounceMs)
+  }
+
+  private requestReconcile(): void {
+    this.reconcileRequested = true
+    if (!this.reconcileRunning) {
+      void this.runRequestedReconciliations()
+    }
+  }
+
+  private async runRequestedReconciliations(): Promise<void> {
+    this.reconcileRunning = true
+    try {
+      while (this.reconcileRequested) {
+        this.reconcileRequested = false
+        await this.reconcile()
+      }
+    } finally {
+      this.reconcileRunning = false
+    }
   }
 
   private async reconcile(): Promise<void> {

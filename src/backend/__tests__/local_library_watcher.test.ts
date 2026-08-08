@@ -247,6 +247,42 @@ describe('local library watcher', () => {
     }
   })
 
+  it('reports a renamed folder even when the watch event is delayed', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-local-library-')
+    )
+    const originalFolderPath = join(rootPath, 'Original Game')
+    const renamedFolderPath = join(rootPath, 'Renamed Game')
+    await fs.mkdir(originalFolderPath)
+
+    const onFolderAdded = jest.fn()
+    const watcher = new LocalLibraryWatcher(
+      onFolderAdded,
+      createWatcherState(),
+      {
+        ...testWatcherOptions,
+        watchDebounceMs: 60_000,
+        watchPollIntervalMs: 25
+      }
+    )
+
+    try {
+      await watcher.setPath(rootPath)
+      await fs.rename(originalFolderPath, renamedFolderPath)
+
+      await waitFor(() =>
+        expect(onFolderAdded).toHaveBeenCalledWith({
+          folderPath: renamedFolderPath,
+          isArchive: false,
+          title: 'Renamed Game'
+        })
+      )
+    } finally {
+      watcher.stop()
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
   it('ignores existing archives and reports a newly added archive', async () => {
     const rootPath = await fs.mkdtemp(
       join(process.cwd(), '.tmp-heroic-local-library-')

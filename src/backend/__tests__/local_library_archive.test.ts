@@ -252,16 +252,18 @@ Attributes = A
     }
   })
 
-  it('extracts a nested archive beside the wrapper and removes the wrapper', async () => {
+  it('extracts a nested archive to a selected directory and removes the wrapper', async () => {
     const rootPath = await fs.mkdtemp(
       join(process.cwd(), '.tmp-heroic-nested-extract-')
     )
     const wrapperPath = join(rootPath, 'Extracted Wrapper')
     const sourcePath = join(rootPath, 'payload.txt')
     const nestedArchivePath = join(wrapperPath, 'Inner Game.7z')
+    const destinationDirectory = join(rootPath, 'Selected Destination')
 
     try {
       await fs.mkdir(wrapperPath)
+      await fs.mkdir(destinationDirectory)
       await fs.writeFile(sourcePath, 'nested payload')
       await execFileAsync(path7z, ['a', nestedArchivePath, sourcePath], {
         cwd: rootPath,
@@ -276,16 +278,28 @@ Attributes = A
         folderPath: nestedArchivePath
       })
 
+      await expect(
+        extractLocalLibraryArchive({
+          archivePath: nestedArchivePath,
+          cleanupPath: nestedArchive.cleanupAfterExtractionPath,
+          destinationDirectory: wrapperPath,
+          destinationName: 'Unsafe Destination',
+          selectedPaths: ['payload.txt']
+        })
+      ).rejects.toThrow(
+        'The extraction folder must be outside the cleanup folder'
+      )
+
       const result = await extractLocalLibraryArchive({
         archivePath: nestedArchivePath,
         cleanupPath: nestedArchive.cleanupAfterExtractionPath,
-        destinationDirectory: nestedArchive.extractionDestinationDirectory,
+        destinationDirectory,
         destinationName: 'Final Game',
         selectedPaths: ['payload.txt']
       })
 
       expect(result).toEqual({
-        folderPath: join(rootPath, 'Final Game'),
+        folderPath: join(destinationDirectory, 'Final Game'),
         title: 'Final Game'
       })
       await expect(
@@ -346,12 +360,12 @@ Attributes = A
       const result = await extractLocalLibraryArchive({
         archivePath: mainCandidate.folderPath,
         cleanupPath: mainCandidate.cleanupAfterExtractionPath,
-        destinationDirectory: mainCandidate.extractionDestinationDirectory,
+        destinationDirectory: rootPath,
         destinationName: mainCandidate.title,
         selectedPaths: ['payload.txt']
       })
 
-      expect(result.folderPath).toBe(join(wrapperPath, 'Main Game'))
+      expect(result.folderPath).toBe(join(rootPath, 'Main Game'))
       await expect(
         fs.readFile(join(result.folderPath, 'payload.txt'), 'utf8')
       ).resolves.toBe('main game')
