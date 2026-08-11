@@ -16,6 +16,7 @@ asarUnpack:
   - build/bin/**/*
   - '!build/bin/legendary.LICENSE'
   - node_modules/7zip-bin-full/**/*
+  - build/preload/webviewPreload.js
 
 protocols:
   - name: heroic

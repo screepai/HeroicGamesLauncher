@@ -27,6 +27,7 @@ import {
   ExperimentalFeatures,
   HideWindowOnProtocolLaunch,
   ResetHeroic,
+  GamePadDelayRepeat,
   SteamGridDbApiKey,
   VndbApiToken
 } from '../../components'
@@ -192,6 +193,8 @@ export default function AdvancedSetting() {
       <DisableGOGPresence />
 
       <AllowInstallationBrokenAnticheat />
+
+      <GamePadDelayRepeat />
 
       <HideWindowOnProtocolLaunch />
 
