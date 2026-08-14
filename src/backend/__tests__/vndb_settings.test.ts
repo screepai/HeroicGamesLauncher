@@ -247,6 +247,30 @@ describe('VNDB global settings', () => {
     }
   })
 
+  it('sets the finish date in the local timezone', async () => {
+    const originalTimezone = process.env.TZ
+    process.env.TZ = 'Asia/Bangkok'
+    jest
+      .useFakeTimers()
+      .setSystemTime(new Date('2026-06-16T17:30:00.000Z'))
+
+    try {
+      await updateVndbUserOptions('v1', { labels: [2] })
+
+      expect(mockVndbClient.updateUserListEntry).toHaveBeenCalledWith('v1', {
+        labels: [2],
+        finished: '2026-06-17'
+      })
+    } finally {
+      jest.useRealTimers()
+      if (originalTimezone === undefined) {
+        delete process.env.TZ
+      } else {
+        process.env.TZ = originalTimezone
+      }
+    }
+  })
+
   it('suppresses VNDB search and matching when integration is disabled', async () => {
     mockSettings.enableVndbIntegration = false
 
