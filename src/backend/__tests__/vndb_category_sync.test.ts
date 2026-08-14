@@ -1,4 +1,6 @@
 import {
+  getNextVndbLabelIds,
+  getPrimaryVndbLabel,
   getVndbCategoryLabelSyncPlan,
   getVndbCategorySyncPlan,
   getVndbMatchVisualNovelId
@@ -62,6 +64,8 @@ describe('getVndbCategoryLabelSyncPlan', () => {
   const labels = [
     { id: 1, label: 'Playing' },
     { id: 2, label: 'Finished' },
+    { id: 5, label: 'Wishlist' },
+    { id: 10, label: 'Custom' },
     { id: 7, label: 'Voted' }
   ]
 
@@ -80,11 +84,40 @@ describe('getVndbCategoryLabelSyncPlan', () => {
     })
   })
 
+  it('preserves non-status labels when a status category is assigned', () => {
+    expect(
+      getVndbCategoryLabelSyncPlan({
+        labels,
+        selectedLabelIds: [1, 5, 10],
+        category: 'Finished',
+        assigned: true
+      })
+    ).toEqual({
+      label: labels[1],
+      nextLabelIds: [2, 5, 10],
+      previousLabel: labels[0]
+    })
+  })
+
+  it('adds an independent label without replacing the status category', () => {
+    expect(
+      getVndbCategoryLabelSyncPlan({
+        labels,
+        selectedLabelIds: [1],
+        category: 'Wishlist',
+        assigned: true
+      })
+    ).toEqual({
+      label: labels[2],
+      nextLabelIds: [1, 5]
+    })
+  })
+
   it('does nothing when the matching label is already selected', () => {
     expect(
       getVndbCategoryLabelSyncPlan({
         labels,
-        selectedLabelIds: [2],
+        selectedLabelIds: [2, 5],
         category: 'Finished',
         assigned: true
       })
@@ -115,6 +148,45 @@ describe('getVndbCategoryLabelSyncPlan', () => {
         assigned: true
       })
     ).toBeNull()
+  })
+})
+
+describe('VNDB multi-label selection', () => {
+  const labels = [
+    { id: 5, label: 'Wishlist' },
+    { id: 1, label: 'Playing' },
+    { id: 10, label: 'Custom' }
+  ]
+
+  it('uses the status label when Wishlist and Playing are both selected', () => {
+    expect(getPrimaryVndbLabel(labels, [5, 1])).toEqual(labels[1])
+  })
+
+  it('switches status without removing Wishlist or custom labels', () => {
+    expect(
+      getNextVndbLabelIds({
+        selectedLabelIds: [1, 5, 10],
+        labelId: 3,
+        selected: true
+      })
+    ).toEqual([3, 5, 10])
+  })
+
+  it('adds and removes independent labels without changing the status', () => {
+    expect(
+      getNextVndbLabelIds({
+        selectedLabelIds: [1, 5],
+        labelId: 10,
+        selected: true
+      })
+    ).toEqual([1, 5, 10])
+    expect(
+      getNextVndbLabelIds({
+        selectedLabelIds: [1, 5, 10],
+        labelId: 5,
+        selected: false
+      })
+    ).toEqual([1, 10])
   })
 })
 

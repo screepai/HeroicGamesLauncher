@@ -869,8 +869,7 @@
         }
 
         .vndbInfoUserDates input,
-        .vndbInfoVoteControl select,
-        .vndbInfoLabelOptions select {
+        .vndbInfoVoteControl select {
           background: var(--input-background);
           border: 1px solid var(--neutral-04);
           border-radius: var(--space-3xs);
@@ -880,17 +879,46 @@
         }
 
         .vndbInfoUserDates input:focus-visible,
-        .vndbInfoVoteControl select:focus-visible,
-        .vndbInfoLabelOptions select:focus-visible {
+        .vndbInfoVoteControl select:focus-visible {
           border-color: var(--accent);
           outline: none;
         }
 
         .vndbInfoUserDates input:disabled,
-        .vndbInfoVoteControl select:disabled,
-        .vndbInfoLabelOptions select:disabled {
+        .vndbInfoVoteControl select:disabled {
           cursor: not-allowed;
           opacity: 0.65;
+        }
+
+        .vndbInfoLabelChoices {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--space-2xs);
+        }
+
+        .vndbInfoLabelChoice {
+          align-items: center;
+          background: var(--input-background);
+          border: 1px solid var(--neutral-04);
+          border-radius: var(--space-3xs);
+          cursor: pointer;
+          display: flex;
+          gap: var(--space-3xs);
+          padding: var(--space-3xs) var(--space-2xs);
+
+          &.is-selected {
+            border-color: var(--accent);
+          }
+
+          input {
+            accent-color: var(--accent);
+            margin: 0;
+          }
+
+          &:has(input:disabled) {
+            cursor: not-allowed;
+            opacity: 0.65;
+          }
         }
 
         .vndbInfoReleaseSections {

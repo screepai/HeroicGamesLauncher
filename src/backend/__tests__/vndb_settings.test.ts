@@ -43,6 +43,7 @@ jest.mock('../vndb/electronStore', () => ({
 
 import {
   getVndbGameMatch,
+  getVndbUserOptions,
   matchVndbGames,
   searchVndbVisualNovels,
   syncVndbGameMatches,
@@ -232,6 +233,33 @@ describe('VNDB global settings', () => {
     })
   })
 
+  it('returns every VNDB label and preserves multiple selections', async () => {
+    const labels = [
+      { id: 1, label: 'Playing' },
+      { id: 2, label: 'Finished' },
+      { id: 3, label: 'Stalled' },
+      { id: 4, label: 'Dropped' },
+      { id: 5, label: 'Wishlist' },
+      { id: 6, label: 'Blacklist' },
+      { id: 7, label: 'Voted' },
+      { id: 10, label: 'Custom' }
+    ]
+    mockVndbClient.getUserLabels.mockResolvedValue({ labels })
+    mockVndbClient.getUserList.mockResolvedValue({
+      results: [
+        {
+          id: 'v1',
+          labels: [labels[4], labels[0], labels[7], labels[6]]
+        }
+      ]
+    })
+
+    await expect(getVndbUserOptions('v1')).resolves.toMatchObject({
+      labels,
+      selectedLabelIds: [5, 1, 10]
+    })
+  })
+
   it('sets the finish date when the Finished label is selected', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-06-16T12:00:00.000Z'))
 
@@ -250,9 +278,7 @@ describe('VNDB global settings', () => {
   it('sets the finish date in the local timezone', async () => {
     const originalTimezone = process.env.TZ
     process.env.TZ = 'Asia/Bangkok'
-    jest
-      .useFakeTimers()
-      .setSystemTime(new Date('2026-06-16T17:30:00.000Z'))
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-16T17:30:00.000Z'))
 
     try {
       await updateVndbUserOptions('v1', { labels: [2] })

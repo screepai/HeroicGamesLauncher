@@ -24,7 +24,11 @@ import { createNewWindow } from 'frontend/helpers'
 import useAppSetting, {
   APP_SETTING_CHANGED_EVENT
 } from 'frontend/hooks/useAppSetting'
-import { getVndbCategorySyncPlan } from 'common/vndbCategorySync'
+import {
+  getNextVndbLabelIds,
+  getPrimaryVndbLabel,
+  getVndbCategorySyncPlan
+} from 'common/vndbCategorySync'
 import { getVndbMatchKey, getVndbUserDataSyncTarget } from 'common/vndb'
 import ContextProvider from 'frontend/state/ContextProvider'
 import {
@@ -263,30 +267,11 @@ function getEditableVndbLabels(options: VndbUserOptions) {
   return options.labels.filter((label) => !editableLabelDenylist.has(label.id))
 }
 
-function getSelectedVndbLabelId(options: VndbUserOptions): string {
-  const editableLabelIds = new Set(
-    getEditableVndbLabels(options).map(({ id }) => id)
-  )
-  const selectedLabelId = options.selectedLabelIds.find((labelId) =>
-    editableLabelIds.has(labelId)
-  )
-
-  return selectedLabelId ? String(selectedLabelId) : ''
-}
-
 function getSelectedVndbLabel(options: VndbUserOptions) {
-  const selectedLabelId = Number(getSelectedVndbLabelId(options))
-  return getEditableVndbLabels(options).find(
-    (label) => label.id === selectedLabelId
+  return getPrimaryVndbLabel(
+    getEditableVndbLabels(options),
+    options.selectedLabelIds
   )
-}
-
-function getLabelsFromSelectValue(value: string): number[] {
-  if (!value) {
-    return []
-  }
-
-  return [Number(value)]
 }
 
 function getReleaseFlagsLabel(release: VndbRelease, t: Translate): string {
@@ -668,6 +653,13 @@ function VndbUserOptionsSection({
     state.status === 'ready' ? (state.options.started ?? '') : ''
   const savedFinishDate =
     state.status === 'ready' ? (state.options.finished ?? '') : ''
+  const editableLabels =
+    state.status === 'ready' ? getEditableVndbLabels(state.options) : []
+  const hasSelectedLabel =
+    state.status === 'ready' &&
+    editableLabels.some((label) =>
+      state.options.selectedLabelIds.includes(label.id)
+    )
 
   useEffect(() => {
     setStartDate(savedStartDate)
@@ -833,25 +825,46 @@ function VndbUserOptionsSection({
               </select>
             </label>
 
-            <label className="vndbInfoLabelOptions">
+            <div className="vndbInfoLabelOptions">
               <span>{t('vndb.labels', 'Labels')}</span>
-              <select
-                disabled={saving || !state.options.canWrite}
-                onChange={(event) =>
-                  void save({
-                    labels: getLabelsFromSelectValue(event.currentTarget.value)
-                  })
-                }
-                value={getSelectedVndbLabelId(state.options)}
-              >
-                <option value="">{t('vndb.no-label', 'No label')}</option>
-                {getEditableVndbLabels(state.options).map((label) => (
-                  <option key={label.id} value={label.id}>
-                    {label.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <div className="vndbInfoLabelChoices">
+                {!hasSelectedLabel && (
+                  <span className="vndbInfoMuted">
+                    {t('vndb.no-label', 'No label')}
+                  </span>
+                )}
+                {editableLabels.map((label) => {
+                  const selected = state.options.selectedLabelIds.includes(
+                    label.id
+                  )
+
+                  return (
+                    <label
+                      className={`vndbInfoLabelChoice${
+                        selected ? ' is-selected' : ''
+                      }`}
+                      key={label.id}
+                    >
+                      <input
+                        checked={selected}
+                        disabled={saving || !state.options.canWrite}
+                        onChange={(event) =>
+                          void save({
+                            labels: getNextVndbLabelIds({
+                              selectedLabelIds: state.options.selectedLabelIds,
+                              labelId: label.id,
+                              selected: event.currentTarget.checked
+                            })
+                          })
+                        }
+                        type="checkbox"
+                      />
+                      <span>{label.label}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
           </div>
 
           {!state.options.canWrite && (

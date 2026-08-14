@@ -12,6 +12,8 @@ export interface VndbCategoryLabelSyncPlan {
 }
 
 const editableLabelDenylist = new Set([0, 7])
+const statusLabelIds = new Set([1, 2, 3, 4])
+const statusLabelPriority = [1, 2, 3, 4]
 
 function normalizeName(value: string | undefined): string {
   return value?.trim().toLocaleLowerCase() ?? ''
@@ -29,6 +31,45 @@ function findMatchingCategory(
   return categories.find(
     (category) => normalizeName(category) === normalizedLabel
   )
+}
+
+export function getPrimaryVndbLabel(
+  labels: VndbUserLabel[],
+  selectedLabelIds: number[]
+): VndbUserLabel | undefined {
+  const selectedIds = new Set(selectedLabelIds)
+  const statusLabelId = statusLabelPriority.find((id) => selectedIds.has(id))
+  const statusLabel = labels.find((label) => label.id === statusLabelId)
+
+  return (
+    statusLabel ??
+    labels.find(
+      (label) =>
+        !editableLabelDenylist.has(label.id) && selectedIds.has(label.id)
+    )
+  )
+}
+
+export function getNextVndbLabelIds({
+  selectedLabelIds,
+  labelId,
+  selected
+}: {
+  selectedLabelIds: number[]
+  labelId: number
+  selected: boolean
+}): number[] {
+  const nextLabelIds = selected
+    ? statusLabelIds.has(labelId)
+      ? selectedLabelIds.filter((id) => !statusLabelIds.has(id))
+      : [...selectedLabelIds]
+    : selectedLabelIds.filter((id) => id !== labelId)
+
+  if (selected && !nextLabelIds.includes(labelId)) {
+    nextLabelIds.push(labelId)
+  }
+
+  return [...new Set(nextLabelIds)].sort((left, right) => left - right)
 }
 
 export function getVndbCategorySyncPlan({
@@ -90,20 +131,22 @@ export function getVndbCategoryLabelSyncPlan({
     return null
   }
 
-  const previousLabel = labels.find(
-    (candidate) =>
-      !editableLabelDenylist.has(candidate.id) &&
-      selectedLabelIds.includes(candidate.id)
-  )
+  const previousLabel = statusLabelIds.has(label.id)
+    ? getPrimaryVndbLabel(labels, selectedLabelIds)
+    : undefined
 
   if (assigned) {
-    if (selectedLabelIds.length === 1 && selectedLabelIds[0] === label.id) {
+    if (selectedLabelIds.includes(label.id)) {
       return null
     }
 
     return {
       label,
-      nextLabelIds: [label.id],
+      nextLabelIds: getNextVndbLabelIds({
+        selectedLabelIds,
+        labelId: label.id,
+        selected: true
+      }),
       ...(previousLabel ? { previousLabel } : {})
     }
   }
