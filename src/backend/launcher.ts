@@ -97,6 +97,7 @@ import {
 } from './constants/environment'
 import { formatSystemInfo, getSystemInfo } from './utils/systeminfo'
 import { gameAnticheatInfo } from './anticheat/utils'
+import { getUmuEnvironment } from './utils/umu_environment'
 
 import type { PartialDeep } from 'type-fest'
 import type LogWriter from './logger/log_writer'
@@ -1094,6 +1095,13 @@ function setupEnvVars(gameSettings: GameSettings, installPath?: string) {
     // LC_ALL takes precedence for Wine and native games. HOST_LC_ALL makes
     // the same locale available to Wine-GE and Proton-GE launch environments.
     Object.assign(ret, japaneseLocaleEnv)
+  }
+
+  if (isLinux) {
+    Object.assign(
+      ret,
+      getUmuEnvironment(Boolean(gameSettings.offlineMode || !isOnline()))
+    )
   }
 
   if (gameSettings.enviromentOptions) {
