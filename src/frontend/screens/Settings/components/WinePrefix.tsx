@@ -9,7 +9,7 @@ import { InfoBox, PathSelectionBox } from 'frontend/components/UI'
 import { isWindowsPlatform } from 'common/utils'
 import { isDefaultWinePrefix } from 'frontend/helpers/winePrefix'
 import SettingsContext from '../SettingsContext'
-import { defaultWineVersion } from '..'
+import { defaultWineVersion } from '../util'
 import DedicatedWinePrefixSetup from './DedicatedWinePrefixSetup'
 
 const WinePrefix = () => {

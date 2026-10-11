@@ -13,13 +13,8 @@ import {
 
 import { Tab, Tabs } from '@mui/material'
 
-import {
-  getGameInfo,
-  getInstallInfo,
-  launch,
-  sendKill,
-  updateGame
-} from 'frontend/helpers'
+import { getGameInfo, getInstallInfo, sendKill } from 'frontend/helpers'
+import { launch, updateGame, install } from 'frontend/helpers/library'
 import {
   getSelectedVndbReleases,
   getVndbReleasesWithSelectedReleases
@@ -45,7 +40,6 @@ import { getVndbMatchKey } from 'common/vndb'
 import GamePicture from '../GamePicture'
 import TimeContainer from '../TimeContainer'
 
-import { install } from 'frontend/helpers/library'
 import { hasProgress } from 'frontend/hooks/hasProgress'
 import ErrorComponent from 'frontend/components/UI/ErrorComponent'
 import Anticheat from 'frontend/components/UI/Anticheat'
@@ -75,7 +69,7 @@ import { hasAnticheatInfo } from 'frontend/hooks/hasAnticheatInfo'
 import { hasHelp } from 'frontend/hooks/hasHelp'
 import Genres from './components/Genres'
 import ReleaseDate from './components/ReleaseDate'
-import { hasKnownFixes } from 'frontend/hooks/hasKnownFixes'
+import { useKnownFixes } from 'frontend/hooks/hasKnownFixes'
 import { openInstallGameModal } from 'frontend/state/InstallGameModal'
 import useSettingsContext from 'frontend/hooks/useSettingsContext'
 import useAppSetting from 'frontend/hooks/useAppSetting'
@@ -193,7 +187,7 @@ export default React.memo(function GamePage(): JSX.Element | null {
 
   const anticheatInfo = hasAnticheatInfo(gameInfo)
 
-  const knownFixes = hasKnownFixes(appName, runner)
+  const knownFixes = useKnownFixes(appName, runner)
 
   const isWin = platform === 'win32'
   const isLinux = platform === 'linux'

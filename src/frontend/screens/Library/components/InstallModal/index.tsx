@@ -267,6 +267,7 @@ function InstallModal({
             platformToInstall={platformToInstall}
             appName={appName}
             defaultPath={sideloadDefaultPath}
+            crossoverBottle={crossoverBottle}
           >
             {platformSelection()}
             {hasWine ? (

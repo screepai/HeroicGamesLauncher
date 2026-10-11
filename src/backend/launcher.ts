@@ -10,9 +10,7 @@ import {
   RpcClient,
   WineInstallation,
   WineCommandArgs,
-  SteamRuntime,
   GameSettings,
-  KnowFixesInfo,
   LaunchParams,
   StatusPromise
 } from 'common/types'
@@ -25,7 +23,6 @@ import { join, dirname, isAbsolute } from 'path'
 
 import {
   constructAndUpdateRPC,
-  getSteamRuntime,
   isEpicServiceOffline,
   quoteIfNecessary,
   errorHandler,
@@ -56,7 +53,6 @@ import { isOnline } from './online_monitor'
 import { showDialogBoxModalAuto } from './dialog/dialog'
 import { legendarySetup } from './storeManagers/legendary/setup'
 import { libraryManagerMap } from 'backend/storeManagers'
-import * as VDF from '@node-steam/vdf'
 import { readFileSync, writeFileSync } from 'fs'
 import { LegendaryCommand } from './storeManagers/legendary/commands'
 import { searchForExecutableOnPath } from './utils/os/path'
@@ -65,7 +61,6 @@ import {
   deleteAbortController
 } from './utils/aborthandler/aborthandler'
 import { download, isInstalled } from './wine/runtimes/runtimes'
-import { storeMap } from 'common/utils'
 import { getMainWindow } from './main_window'
 import { sendFrontendMessage } from './ipc'
 import { getUmuPath, isUmuSupported } from './utils/compatibility_layers'
@@ -77,7 +72,6 @@ import { tsStore } from './constants/key_value_stores'
 import {
   defaultUmuPath,
   sharedWinePrefix,
-  fixesPath,
   flatpakHome,
   galaxyCommunicationExePath,
   gamesConfigPath,
@@ -103,6 +97,7 @@ import type { PartialDeep } from 'type-fest'
 import type LogWriter from './logger/log_writer'
 import { isEnabled } from './storeManagers/legendary/eos_overlay/eos_overlay'
 import { Game } from 'common/types/game_manager'
+import { getKnownFixesFor } from './known_fixes/utils'
 
 let powerDisplayId: number | null
 
@@ -369,13 +364,12 @@ function filterGameSettingsForLog(
     delete gameSettings.advertiseAvxForRosetta
 
     if (notNative) {
+      delete gameSettings.steamRuntime
       const wineVersion = gameSettings.wineVersion
       if (wineVersion) {
         if (wineVersion.type === 'proton') {
           delete gameSettings.autoInstallDxvk
           delete gameSettings.autoInstallVkd3d
-        } else {
-          delete gameSettings.useSteamRuntime
         }
       }
 
@@ -416,7 +410,7 @@ function filterGameSettingsForLog(
     delete gameSettings.enableWoW64
     delete gameSettings.showMangohud
     delete gameSettings.disableUMU
-    delete gameSettings.useSteamRuntime
+    delete gameSettings.steamRuntime
     delete gameSettings.enableFsync
 
     if (notNative) {
@@ -483,7 +477,7 @@ function filterGameSettingsForLog(
     delete gameSettings.nvidiaPrime
     delete gameSettings.disableUMU
     delete gameSettings.advertiseAvxForRosetta
-    delete gameSettings.useSteamRuntime
+    delete gameSettings.steamRuntime
   }
 
   return gameSettings
@@ -577,6 +571,11 @@ async function prepareLaunch(
       info?.anticheats ? `Anticheats: ${info.anticheats}\n\n` : ''
     )
   ])
+
+  const knownFixes = getKnownFixesFor(gameInfo.app_name, gameInfo.runner)
+  if (knownFixes && knownFixes.wikiLink) {
+    logWriter.logInfo(`Wiki Link, read this: ${knownFixes.wikiLink}\n\n`)
+  }
 
   // If we're not on Linux, we can return here
   if (!isLinux) {
@@ -712,61 +711,19 @@ async function prepareLaunch(
     }
   }
 
-  if (
-    (await isUmuSupported(gameSettings, false)) &&
-    isOnline() &&
-    !(await isInstalled('umu')) &&
-    (await getUmuPath()) === defaultUmuPath
-  ) {
+  let steamRuntime = undefined
+  const umuAvailable =
+    (await isInstalled('umu')) || (await getUmuPath()) !== defaultUmuPath
+  const useUmu =
+    (await isUmuSupported(gameSettings, false)) ||
+    (gameSettings.steamRuntime && isNative)
+
+  if (useUmu && !umuAvailable && isOnline()) {
     await download('umu')
   }
 
-  // If the Steam Runtime is enabled, find a valid one
-  let steamRuntime: string[] = []
-  const shouldUseRuntime =
-    gameSettings.useSteamRuntime &&
-    (isNative ||
-      (!(await isUmuSupported(gameSettings)) &&
-        gameSettings.wineVersion.type === 'proton'))
-
-  if (shouldUseRuntime) {
-    // Determine which runtime to use based on toolmanifest.vdf which is shipped with proton
-    let nonNativeRuntime: SteamRuntime['type'] = 'soldier'
-    if (!isNative) {
-      try {
-        const parentPath = dirname(gameSettings.wineVersion.bin)
-        const requiredAppId = VDF.parse(
-          readFileSync(join(parentPath, 'toolmanifest.vdf'), 'utf-8')
-        ).manifest?.require_tool_appid
-        if (requiredAppId === 1628350) nonNativeRuntime = 'sniper'
-      } catch (error) {
-        logError(
-          ['Failed to parse toolmanifest.vdf:', error],
-          LogPrefix.Backend
-        )
-      }
-    }
-
-    const runtimeType = isNative ? 'scout' : nonNativeRuntime
-    const { path, args } = await getSteamRuntime(runtimeType)
-    if (!path) {
-      return {
-        success: false,
-        failureReason:
-          'Steam Runtime is enabled, but no runtimes could be found\n' +
-          `Make sure Steam ${
-            isNative
-              ? 'is'
-              : `and the SteamLinuxRuntime - ${
-                  nonNativeRuntime === 'sniper' ? 'Sniper' : 'Soldier'
-                } are`
-          } installed`
-      }
-    }
-
-    logInfo(`Using Steam ${runtimeType} Runtime`, LogPrefix.Backend)
-
-    steamRuntime = [path, ...args]
+  if (useUmu) {
+    steamRuntime = [await getUmuPath()]
   }
 
   return {
@@ -961,9 +918,25 @@ async function prepareWineLaunch(
             `binpath=${galaxyCommWinePath}`
           ],
           gameSettings,
-          protonVerb: 'runinprefix'
+          protonVerb: 'run'
         })
       }
+      await runWineCommand({
+        commandParts: [
+          'reg',
+          'add',
+          'HKLM\\SOFTWARE\\WOW6432Node\\GOG.com\\GalaxyClient\\paths',
+          '/v',
+          'client',
+          '/t',
+          'REG_SZ',
+          '/d',
+          'C:\\Program Files\\GOG Galaxy',
+          '/f'
+        ],
+        gameSettings,
+        protonVerb: 'run'
+      })
     }
   } catch (err) {
     logError([
@@ -1006,27 +979,8 @@ async function prepareWineLaunch(
   return { success: true, envVars: envVars }
 }
 
-export function readKnownFixes(appName: string, runner: Runner) {
-  const fixPath = join(fixesPath, `${appName}-${storeMap[runner]}.json`)
-
-  if (!existsSync(fixPath)) return null
-
-  try {
-    const fixesContent = JSON.parse(
-      readFileSync(fixPath).toString()
-    ) as KnowFixesInfo
-
-    return fixesContent
-  } catch (error) {
-    // if we fail to download the json file, it can be malformed causing
-    // JSON.parse to throw an exception
-    logWarning(`Known fixes could not be applied, ignoring.\n${error}`)
-    return null
-  }
-}
-
 async function installFixes(appName: string, runner: Runner) {
-  const knownFixes = readKnownFixes(appName, runner)
+  const knownFixes = getKnownFixesFor(appName, runner)
 
   if (!knownFixes) return
 
@@ -1064,7 +1018,7 @@ async function installFixes(appName: string, runner: Runner) {
 }
 
 function getKnownFixesEnvVariables(appName: string, runner: Runner) {
-  const knownFixes = readKnownFixes(appName, runner)
+  const knownFixes = getKnownFixesFor(appName, runner)
 
   return knownFixes?.envVariables || {}
 }
@@ -1102,6 +1056,11 @@ function setupEnvVars(gameSettings: GameSettings, installPath?: string) {
       ret,
       getUmuEnvironment(Boolean(gameSettings.offlineMode || !isOnline()))
     )
+  }
+
+  if (isLinux && gameSettings.steamRuntime) {
+    // Umu uses "PROTONPATH" to dictate the runtime to use
+    ret.PROTONPATH = gameSettings.steamRuntime
   }
 
   if (gameSettings.enviromentOptions) {

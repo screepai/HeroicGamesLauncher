@@ -44,6 +44,7 @@ import useAppSetting from 'frontend/hooks/useAppSetting'
 type Props = {
   availablePlatforms: AvailablePlatforms
   winePrefix: string
+  crossoverBottle: string
   wineVersion: WineInstallation | undefined
   children: React.ReactNode
   platformToInstall: InstallPlatform
@@ -79,6 +80,7 @@ export default function SideloadDialog({
   availablePlatforms,
   backdropClick,
   winePrefix,
+  crossoverBottle,
   wineVersion,
   platformToInstall,
   children,
@@ -309,7 +311,8 @@ export default function SideloadDialog({
         !editMode && appPlatform === 'Windows' && platform !== 'win32'
           ? {
               winePrefix,
-              wineVersion: wineVersion ?? gameSettings.wineVersion
+              wineVersion: wineVersion ?? gameSettings.wineVersion,
+              wineCrossoverBottle: crossoverBottle
             }
           : {}
 
@@ -444,6 +447,7 @@ export default function SideloadDialog({
   const directoryToOpen = executableDirectory || defaultPath || ''
 
   const shouldShowRunExe =
+    !editMode &&
     platform !== 'win32' &&
     appPlatform !== 'Mac' &&
     appPlatform !== 'linux' &&

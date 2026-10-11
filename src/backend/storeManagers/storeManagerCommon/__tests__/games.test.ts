@@ -48,6 +48,8 @@ jest.mock('../../../utils/aborthandler/aborthandler', () => ({
   createAbortController: jest.fn(),
   deleteAbortController: jest.fn()
 }))
+// This suite simulates Windows, including its path handling, on every host.
+jest.mock('path', () => jest.requireActual<typeof import('path')>('path').win32)
 jest.mock('electron')
 jest.mock('backend/utils', () => ({
   sendGameStatusUpdate: mockSendGameStatusUpdate
@@ -167,6 +169,24 @@ describe('launchGame Locale Emulator integration', () => {
         ]
       })
     )
+  })
+
+  it('adds umu only once when launching a non-native game', async () => {
+    mockPrepareLaunch.mockResolvedValueOnce({
+      success: true,
+      steamRuntime: ['/usr/bin/umu-run']
+    })
+
+    await expect(launchGame(makeGame(false), logWriter)).resolves.toBe(true)
+
+    expect(mockSetupWrappers).toHaveBeenCalledWith(
+      mockGameSettings,
+      undefined,
+      undefined,
+      undefined,
+      undefined
+    )
+    expect(mockRunWineCommand).toHaveBeenCalled()
   })
 
   it('blocks JP locale launches when Locale Emulator is not configured', async () => {

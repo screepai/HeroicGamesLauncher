@@ -28,12 +28,12 @@ import 'backend/updater'
 import 'backend/discounts'
 import { autoUpdater } from 'electron-updater'
 import { cpus } from 'os'
-import { existsSync, watch, readdirSync, readFileSync } from 'graceful-fs'
+import { existsSync, readdirSync, readFileSync } from 'graceful-fs'
 import 'source-map-support/register'
 
-import Backend from 'i18next-fs-backend'
-import { changeLanguage, t, use } from 'i18next'
-import { join } from 'path'
+import Backend from 'i18next-fs-backend/cjs'
+import i18next from 'i18next'
+import { isAbsolute, join, relative, sep } from 'path'
 import { DXVK, Winetricks } from './tools'
 import { GameConfig } from './game_config'
 import { GlobalConfig } from './config'
@@ -88,12 +88,7 @@ import {
   logWarning
 } from './logger'
 import { gameInfoStore } from 'backend/storeManagers/legendary/electronStores'
-import {
-  launchEventCallback,
-  readKnownFixes,
-  runWineCommand,
-  validWine
-} from './launcher'
+import { launchEventCallback, runWineCommand, validWine } from './launcher'
 import { initQueue } from './downloadmanager/downloadqueue'
 import {
   initOnlineMonitor,
@@ -134,7 +129,6 @@ import {
   wikiLink,
   wineprefixFAQ
 } from './constants/urls'
-import { legendaryInstalled } from './storeManagers/legendary/constants'
 import {
   isCLIConsoleMode,
   isCLIFullscreen,
@@ -396,7 +390,7 @@ if (!gotTheLock) {
       })
     }
     runOnceWhenOnline(gogPresence.setPresence)
-    await use(Backend).init({
+    await i18next.use(Backend).init({
       backend: {
         addPath: path.join(publicDir, 'locales', '{{lng}}', '{{ns}}'),
         allowMultiLoading: false,
@@ -464,7 +458,7 @@ if (!gotTheLock) {
 
     addListener('changeLanguage', async (event, language) => {
       logInfo(['Changing Language to:', language], LogPrefix.Backend)
-      await changeLanguage(language)
+      await i18next.changeLanguage(language)
       gameInfoStore.clear()
       GlobalConfig.get().setSetting('language', language)
       backendEvents.emit('languageChanged')
@@ -506,11 +500,11 @@ process.on('uncaughtException', (err) => {
   if (process.env.CI === 'e2e') return
 
   showDialogBoxModalAuto({
-    title: t(
+    title: i18next.t(
       'box.error.uncaught-exception.title',
       'Uncaught Exception occured!'
     ),
-    message: t('box.error.uncaught-exception.message', {
+    message: i18next.t('box.error.uncaught-exception.message', {
       defaultValue:
         'A uncaught exception occured:{{newLine}}{{error}}{{newLine}}{{newLine}} Report the exception on our Github repository.',
       newLine: '\n',
@@ -625,7 +619,11 @@ addListener('showConfigFileInFolder', async (event, appName) => {
   if (appName === 'default') {
     return openUrlOrFile(configPath)
   }
-  return openUrlOrFile(path.join(gamesConfigPath, `${appName}.json`))
+  const gameConfigPath = path.join(gamesConfigPath, `${appName}.json`)
+  if (!existsSync(gameConfigPath)) {
+    GameConfig.get(appName).flush()
+  }
+  return openUrlOrFile(gameConfigPath)
 })
 
 addListener('removeFolder', (e, [path, folderName]) => {
@@ -687,10 +685,13 @@ addListener('clearCache', (event, showDialog, fromVersionChange = false) => {
   if (showDialog) {
     showDialogBoxModalAuto({
       event,
-      title: t('box.cache-cleared.title', 'Cache Cleared'),
-      message: t('box.cache-cleared.message', 'Heroic Cache Was Cleared!'),
+      title: i18next.t('box.cache-cleared.title', 'Cache Cleared'),
+      message: i18next.t(
+        'box.cache-cleared.message',
+        'Heroic Cache Was Cleared!'
+      ),
       type: 'MESSAGE',
-      buttons: [{ text: t('box.ok', 'Ok') }]
+      buttons: [{ text: i18next.t('box.ok', 'Ok') }]
     })
   }
 })
@@ -871,22 +872,6 @@ addListener('setSetting', (event, { appName, key, value }) => {
   }
 })
 
-// Watch the installed games file and trigger a refresh on the installed games if something changes
-if (existsSync(legendaryInstalled)) {
-  let watchTimeout: NodeJS.Timeout | undefined
-  watch(legendaryInstalled, () => {
-    logInfo('installed.json updated, refreshing library', LogPrefix.Legendary)
-    // `watch` might fire twice (while Legendary/we are still writing chunks of the file), which would in turn make LegendaryLibrary fail to
-    // decode the JSON data. So instead of immediately calling LegendaryLibrary.get().refreshInstalled(), call it only after no writes happen
-    // in a 500ms timespan
-    if (watchTimeout) clearTimeout(watchTimeout)
-    watchTimeout = setTimeout(
-      () => libraryManagerMap['legendary'].refreshInstalled(),
-      500
-    )
-  })
-}
-
 addHandler('refreshLibrary', async (e, library?) => {
   if (library !== undefined && library !== 'all') {
     await libraryManagerMap[library].refresh()
@@ -944,11 +929,11 @@ addHandler('repair', async (event, appName, runner) => {
   } catch (error) {
     notify({
       title,
-      body: t('notify.error.reparing', 'Error Repairing')
+      body: i18next.t('notify.error.reparing', 'Error Repairing')
     })
     logError(error, LogPrefix.Backend)
   }
-  notify({ title, body: t('notify.finished.reparing') })
+  notify({ title, body: i18next.t('notify.finished.reparing') })
   logInfo('Finished repairing', LogPrefix.Backend)
 
   sendGameStatusUpdate({
@@ -967,18 +952,35 @@ addHandler(
       status: 'moving'
     })
 
-    const { title } = libraryManagerMap[runner].getGame(appName).getGameInfo()
+    const { title, install } = libraryManagerMap[runner]
+      .getGame(appName)
+      .getGameInfo()
     try {
-      notify({ title, body: t('notify.moving', 'Moving Game') })
+      const installPath = install.install_path
+      if (installPath) {
+        const relativePath = relative(installPath, path)
+        if (
+          relativePath === '' ||
+          (relativePath !== '..' &&
+            !relativePath.startsWith(`..${sep}`) &&
+            !isAbsolute(relativePath))
+        ) {
+          throw new Error(
+            `New install path (${path}) cannot be inside the current install path (${installPath}).`
+          )
+        }
+      }
+      notify({ title, body: i18next.t('notify.moving', 'Moving Game') })
 
       const moveRes = await libraryManagerMap[runner]
         .getGame(appName)
         .moveInstall(path)
       if (moveRes.status === 'error') {
-        const errorMessage = moveRes.error ?? t('box.error.generic', 'Error')
+        const errorMessage =
+          moveRes.error ?? i18next.t('box.error.generic', 'Error')
         notify({
           title,
-          body: t('notify.error.move', 'Error Moving Game')
+          body: i18next.t('notify.error.move', 'Error Moving Game')
         })
         logError(
           `Error while moving ${appName} to ${path}: ${errorMessage} `,
@@ -987,24 +989,29 @@ addHandler(
 
         showDialogBoxModalAuto({
           event,
-          title: t('box.error.title', 'Error'),
-          message: t('box.error.moving', 'Error Moving Game {{error}}', {
-            error: errorMessage
-          }),
+          title: i18next.t('box.error.title', 'Error'),
+          message: i18next.t(
+            'box.error.moving',
+            'Error Moving Game {{error}}',
+            {
+              error: errorMessage
+            }
+          ),
           type: 'ERROR'
         })
         return { status: 'error', error: errorMessage }
       }
 
-      notify({ title, body: t('notify.moved') })
+      notify({ title, body: i18next.t('notify.moved') })
       logInfo(`Finished moving ${appName} to ${path}.`, LogPrefix.Backend)
       return { status: 'done' }
     } catch (error) {
       const errorMessage = String(error)
       notify({
         title,
-        body: t('notify.error.move', 'Error Moving Game')
+        body: i18next.t('notify.error.move', 'Error Moving Game')
       })
+
       logError(
         `Error while moving ${appName} to ${path}: ${errorMessage} `,
         LogPrefix.Backend
@@ -1012,8 +1019,8 @@ addHandler(
 
       showDialogBoxModalAuto({
         event,
-        title: t('box.error.title', 'Error'),
-        message: t('box.error.moving', 'Error Moving Game {{error}}', {
+        title: i18next.t('box.error.title', 'Error'),
+        message: i18next.t('box.error.moving', 'Error Moving Game {{error}}', {
           error: errorMessage
         }),
         type: 'ERROR'
@@ -1048,8 +1055,8 @@ addHandler(
       if (epicOffline) {
         showDialogBoxModalAuto({
           event,
-          title: t('box.warning.title', 'Warning'),
-          message: t(
+          title: i18next.t('box.warning.title', 'Warning'),
+          message: i18next.t(
             'box.warning.epic.import',
             'Epic Servers are having major outage right now, the game cannot be imported!'
           ),
@@ -1069,7 +1076,7 @@ addHandler(
     const abortMessage = () => {
       notify({
         title,
-        body: t('notify.import.failed', 'Importing Failed')
+        body: i18next.t('notify.import.failed', 'Importing Failed')
       })
       sendGameStatusUpdate({
         appName,
@@ -1104,7 +1111,7 @@ addHandler(
 
     notify({
       title,
-      body: t('notify.install.imported', 'Game Imported')
+      body: i18next.t('notify.install.imported', 'Game Imported')
     })
     sendGameStatusUpdate({
       appName,
@@ -1152,7 +1159,7 @@ addHandler('getLaunchOptions', async (event, appName, runner) => {
     )
   ) {
     availableLaunchOptions.unshift({
-      name: t('launch.default', 'Default', {
+      name: i18next.t('launch.default', 'Default', {
         ns: 'gamepage'
       }),
       parameters: '',
@@ -1475,18 +1482,14 @@ addListener('changeGameVersionPinnedStatus', (e, appName, runner, status) => {
   libraryManagerMap[runner].changeVersionPinnedStatus(appName, status)
 })
 
-addHandler('getKnownFixes', (e, appName, runner) =>
-  readKnownFixes(appName, runner)
-)
-
 addHandler('wine.isValidVersion', async (e, wineVersion: WineInstallation) =>
   validWine(wineVersion)
 )
 
 /*
   Other Keys that should go into translation files:
-  t('box.error.generic.title')
-  t('box.error.generic.message')
+  i18next.t('box.error.generic.title')
+  i18next.t('box.error.generic.message')
  */
 
 /*
@@ -1496,6 +1499,7 @@ import './logger/ipc_handler'
 import './wine/manager/ipc_handler'
 import './shortcuts/ipc_handler'
 import './anticheat/ipc_handler'
+import './known_fixes/ipc_handler'
 import './storeManagers/legendary/eos_overlay/ipc_handler'
 import './wine/runtimes/ipc_handler'
 import './downloadmanager/ipc_handler'
