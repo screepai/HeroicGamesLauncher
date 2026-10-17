@@ -1152,6 +1152,10 @@
         "showVndbActionsOnGameCards": "Show VNDB actions on game cards",
         "start-in-console-mode": "Start in Console Mode",
         "start-in-tray": "Start Minimized",
+        "steamRuntime": {
+            "label": "Use Steam Runtime",
+            "noRuntimeOption": "None"
+        },
         "syncVndbUserData": "Sync play dates and releases to VNDB",
         "syncVndbUserData-description": "Allow Heroic to write detected start and finish dates and selected releases to your VNDB account.",
         "useVndbDiscordRichPresence": "Use VNDB details in Discord Rich Presence",
@@ -1174,11 +1178,7 @@
         "wineprefix": "WinePrefix folder",
         "wineversion": "Wine Version",
         "wineWayland": "Enable Wine-Wayland (Experimental) (Wine version needs to support it)",
-        "WoW64": "Enable WoW64 (Experimental)",
-        "steamRuntime": {
-            "label": "Use Steam Runtime",
-            "noRuntimeOption": "None"
-        }
+        "WoW64": "Enable WoW64 (Experimental)"
     },
     "settings": {
         "advanced": {
