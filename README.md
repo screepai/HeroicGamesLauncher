@@ -77,20 +77,38 @@ Heroic is built with Web Technologies:
 
 ## Features this fork has to offer
 
-- Full VNDB library integration with automatic matching, manual rematching, bulk synchronization, and direct game-card actions
-- Secure VNDB account integration for synchronizing labels, votes, play dates, and selected releases
-- Optional VNDB label/category synchronization that can prompt or automatically move games between same-named custom categories when their VNDB label changes, and can prompt before updating VNDB labels after manual category changes
-- Dedicated VNDB game tab with descriptions, tags, ratings, play length, developers, relations, releases, and account controls
-- Automatic VNDB matching and synchronization for newly added visual novels from watched local folders
-- Cover image search through both VNDB and SteamGridDB
-- Enhanced Discord Rich Presence with session time, total playtime, game links, and optional VNDB details
-- Category-grouped library layout that follows your custom drag-and-drop order
-- Type-to-search directly within the library, including matched VNDB titles and aliases
-- Local library folder watcher with persistent state, customizable exclusion rules, and optional archive detection
-- Built-in archive inspection and extraction with content selection, password-protected and multipart archive support, incomplete-archive diagnostics, and optional source cleanup
-- Per-game Visual Novel and Japanese Locale controls, including Locale Emulator support on Windows and locale launch flags on Linux
-- Bulk selection with Select All/Unselect All, batch categorization, and batch Visual Novel or Japanese Locale settings
-- Granular settings to enable or disable VNDB integration, VNDB account writes, game-card actions, VNDB Discord details, local-folder watching, archive detection, and post-extraction cleanup prompts
+**VNDB**
+
+- Automatic and manual VNDB matching, with bulk sync and game-card actions
+- VNDB tab on the game page: description, tags, rating, length, developers, relations and releases
+- Account sync for labels, votes, play dates and owned releases
+- Optional two-way sync between VNDB labels and custom categories
+- New visual novels from watched folders are matched automatically
+
+**Visual novel tools**
+
+- Per-game Visual Novel flag and Japanese locale (Locale Emulator on Windows, locale flags on Linux)
+- VNWiki compatibility notes on the game page, with guided Wine prefix and codec setup
+- Automatic cover search from VNDB, with SteamGridDB as an option
+
+**Local library**
+
+- Folder watcher that offers newly added games, with exclusion rules
+- Archive extraction: pick contents, password-protected and multipart archives, optional cleanup
+- Backup and restore of your local library metadata, including across operating systems
+
+**Library management**
+
+- Library grouped by category, in your own drag-and-drop order
+- Type-to-search, including VNDB titles and aliases
+- Bulk actions: categories, Visual Novel and locale settings, migrate to another folder, uninstall
+- Safe uninstall: never deletes a drive, user folder or library root
+
+**Extras**
+
+- Richer Discord Rich Presence: session and total playtime, links, optional VNDB details
+- Import/Export also covers VNDB matches, metadata overrides, category order and (opt-in) API keys
+- Settings to turn off VNDB, VNDB account writes, card actions, folder watching and archive detection
 
 ## Planned features
 
