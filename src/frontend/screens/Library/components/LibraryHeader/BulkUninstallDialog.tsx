@@ -1,7 +1,7 @@
 import { useContext, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GameInfo, GameStatus, Status } from 'common/types'
-import { Alert } from 'frontend/components/UI'
+import { Alert, Badge, Button } from 'frontend/components/UI'
 import {
   Modal,
   ModalContent,
@@ -220,6 +220,8 @@ export default function BulkUninstallDialog({
       disableBackdropClose={isUninstalling}
       disableEscapeKeyDown={isUninstalling}
       showCloseButton={!isUninstalling}
+      size="md"
+      tone={entirely ? 'destructive' : 'default'}
       className="BulkUninstallDialog"
     >
       <ModalHeader>
@@ -283,7 +285,17 @@ export default function BulkUninstallDialog({
             return (
               <div className="bulkUninstallRow" key={getGameKey(game)}>
                 <span>{game.overrides?.title || game.title}</span>
-                <strong className={`uninstallStatus-${result.status}`}>
+                <Badge
+                  variant={
+                    result.status === 'done'
+                      ? 'success'
+                      : result.status === 'error'
+                        ? 'error'
+                        : result.status === 'uninstalling'
+                          ? 'accent'
+                          : 'neutral'
+                  }
+                >
                   {result.status === 'pending' &&
                     t('library.bulk-uninstall.status-pending', 'Pending')}
                   {result.status === 'uninstalling' &&
@@ -295,7 +307,7 @@ export default function BulkUninstallDialog({
                     t('library.bulk-uninstall.status-done', 'Done')}
                   {result.status === 'error' &&
                     t('library.bulk-uninstall.status-error', 'Error')}
-                </strong>
+                </Badge>
                 {result.status === 'error' && <em>{result.error}</em>}
               </div>
             )
@@ -307,33 +319,33 @@ export default function BulkUninstallDialog({
             >
               <span>{game.overrides?.title || game.title}</span>
               <small>{getSkipReasonLabel(reason)}</small>
-              <strong>
+              <Badge>
                 {t('library.bulk-uninstall.status-skipped', 'Skipped')}
-              </strong>
+              </Badge>
             </div>
           ))}
         </div>
       </ModalContent>
       <ModalFooter>
-        <button
-          className="button is-secondary"
+        <Button
+          variant="secondary"
           onClick={closeDialog}
           disabled={isUninstalling}
         >
           {hasStarted
-            ? t('button.close', 'Close')
-            : t('button.cancel', 'Cancel')}
-        </button>
+            ? t('translation:button.close', 'Close')
+            : t('translation:button.cancel', 'Cancel')}
+        </Button>
         {!hasStarted && (
-          <button
-            className="button is-danger"
+          <Button
+            variant="dangerSubtle"
             onClick={() => void startUninstall()}
             disabled={isUninstalling || displayedTargets.length === 0}
           >
             {entirely
               ? t('box.uninstall.entirely', 'Uninstall entirely')
               : t('box.uninstall.heroicOnly', 'Uninstall in Heroic')}
-          </button>
+          </Button>
         )}
       </ModalFooter>
     </Modal>

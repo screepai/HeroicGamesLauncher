@@ -103,3 +103,20 @@
   display: flex;
   flex-direction: column;
 }
+
+/* Fork: the library header carries extra actions (Extract archive, VNDB), so
+   let them wrap under the title on narrow windows instead of squashing it. */
+.librarySectionHeader {
+  flex-wrap: wrap;
+}
+
+.librarySectionHeader .SectionHeader__text {
+  flex: 1 0 auto;
+}
+
+.librarySectionHeader .SectionHeader__actions {
+  flex-shrink: 1;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-inline-start: auto;
+}

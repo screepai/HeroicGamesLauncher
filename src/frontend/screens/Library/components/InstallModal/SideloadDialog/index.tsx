@@ -1,5 +1,6 @@
 import './index.scss'
 import short from 'short-uuid'
+import axios from 'axios'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { InstallPlatform, WineInstallation, GameInfo } from 'common/types'
 import { ModalContent, ModalFooter } from 'frontend/components/UI/Modal'
@@ -64,6 +65,49 @@ function getParentDirectory(filePath: string): string {
   return filePath.slice(0, separatorIndex)
 }
 
+/**
+ * Looks up a square cover for `title`: VNDB first when asked to, then the
+ * keyless SteamGridDB proxy. Resolves to '' when nothing was found.
+ */
+async function findCoverImage(
+  title: string,
+  searchVndb: boolean
+): Promise<string> {
+  if (searchVndb) {
+    try {
+      const results = await window.api.vndb.searchVisualNovels({
+        query: title,
+        limit: 5
+      })
+      const vndbImage = results.find((result) => result.imageUrl)?.imageUrl
+      if (vndbImage) {
+        return vndbImage
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      window.api.logError(`VNDB cover search failed: ${message}`)
+    }
+  }
+
+  try {
+    const response = await axios.get<string>(
+      `https://steamgrid.usebottles.com/api/search/${encodeURIComponent(title)}`,
+      { timeout: 3500 }
+    )
+    const steamGridImage = response.data
+    if (
+      typeof steamGridImage === 'string' &&
+      steamGridImage.startsWith('http')
+    ) {
+      return steamGridImage
+    }
+  } catch (error) {
+    window.api.logError(`Cover search failed: ${String(error)}`)
+  }
+
+  return ''
+}
+
 type SupportedSteps = 'meta' | 'images' | 'compat' | 'install' | 'finish'
 
 export default function SideloadDialog({
@@ -98,7 +142,9 @@ export default function SideloadDialog({
   const [vndbSyncGame, setVndbSyncGame] = useState<GameInfo | null>(null)
   const [showCategories, setShowCategories] = useState(false)
   const [hasSgdbKey, setHasSgdbKey] = useState(false)
+  const [searchingCover, setSearchingCover] = useState(false)
   const editMode = Boolean(appName)
+  const defaultTitle = t('sideload.field.title', 'Title')
 
   const { customCategories, refreshLibrary, platform } =
     useContext(ContextProvider)
@@ -121,6 +167,48 @@ export default function SideloadDialog({
     },
     []
   )
+
+  // Cover art found by the automatic search. Only an empty cover or one the
+  // search picked is replaced, never one the user chose.
+  const autoImageUrlRef = useRef('')
+  const imageUrlRef = useRef(imageUrl)
+  imageUrlRef.current = imageUrl
+
+  useEffect(() => {
+    const query = title.trim()
+    const canReplace =
+      !imageUrlRef.current || imageUrlRef.current === autoImageUrlRef.current
+    if (!query || query === defaultTitle || !canReplace) {
+      return
+    }
+
+    let cancelled = false
+    const timeout = setTimeout(() => {
+      setSearchingCover(true)
+      void findCoverImage(query, enableVndbIntegration && isVisualNovel)
+        .then((foundUrl) => {
+          const stillReplaceable =
+            !imageUrlRef.current ||
+            imageUrlRef.current === autoImageUrlRef.current
+          if (cancelled || !foundUrl || !stillReplaceable) {
+            return
+          }
+          autoImageUrlRef.current = foundUrl
+          setImageUrl(foundUrl)
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setSearchingCover(false)
+          }
+        })
+    }, 600)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeout)
+      setSearchingCover(false)
+    }
+  }, [title, isVisualNovel, enableVndbIntegration, defaultTitle])
 
   const appPlatform = gameInfo.install?.platform || platformToInstall
 
@@ -462,6 +550,7 @@ export default function SideloadDialog({
             setHeroUrl={setHeroUrl}
             hasSgdbKey={hasSgdbKey}
             includeVndb={enableVndbIntegration && isVisualNovel}
+            searching={searchingCover}
           />
         )
       case 'compat':

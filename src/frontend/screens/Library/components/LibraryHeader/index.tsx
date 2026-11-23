@@ -1,35 +1,28 @@
 import { memo, useContext, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import ActionIcons from 'frontend/components/UI/ActionIcons'
-import {
-  getArchiveTitle,
-  LOCAL_LIBRARY_ARCHIVE_EXTENSIONS
-} from 'common/local_library_archive'
-import { GameInfo, LocalLibraryWatchEntry } from 'common/types'
+import { GameInfo } from 'common/types'
 import type { VndbGameMatch } from 'common/types/vndb'
-import ArchiveExtractionDialog from 'frontend/components/ArchiveExtractionDialog'
-import { openInstallGameModal } from 'frontend/state/InstallGameModal'
 import LibraryContext from '../../LibraryContext'
 import './index.css'
 import Header from 'frontend/components/UI/Header'
 import { Button } from 'frontend/components/UI'
+import useAppSetting from 'frontend/hooks/useAppSetting'
 import VndbSyncButton from './VndbSyncButton'
 import BulkGameOptionsDialog from './BulkGameOptionsDialog'
 import BulkGameMigrationDialog from './BulkGameMigrationDialog'
 import BulkUninstallDialog, {
   type BulkUninstallAction
 } from './BulkUninstallDialog'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import useAppSetting from 'frontend/hooks/useAppSetting'
 import {
-  faCheckDouble,
-  faFolderOpen,
-  faMinusCircle,
-  faSlidersH,
-  faTags,
-  faTrash,
-  faTimes
-} from '@fortawesome/free-solid-svg-icons'
+  CheckCheck,
+  FolderOpen,
+  CircleMinus,
+  SlidersHorizontal,
+  Tags,
+  Trash2,
+  X
+} from 'lucide-react'
 
 type Props = {
   list: GameInfo[]
@@ -54,8 +47,6 @@ export default memo(function LibraryHeader({
   const [showBulkMigration, setShowBulkMigration] = useState(false)
   const [bulkUninstallAction, setBulkUninstallAction] =
     useState<BulkUninstallAction | null>(null)
-  const [archiveToExtract, setArchiveToExtract] =
-    useState<LocalLibraryWatchEntry | null>(null)
   const allVisibleGamesSelected =
     list.length > 0 && list.every((game) => isGameSelected(game))
   const installedGames = selectedGames.filter((game) => game.is_installed)
@@ -63,118 +54,98 @@ export default memo(function LibraryHeader({
     (game) => !game.install.is_dlc
   )
 
-  const selectArchive = async () => {
-    const { localLibrarySyncPath } = await window.api.requestAppSettings()
-    const archivePath = await window.api.openDialog({
-      buttonLabel: t('box.extract', 'Extract'),
-      defaultPath: localLibrarySyncPath || undefined,
-      properties: ['openFile'],
-      title: t('box.extract-archive', 'Extract Archive'),
-      filters: [
-        {
-          name: t('box.archive-files', 'Archive files'),
-          extensions: [
-            ...LOCAL_LIBRARY_ARCHIVE_EXTENSIONS.map((extension) =>
-              extension.slice(1)
-            ),
-            '001'
-          ]
-        }
-      ]
-    })
-
-    if (!archivePath) {
-      return
-    }
-
-    const archiveName = archivePath.split(/[\\/]/).pop() ?? archivePath
-    setArchiveToExtract({
-      folderPath: archivePath,
-      isArchive: true,
-      title: getArchiveTitle(archiveName)
-    })
-  }
-
   return (
     <div className="libraryHeader" data-tour="library-header">
       <div className="libraryToolbar">
         <Header />
         <ActionIcons />
       </div>
-      <div className="libraryHeaderActions">
-        {isSelectingGames ? (
+      {isSelectingGames && (
+        <div className="libraryHeaderActions">
           <div className="libraryBulkSelection">
             <strong>
               {t('library.bulk-selected', '{{count}} selected', {
                 count: selectedGames.length
               })}
             </strong>
-            <button
-              className="libraryBulkAction"
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={
+                allVisibleGamesSelected ? (
+                  <X size={16} />
+                ) : (
+                  <CheckCheck size={16} />
+                )
+              }
               onClick={() =>
                 allVisibleGamesSelected
                   ? clearGameSelection()
                   : selectAllGames(list)
               }
             >
-              <FontAwesomeIcon
-                icon={allVisibleGamesSelected ? faTimes : faCheckDouble}
-              />
               {allVisibleGamesSelected
                 ? t('library.unselect-all', 'Unselect All')
                 : t('library.select-all', 'Select All')}
-            </button>
-            <button
-              className="libraryBulkAction"
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<Tags size={16} />}
               onClick={openSelectedGamesCategories}
             >
-              <FontAwesomeIcon icon={faTags} />
               {t('submenu.categories', 'Categories')}
-            </button>
-            <button
-              className="libraryBulkAction"
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<SlidersHorizontal size={16} />}
               onClick={() => setShowBulkOptions(true)}
             >
-              <FontAwesomeIcon icon={faSlidersH} />
               {t('library.bulk-options.button', 'Options')}
-            </button>
-            <button
-              className="libraryBulkAction"
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<FolderOpen size={16} />}
               onClick={() => setShowBulkMigration(true)}
             >
-              <FontAwesomeIcon icon={faFolderOpen} />
               {t('library.migration.button', 'Migrate')}
-            </button>
-            <button
-              className="libraryBulkAction"
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<CircleMinus size={16} />}
               onClick={() => setBulkUninstallAction('heroicOnly')}
               disabled={!canUninstallInHeroic}
             >
-              <FontAwesomeIcon icon={faMinusCircle} />
               {t('gamepage:box.uninstall.heroicOnly', 'Uninstall in Heroic')}
-            </button>
-            <button
-              className="libraryBulkAction libraryBulkAction--danger"
+            </Button>
+            <Button
+              size="sm"
+              variant="dangerSubtle"
+              icon={<Trash2 size={16} />}
               onClick={() => setBulkUninstallAction('entirely')}
               disabled={installedGames.length === 0}
             >
-              <FontAwesomeIcon icon={faTrash} />
               {t('gamepage:box.uninstall.entirely', 'Uninstall entirely')}
-            </button>
+            </Button>
             {enableVndbIntegration && (
               <VndbSyncButton
+                size="sm"
                 list={selectedGames}
                 onMatchesChange={onVndbMatchesChange}
               />
             )}
-            <button
-              className="libraryBulkAction"
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<X size={16} />}
               onClick={clearGameSelection}
               title={t('button.cancel', 'Cancel')}
             >
-              <FontAwesomeIcon icon={faTimes} />
               {t('button.cancel', 'Cancel')}
-            </button>
+            </Button>
             {showBulkOptions && (
               <BulkGameOptionsDialog
                 games={selectedGames}
@@ -199,36 +170,7 @@ export default memo(function LibraryHeader({
               />
             )}
           </div>
-        ) : (
-          <div className="libraryManualActions">
-            <Button variant="secondary" onClick={() => void selectArchive()}>
-              {t('box.extract-archive', 'Extract archive')}
-            </Button>
-            {enableVndbIntegration && (
-              <VndbSyncButton
-                list={list}
-                onMatchesChange={onVndbMatchesChange}
-              />
-            )}
-          </div>
-        )}
-      </div>
-      {archiveToExtract && (
-        <ArchiveExtractionDialog
-          archive={archiveToExtract}
-          source="manual"
-          onClose={() => setArchiveToExtract(null)}
-          onExtracted={(folder) => {
-            setArchiveToExtract(null)
-            openInstallGameModal({
-              appName: '',
-              runner: 'sideload',
-              gameInfo: null,
-              sideloadTitle: folder.title,
-              sideloadDefaultPath: folder.folderPath
-            })
-          }}
-        />
+        </div>
       )}
     </div>
   )

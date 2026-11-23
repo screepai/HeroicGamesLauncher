@@ -9,7 +9,20 @@ import type {
 import type { GameInfo, VndbLabelCategorySyncMode } from 'common/types'
 import { Tooltip } from '@mui/material'
 import fallbackImage from 'frontend/assets/heroic_card.jpg'
-import { CachedImage, ToggleSwitch, Alert } from 'frontend/components/UI'
+import { Disc3, Layers, Link2, ListChecks } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import {
+  CachedImage,
+  ToggleSwitch,
+  Alert,
+  Badge,
+  Button,
+  DetailList,
+  Icon,
+  Panel,
+  SettingRow
+} from 'frontend/components/UI'
+import type { DetailItem } from 'frontend/components/UI/DetailList'
 import {
   Modal,
   ModalContent,
@@ -26,15 +39,25 @@ import {
   getVndbCategorySyncPlan
 } from 'common/vndbCategorySync'
 import { getVndbMatchKey, getVndbUserDataSyncTarget } from 'common/vndb'
+import { searchResultToMatchUpdate } from 'common/vndbMatchUpdate'
+import useVndbUserOptions from 'frontend/hooks/useVndbUserOptions'
+import type { VndbUserOptionsState } from 'frontend/hooks/useVndbUserOptions'
 import ContextProvider from 'frontend/state/ContextProvider'
 import {
   getSelectedVndbRelease,
   getSelectedVndbReleases,
   getVndbPlatformsLabel,
-  getVndbReleasesWithSelectedReleases,
-  sortVndbReleasesByDate
+  sortVndbReleasesByDate,
+  vndbMatchToSearchResult
 } from 'frontend/helpers/vndb'
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import {
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState
+} from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface Props {
@@ -60,11 +83,6 @@ type ReleaseOptionSection = {
   language: string
   items: ReleaseOptionItem[]
 }
-
-type VndbUserOptionsState =
-  | { status: 'idle' | 'loading' }
-  | { status: 'ready'; options: VndbUserOptions }
-  | { status: 'error'; message: string }
 
 type PendingCategorySync = {
   fromCategory?: string
@@ -131,25 +149,6 @@ function getSortedReleases(match: VndbGameMatch): VndbRelease[] {
   }
 
   return sortVndbReleasesByDate([...releases.values()])
-}
-
-function releasesNeedLanguageTitles(releases: VndbRelease[] | undefined) {
-  return (
-    releases?.some(
-      (release) => release.languages.length && !release.languageTitles?.length
-    ) ?? false
-  )
-}
-
-function matchNeedsVisualNovelDetails(match: VndbGameMatch) {
-  return (
-    match.released === undefined ||
-    match.developers === undefined ||
-    match.rating === undefined ||
-    match.lengthMinutes === undefined ||
-    match.description === undefined ||
-    match.tags === undefined
-  )
 }
 
 function getReleaseOptionSections(
@@ -347,6 +346,31 @@ function VndbTooltipText({
   )
 }
 
+function VndbSection({
+  children,
+  className,
+  glyph,
+  title
+}: {
+  children: ReactNode
+  className?: string
+  glyph: LucideIcon
+  title: string
+}) {
+  return (
+    <Panel
+      tone="glass"
+      className={['vndbInfoSection', className].filter(Boolean).join(' ')}
+    >
+      <h3 className="extraTab__title">
+        <Icon glyph={glyph} size="sm" />
+        {title}
+      </h3>
+      {children}
+    </Panel>
+  )
+}
+
 function VndbHeader({
   mainVersion,
   imageUrl
@@ -362,12 +386,13 @@ function VndbHeader({
         fallback={fallbackImage}
       />
       <div className="vndbInfoTitle">
-        <button
+        <Button
+          variant="link"
           className="vndbInfoLink"
           onClick={() => createNewWindow(getVndbUrl(mainVersion.id))}
         >
           {mainVersion.title}
-        </button>
+        </Button>
         <span>
           {mainVersion.id}
           {mainVersion.detail ? ` · ${mainVersion.detail}` : ''}
@@ -387,38 +412,39 @@ function VndbMainDetails({
   visualNovelLanguages: string
 }) {
   const { t } = useTranslation('gamepage')
+  const mainRelation = match.mainRelation
 
-  return (
-    <div className="vndbInfoGrid">
-      <div>
-        <b>{t('vndb.entry-type', 'VNDB entry type')}</b>
-        <span>
-          {mainVersion.detail ?? t('vndb.visual-novel', 'Visual novel')}
-        </span>
-      </div>
-      {visualNovelLanguages && (
-        <div>
-          <b>{t('vndb.vn-languages', 'VN languages')}</b>
-          <span>{visualNovelLanguages}</span>
-        </div>
-      )}
-      {match.mainRelation && match.mainRelation.id !== mainVersion.id && (
-        <div>
-          <b>{t('vndb.related-title', 'Related title')}</b>
-          <button
-            className="vndbInfoInlineLink"
-            onClick={() => createNewWindow(getVndbUrl(match.mainRelation!.id))}
-          >
-            {getRelationTitle(match.mainRelation)}
-          </button>
-        </div>
-      )}
-      <div>
-        <b>{t('vndb.synced-at', 'Synced')}</b>
-        <span>{new Date(match.syncedAt).toLocaleString()}</span>
-      </div>
-    </div>
-  )
+  const items: DetailItem[] = [
+    {
+      label: t('vndb.entry-type', 'VNDB entry type'),
+      value: mainVersion.detail ?? t('vndb.visual-novel', 'Visual novel')
+    }
+  ]
+  if (visualNovelLanguages) {
+    items.push({
+      label: t('vndb.vn-languages', 'VN languages'),
+      value: visualNovelLanguages
+    })
+  }
+  if (mainRelation && mainRelation.id !== mainVersion.id) {
+    items.push({
+      label: t('vndb.related-title', 'Related title'),
+      value: (
+        <Button
+          variant="link"
+          onClick={() => createNewWindow(getVndbUrl(mainRelation.id))}
+        >
+          {getRelationTitle(mainRelation)}
+        </Button>
+      )
+    })
+  }
+  items.push({
+    label: t('vndb.synced-at', 'Synced'),
+    value: new Date(match.syncedAt).toLocaleString()
+  })
+
+  return <DetailList items={items} columns={2} />
 }
 
 function VndbReleaseCard({
@@ -481,14 +507,14 @@ function VndbReleaseCard({
         />
         <span className="vndbInfoReleaseBadges">
           {isSelected && (
-            <span className="vndbInfoReleaseBadge vndbInfoReleaseBadge--selected">
+            <Badge variant="accent">
               {t('vndb.selected-release', 'Selected')}
-            </span>
+            </Badge>
           )}
           {isNewestRelease && (
-            <span className="vndbInfoReleaseBadge vndbInfoReleaseBadge--newest">
+            <Badge variant="success">
               {t('vndb.newest-release', 'Newest')}
-            </span>
+            </Badge>
           )}
         </span>
         <VndbTooltipText text={rawReleaseTitle} />
@@ -535,8 +561,10 @@ function VndbReleaseChooser({
   }
 
   return (
-    <section className="vndbInfoSection">
-      <h3>{t('vndb.release-selector', 'Downloaded release selector')}</h3>
+    <VndbSection
+      glyph={Disc3}
+      title={t('vndb.release-selector', 'Downloaded release selector')}
+    >
       <div
         className="vndbInfoReleaseSections"
         aria-label={t('vndb.release-selector', 'Downloaded release selector')}
@@ -565,7 +593,7 @@ function VndbReleaseChooser({
           </section>
         ))}
       </div>
-    </section>
+    </VndbSection>
   )
 }
 
@@ -581,22 +609,25 @@ function VndbIncludedVisualNovels({
   }
 
   return (
-    <section className="vndbInfoSection">
-      <h3>{t('vndb.included-vns', 'Included visual novels')}</h3>
+    <VndbSection
+      glyph={Layers}
+      title={t('vndb.included-vns', 'Included visual novels')}
+    >
       <ul>
         {includedVns.map((vn) => (
           <li key={vn.id}>
-            <button
+            <Button
+              variant="link"
               className="vndbInfoInlineLink"
               onClick={() => createNewWindow(getVndbUrl(vn.id))}
             >
               {vn.title}
-            </button>
+            </Button>
             {vn.rtype && <span>{vn.rtype}</span>}
           </li>
         ))}
       </ul>
-    </section>
+    </VndbSection>
   )
 }
 
@@ -608,22 +639,22 @@ function VndbRelations({ relations }: { relations: VndbRelation[] }) {
   }
 
   return (
-    <section className="vndbInfoSection">
-      <h3>{t('vndb.relations', 'Relations')}</h3>
+    <VndbSection glyph={Link2} title={t('vndb.relations', 'Relations')}>
       <ul>
         {relations.map((relation) => (
           <li key={`${relation.id}:${relation.relation}`}>
-            <button
+            <Button
+              variant="link"
               className="vndbInfoInlineLink"
               onClick={() => createNewWindow(getVndbUrl(relation.id))}
             >
               {relation.title}
-            </button>
+            </Button>
             <span>{relation.relationLabel}</span>
           </li>
         ))}
       </ul>
-    </section>
+    </VndbSection>
   )
 }
 
@@ -734,9 +765,11 @@ function VndbUserOptionsSection({
   }
 
   return (
-    <section className="vndbInfoSection vndbInfoUserOptions">
-      <h3>{t('vndb.my-list', 'My VNDB list')}</h3>
-
+    <VndbSection
+      className="vndbInfoUserOptions"
+      glyph={ListChecks}
+      title={t('vndb.my-list', 'My VNDB list')}
+    >
       {state.status === 'loading' && (
         <span className="vndbInfoMuted">
           {t('vndb.user-options-loading', 'Loading VNDB list options...')}
@@ -764,9 +797,13 @@ function VndbUserOptionsSection({
 
           <div className="vndbInfoUserOptionsControls">
             <div className="vndbInfoUserDates">
-              <label>
-                <span>{t('vndb.start-date', 'Start date')}</span>
+              <SettingRow
+                layout="stacked"
+                label={t('vndb.start-date', 'Start date')}
+                htmlFor="vndb-start-date"
+              >
                 <input
+                  id="vndb-start-date"
                   disabled={saving || !state.options.canWrite}
                   max="2099-12-31"
                   min="1970-01-01"
@@ -776,10 +813,14 @@ function VndbUserOptionsSection({
                   type="date"
                   value={startDate}
                 />
-              </label>
-              <label>
-                <span>{t('vndb.finish-date', 'Finish date')}</span>
+              </SettingRow>
+              <SettingRow
+                layout="stacked"
+                label={t('vndb.finish-date', 'Finish date')}
+                htmlFor="vndb-finish-date"
+              >
                 <input
+                  id="vndb-finish-date"
                   disabled={saving || !state.options.canWrite}
                   max="2099-12-31"
                   min="1970-01-01"
@@ -789,19 +830,26 @@ function VndbUserOptionsSection({
                   type="date"
                   value={finishDate}
                 />
-              </label>
-              <button
-                className="button is-secondary vndbInfoResyncDates"
+              </SettingRow>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="vndbInfoResyncDates"
                 disabled={saving || !state.options.canWrite || !syncEnabled}
                 onClick={() => void resyncDates()}
               >
                 {t('vndb.resync-dates', 'Resync dates')}
-              </button>
+              </Button>
             </div>
 
-            <label className="vndbInfoVoteControl">
-              <span>{t('vndb.vote', 'Vote')}</span>
+            <SettingRow
+              layout="stacked"
+              label={t('vndb.vote', 'Vote')}
+              htmlFor="vndb-vote"
+              className="vndbInfoVoteControl"
+            >
               <select
+                id="vndb-vote"
                 disabled={saving || !state.options.canWrite}
                 key={state.options.vote ?? 'empty'}
                 onChange={(event) => {
@@ -819,10 +867,13 @@ function VndbUserOptionsSection({
                   </option>
                 ))}
               </select>
-            </label>
+            </SettingRow>
 
-            <div className="vndbInfoLabelOptions">
-              <span>{t('vndb.labels', 'Labels')}</span>
+            <SettingRow
+              layout="stacked"
+              label={t('vndb.labels', 'Labels')}
+              className="vndbInfoLabelOptions"
+            >
               <div className="vndbInfoLabelChoices">
                 {!hasSelectedLabel && (
                   <span className="vndbInfoMuted">
@@ -860,7 +911,7 @@ function VndbUserOptionsSection({
                   )
                 })}
               </div>
-            </div>
+            </SettingRow>
           </div>
 
           {!state.options.canWrite && (
@@ -873,7 +924,7 @@ function VndbUserOptionsSection({
           )}
         </>
       )}
-    </section>
+    </VndbSection>
   )
 }
 
@@ -890,9 +941,12 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
   const [rememberCategorySync, setRememberCategorySync] = useState(false)
   const [savingRelease, setSavingRelease] = useState(false)
   const [releaseSaveError, setReleaseSaveError] = useState<string | null>(null)
-  const [userOptionsState, setUserOptionsState] =
-    useState<VndbUserOptionsState>({ status: 'idle' })
   const userOptionsVnId = match ? getMainVersionInfo(match).id : ''
+  const {
+    state: userOptionsState,
+    setOptions: setUserOptions,
+    reload: reloadUserOptions
+  } = useVndbUserOptions(userOptionsVnId)
   const userDataSyncTarget = useMemo(
     () => getVndbUserDataSyncTarget(gameInfo, false),
     [gameInfo]
@@ -960,158 +1014,10 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
         return
       }
 
-      const options = await window.api.vndb.getUserOptions({
-        vnId: userOptionsVnId
-      })
-      setUserOptionsState({ status: 'ready', options })
+      await reloadUserOptions()
     },
-    [t, userDataSyncTarget, userOptionsVnId]
+    [reloadUserOptions, t, userDataSyncTarget, userOptionsVnId]
   )
-
-  useEffect(() => {
-    const shouldHydrateReleases =
-      (match?.releases?.length ?? 0) <= 1 ||
-      releasesNeedLanguageTitles(match?.releases) ||
-      (match !== null &&
-        getSelectedVndbReleases(match).some((release) => !release.engineKnown))
-    const shouldHydrateDetails = match
-      ? matchNeedsVisualNovelDetails(match)
-      : false
-
-    if (!match || (!shouldHydrateReleases && !shouldHydrateDetails)) {
-      return
-    }
-
-    const selectedReleases = getSelectedVndbReleases(match)
-    const mainVersion = getMainVersionInfo(match)
-    if (!mainVersion.id.startsWith('v')) {
-      return
-    }
-
-    let isMounted = true
-
-    window.api.vndb
-      .searchVisualNovels({
-        query: mainVersion.id,
-        limit: 1
-      })
-      .then(async ([mainResult]) => {
-        if (
-          !isMounted ||
-          mainResult?.source !== 'visualNovel' ||
-          mainResult.id !== mainVersion.id ||
-          (!mainResult.releases?.length && !shouldHydrateDetails)
-        ) {
-          return
-        }
-
-        const releases = selectedReleases.length
-          ? getVndbReleasesWithSelectedReleases(
-              mainResult.releases,
-              selectedReleases
-            )
-          : mainResult.releases
-        const hydratedSelectedReleases = selectedReleases.map(
-          (selectedRelease) =>
-            releases?.find((release) => release.id === selectedRelease.id) ??
-            selectedRelease
-        )
-        const selectedRelease = hydratedSelectedReleases[0]
-        const hasReleaseUpdate =
-          releasesNeedLanguageTitles(match.releases) ||
-          (releases?.length ?? 0) > (match.releases?.length ?? 0)
-
-        if (!shouldHydrateDetails && !hasReleaseUpdate) {
-          return
-        }
-
-        const updatedMatches = await window.api.vndb.syncGameMatches([
-          {
-            appName: match.appName,
-            runner: match.runner,
-            title: match.title,
-            vndbId: mainResult.id,
-            vndbTitle: mainResult.title,
-            aliases: mainResult.aliases,
-            source: 'visualNovel',
-            imageUrl: mainResult.imageUrl,
-            released: mainResult.released,
-            average: mainResult.average,
-            rating: mainResult.rating,
-            votecount: mainResult.votecount,
-            length: mainResult.length,
-            lengthMinutes: mainResult.lengthMinutes,
-            lengthVotes: mainResult.lengthVotes,
-            description: mainResult.description,
-            tags: mainResult.tags,
-            developers: mainResult.developers,
-            languages: mainResult.languages,
-            mainRelation: mainResult.mainRelation,
-            relations: mainResult.relations,
-            latestRelease:
-              selectedRelease ??
-              (match.selectedReleases !== undefined
-                ? undefined
-                : (match.latestRelease ?? mainResult.latestRelease)),
-            selectedReleases:
-              match.selectedReleases === undefined
-                ? undefined
-                : hydratedSelectedReleases,
-            releases,
-            releaseVns:
-              selectedRelease?.vns ??
-              (match.selectedReleases !== undefined
-                ? undefined
-                : (match.releaseVns ?? mainResult.releaseVns))
-          }
-        ])
-
-        if (isMounted) {
-          onMatchChange(updatedMatches[getVndbMatchKey(match)])
-        }
-      })
-      .catch((error) => {
-        console.error(error)
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [match, onMatchChange])
-
-  useEffect(() => {
-    if (!userOptionsVnId.startsWith('v')) {
-      setUserOptionsState({ status: 'idle' })
-      return
-    }
-
-    let isMounted = true
-    setUserOptionsState({ status: 'loading' })
-
-    window.api.vndb
-      .getUserOptions({ vnId: userOptionsVnId })
-      .then((options) => {
-        if (isMounted) {
-          setUserOptionsState({ status: 'ready', options })
-        }
-      })
-      .catch((error) => {
-        console.error(error)
-        if (isMounted) {
-          setUserOptionsState({
-            status: 'error',
-            message: t(
-              'vndb.user-options-load-error',
-              'Unable to load VNDB user options.'
-            )
-          })
-        }
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [userOptionsVnId, t])
 
   if (!match) {
     return null
@@ -1168,33 +1074,17 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
         releaseVns: primaryRelease?.vns
       }
       const updatedMatches = await window.api.vndb.syncGameMatches([
-        {
-          appName: match.appName,
-          runner: match.runner,
-          title: match.title,
-          vndbId: match.vndbId,
-          vndbTitle: match.vndbTitle,
-          aliases: match.aliases,
+        searchResultToMatchUpdate(match, vndbMatchToSearchResult(match), {
+          // The bridge fills defaults for fields a stored match may lack;
+          // keep them as stored so hydration can still detect missing data.
           source: match.source,
-          imageUrl: match.imageUrl,
-          released: match.released,
-          average: match.average,
-          rating: match.rating,
-          votecount: match.votecount,
-          length: match.length,
-          lengthMinutes: match.lengthMinutes,
-          lengthVotes: match.lengthVotes,
-          description: match.description,
-          tags: match.tags,
           developers: match.developers,
           languages: match.languages,
-          mainRelation: match.mainRelation,
           relations: match.relations,
           latestRelease: primaryRelease,
           selectedReleases: nextSelectedReleases,
-          releases: match.releases,
           releaseVns: primaryRelease?.vns
-        }
+        })
       ])
 
       onMatchChange(updatedMatches[getVndbMatchKey(match)] ?? nextMatch)
@@ -1221,7 +1111,7 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
       vnId: mainVersion.id,
       update
     })
-    setUserOptionsState({ status: 'ready', options })
+    setUserOptions(options)
 
     if (update.labels !== undefined) {
       handleLabelCategorySync(
@@ -1257,21 +1147,23 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
     <div className="vndbInfo">
       {releaseSaveError && <Alert variant="warning">{releaseSaveError}</Alert>}
 
-      <VndbHeader
-        mainVersion={mainVersion}
-        imageUrl={
-          mainVersion.imageUrl ||
-          match.imageUrl ||
-          selectedRelease?.imageUrl ||
-          fallbackImage
-        }
-      />
+      <Panel tone="glass" className="vndbInfoOverview">
+        <VndbHeader
+          mainVersion={mainVersion}
+          imageUrl={
+            mainVersion.imageUrl ||
+            match.imageUrl ||
+            selectedRelease?.imageUrl ||
+            fallbackImage
+          }
+        />
 
-      <VndbMainDetails
-        mainVersion={mainVersion}
-        match={match}
-        visualNovelLanguages={visualNovelLanguages}
-      />
+        <VndbMainDetails
+          mainVersion={mainVersion}
+          match={match}
+          visualNovelLanguages={visualNovelLanguages}
+        />
+      </Panel>
 
       <VndbUserOptionsSection
         mainVersion={mainVersion}
@@ -1298,6 +1190,7 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
           showCloseButton
           onClose={() => setPendingCategorySync(null)}
           className="vndbCategorySyncDialog"
+          size="sm"
         >
           <ModalHeader>
             {t('vndb.category-sync.title', 'Update library category?')}
@@ -1348,15 +1241,15 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
             />
           </ModalContent>
           <ModalFooter>
-            <button className="button is-primary" onClick={confirmCategorySync}>
+            <Button variant="primary" onClick={confirmCategorySync}>
               {t('box.yes', 'Yes')}
-            </button>
-            <button
-              className="button is-secondary"
+            </Button>
+            <Button
+              variant="secondary"
               onClick={() => setPendingCategorySync(null)}
             >
               {t('box.no', 'No')}
-            </button>
+            </Button>
           </ModalFooter>
         </Modal>
       )}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GameInfo, GameSettings } from 'common/types'
-import { ToggleSwitch, Alert } from 'frontend/components/UI'
+import { ToggleSwitch, Alert, Button } from 'frontend/components/UI'
 import {
   Modal,
   ModalContent,
@@ -94,7 +94,12 @@ export default function BulkGameOptionsDialog({ games, onClose }: Props) {
   )
 
   return (
-    <Modal onClose={onClose} showCloseButton className="BulkGameOptionsDialog">
+    <Modal
+      onClose={onClose}
+      showCloseButton
+      size="md"
+      className="BulkGameOptionsDialog"
+    >
       <ModalHeader>
         {t('library.bulk-options.title', 'Game Options')}
       </ModalHeader>
@@ -116,39 +121,41 @@ export default function BulkGameOptionsDialog({ games, onClose }: Props) {
         )}
         {!loading && !error && (
           <>
-            <ToggleSwitch
-              htmlId="bulk-is-visual-novel"
-              value={isVisualNovel}
-              handleChange={() => setIsVisualNovel(isVisualNovel !== true)}
-              title={`${t(
-                'sideload.info.is-visual-novel',
-                'Is Visual Novel'
-              )}${isVisualNovel === null ? ` (${mixedLabel})` : ''}`}
-              description={
-                isVisualNovel === null
-                  ? mixedLabel
-                  : t(
-                      'sideload.info.is-visual-novel-description',
-                      'Identify these games as visual novels.'
-                    )
-              }
-            />
-            <ToggleSwitch
-              htmlId="bulk-jp-locale"
-              value={jpLocale}
-              handleChange={() => setJpLocale(jpLocale !== true)}
-              title={`${t('setting.jp-locale', 'JP locale')}${
-                jpLocale === null ? ` (${mixedLabel})` : ''
-              }`}
-              description={
-                jpLocale === null
-                  ? mixedLabel
-                  : t(
-                      'setting.jp-locale-bulk-description',
-                      'Enable the Japanese locale launch setting for these games.'
-                    )
-              }
-            />
+            <div className="bulkGameOptionsToggles">
+              <ToggleSwitch
+                htmlId="bulk-is-visual-novel"
+                value={isVisualNovel}
+                handleChange={() => setIsVisualNovel(isVisualNovel !== true)}
+                title={`${t(
+                  'sideload.info.is-visual-novel',
+                  'Is Visual Novel'
+                )}${isVisualNovel === null ? ` (${mixedLabel})` : ''}`}
+                description={
+                  isVisualNovel === null
+                    ? mixedLabel
+                    : t(
+                        'sideload.info.is-visual-novel-description',
+                        'Identify these games as visual novels.'
+                      )
+                }
+              />
+              <ToggleSwitch
+                htmlId="bulk-jp-locale"
+                value={jpLocale}
+                handleChange={() => setJpLocale(jpLocale !== true)}
+                title={`${t('setting.jp-locale', 'JP locale')}${
+                  jpLocale === null ? ` (${mixedLabel})` : ''
+                }`}
+                description={
+                  jpLocale === null
+                    ? mixedLabel
+                    : t(
+                        'setting.jp-locale-bulk-description',
+                        'Enable the Japanese locale launch setting for these games.'
+                      )
+                }
+              />
+            </div>
             {(isVisualNovel === null || jpLocale === null) && (
               <small className="bulkGameOptionsMixed">{mixedLabel}</small>
             )}
@@ -156,16 +163,12 @@ export default function BulkGameOptionsDialog({ games, onClose }: Props) {
         )}
       </ModalContent>
       <ModalFooter>
-        <button className="button is-secondary" onClick={onClose}>
-          {t('button.cancel', 'Cancel')}
-        </button>
-        <button
-          className="button is-success"
-          onClick={applySettings}
-          disabled={loading || error}
-        >
+        <Button variant="secondary" onClick={onClose}>
+          {t('translation:button.cancel', 'Cancel')}
+        </Button>
+        <Button onClick={applySettings} disabled={loading || error}>
           {t('button.confirm', 'Confirm')}
-        </button>
+        </Button>
       </ModalFooter>
     </Modal>
   )

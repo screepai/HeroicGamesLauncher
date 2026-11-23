@@ -1,10 +1,10 @@
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Checkbox, FormControlLabel } from '@mui/material'
-import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
-import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
+import { Check, File, Folder } from 'lucide-react'
 
 import type { LocalLibraryArchiveEntry } from 'common/types'
+import { Button, Icon } from 'frontend/components/UI'
 
 export type ArchiveTreeNode = LocalLibraryArchiveEntry & {
   children: ArchiveTreeNode[]
@@ -106,39 +106,39 @@ export const ArchiveTreeItem = memo(function ArchiveTreeItem({
           label={
             <span className="archiveTreeEntry">
               {node.isDirectory ? (
-                <FolderOutlinedIcon fontSize="small" />
+                <Icon glyph={Folder} size="md" />
               ) : (
-                <InsertDriveFileOutlinedIcon fontSize="small" />
+                <Icon glyph={File} size="md" />
               )}
               <span>{node.name}</span>
             </span>
           }
         />
         {node.isDirectory && (
-          <button
-            className={[
-              'archiveFinalRootButton',
-              finalRootPath === node.path ? 'is-selected' : ''
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            type="button"
+          <Button
+            className="archiveFinalRootButton"
+            variant={finalRootPath === node.path ? 'primary' : 'secondary'}
+            size="sm"
             aria-pressed={finalRootPath === node.path}
             aria-label={t(
               'box.local-library-archive.use-folder-as-final',
               'Use {{folder}} as the final folder',
               { folder: node.name }
             )}
+            icon={
+              finalRootPath === node.path ? (
+                <Icon glyph={Check} size="sm" />
+              ) : undefined
+            }
             onClick={() => onSelectFinalRoot(node)}
           >
-            {finalRootPath === node.path && <span aria-hidden="true">✓</span>}
             {finalRootPath === node.path
               ? t('box.local-library-archive.final-folder', 'Final folder')
               : t(
                   'box.local-library-archive.use-as-final-folder',
                   'Use as final'
                 )}
-          </button>
+          </Button>
         )}
       </div>
       {node.children.length > 0 && (

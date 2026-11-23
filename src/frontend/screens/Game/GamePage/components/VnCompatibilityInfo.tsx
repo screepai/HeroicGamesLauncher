@@ -7,6 +7,7 @@ import type {
 } from 'common/types/vnCompatibility'
 import type { VndbGameMatch } from 'common/types/vndb'
 import { getSelectedVndbReleases } from 'frontend/helpers/vndb'
+import { Button, SectionHeader, SettingsCard } from 'frontend/components/UI'
 import VnCompatibilityActions from './VnCompatibilityActions'
 
 interface Props {
@@ -120,12 +121,13 @@ const VnCompatibilityInfo = ({ gameInfo, vndbMatch }: Props) => {
             'This game is not listed in the VNWiki compatibility database.'
           )}
         </p>
-        <button
-          className="vnCompatibilitySource"
+        <Button
+          variant="link"
+          size="sm"
           onClick={() => window.api.openExternalUrl(vnWikiCompatibilityUrl)}
         >
           {t('compatibility.open-source', 'Open the VNWiki compatibility list')}
-        </button>
+        </Button>
       </div>
     )
   }
@@ -138,38 +140,41 @@ const VnCompatibilityInfo = ({ gameInfo, vndbMatch }: Props) => {
 
   return (
     <div className="vnCompatibilityInfo">
-      <div className="vnCompatibilityHeader">
-        <div>
-          <h2>
-            {isEngineMatch
-              ? t(
-                  'compatibility.engine-title',
-                  'Known {{engine}} configurations',
-                  { engine: result.engine }
-                )
-              : t('compatibility.title', 'VNWiki compatibility')}
-          </h2>
-          <p>
-            {isEngineMatch
-              ? t(
-                  'compatibility.engine-description',
-                  'This game has no exact VNWiki entry. These settings are documented for other games using the same engine, so review them before applying. Only use these settings if you are experiencing issues with the default configuration.'
-                )
-              : t(
-                  'compatibility.exact-description',
-                  'Settings documented for this game by VNWiki.'
-                )}
-          </p>
-        </div>
-        <button
-          className="vnCompatibilitySource"
-          onClick={() => window.api.openExternalUrl(vnWikiCompatibilityUrl)}
-        >
-          {t('compatibility.source', 'Source: VNWiki')}
-        </button>
-      </div>
-      <section className="vnCompatibilityBasics">
-        <h3>{t('compatibility.basics-title', 'Before you begin')}</h3>
+      <SectionHeader
+        title={
+          isEngineMatch
+            ? t(
+                'compatibility.engine-title',
+                'Known {{engine}} configurations',
+                { engine: result.engine }
+              )
+            : t('compatibility.title', 'VNWiki compatibility')
+        }
+        subtitle={
+          isEngineMatch
+            ? t(
+                'compatibility.engine-description',
+                'This game has no exact VNWiki entry. These settings are documented for other games using the same engine, so review them before applying. Only use these settings if you are experiencing issues with the default configuration.'
+              )
+            : t(
+                'compatibility.exact-description',
+                'Settings documented for this game by VNWiki.'
+              )
+        }
+        actions={
+          <Button
+            variant="link"
+            size="sm"
+            onClick={() => window.api.openExternalUrl(vnWikiCompatibilityUrl)}
+          >
+            {t('compatibility.source', 'Source: VNWiki')}
+          </Button>
+        }
+      />
+      <SettingsCard
+        className="vnCompatibilityBasics"
+        title={t('compatibility.basics-title', 'Before you begin')}
+      >
         <ul>
           <li>
             {t(
@@ -184,10 +189,12 @@ const VnCompatibilityInfo = ({ gameInfo, vndbMatch }: Props) => {
             )}
           </li>
         </ul>
-      </section>
+      </SettingsCard>
       {compiledEngineNotes.length > 0 && (
-        <section className="vnCompatibilityEngineNotes">
-          <h3>{t('compatibility.engine-notes', 'Documented notes')}</h3>
+        <SettingsCard
+          className="vnCompatibilityEngineNotes"
+          title={t('compatibility.engine-notes', 'Documented notes')}
+        >
           <ul>
             {compiledEngineNotes.map(({ note, sourceGames }) => (
               <li key={note}>
@@ -202,7 +209,7 @@ const VnCompatibilityInfo = ({ gameInfo, vndbMatch }: Props) => {
               </li>
             ))}
           </ul>
-        </section>
+        </SettingsCard>
       )}
       <VnCompatibilityActions gameInfo={gameInfo} result={result} />
     </div>

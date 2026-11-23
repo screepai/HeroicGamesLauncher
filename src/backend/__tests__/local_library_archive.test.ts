@@ -1,11 +1,17 @@
 import { execFile } from 'child_process'
 import { randomBytes } from 'crypto'
 import { promises as fs } from 'fs'
-import { join } from 'path'
+import { join, sep } from 'path'
 import { promisify } from 'util'
 
 import { path7z } from '7zip-bin-full'
 
+import { logWarning } from '../logger'
+
+jest.mock('../logger', () => ({
+  logWarning: jest.fn(),
+  LogPrefix: { Backend: 'Backend' }
+}))
 jest.mock('../utils', () => ({
   spawnAsync: (
     command: string,
@@ -36,10 +42,12 @@ jest.mock('../utils', () => ({
 }))
 
 import {
+  cancelLocalLibraryArchiveExtraction,
   deleteLocalLibraryArchive,
   extractLocalLibraryArchive,
   findLocalLibraryNestedArchives,
   inspectLocalLibraryArchive,
+  isPathInside,
   listLocalLibraryArchive,
   parseArchiveListing,
   validateDestinationName
@@ -48,6 +56,26 @@ import {
 const execFileAsync = promisify(execFile)
 
 describe('local library archive', () => {
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  describe('isPathInside', () => {
+    it('accepts nested paths and names that merely start with two dots', () => {
+      expect(isPathInside(join('base'), join('base', 'child'))).toBe(true)
+      expect(isPathInside(join('base'), join('base', 'a', 'b'))).toBe(true)
+      expect(isPathInside(join('base'), join('base', '..foo'))).toBe(true)
+      expect(isPathInside(join('base'), join('base', '...'))).toBe(true)
+    })
+
+    it('rejects the parent itself, its parents and siblings', () => {
+      expect(isPathInside('base', 'base')).toBe(false)
+      expect(isPathInside(join('base', 'child'), 'base')).toBe(false)
+      expect(isPathInside('base', `..${sep}other`)).toBe(false)
+      expect(isPathInside('base', 'base-other')).toBe(false)
+    })
+  })
+
   it('parses files, directories, and implicit parent directories', () => {
     expect(
       parseArchiveListing(`Path = Game\\Data\\config.ini
@@ -308,6 +336,114 @@ Attributes = A
       await expect(fs.access(wrapperPath)).rejects.toMatchObject({
         code: 'ENOENT'
       })
+    } finally {
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it('still reports success when removing the cleanup folder fails after the move', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-cleanup-failure-')
+    )
+    const wrapperPath = join(rootPath, 'Extracted Wrapper')
+    const sourcePath = join(rootPath, 'payload.txt')
+    const nestedArchivePath = join(wrapperPath, 'Inner Game.7z')
+    const destinationDirectory = join(rootPath, 'Destination')
+
+    try {
+      await fs.mkdir(wrapperPath)
+      await fs.mkdir(destinationDirectory)
+      await fs.writeFile(sourcePath, 'kept payload')
+      await execFileAsync(path7z, ['a', nestedArchivePath, sourcePath], {
+        cwd: rootPath,
+        windowsHide: true
+      })
+      await fs.rm(sourcePath)
+
+      const originalRm = fs.rm.bind(fs)
+      jest
+        .spyOn(fs, 'rm')
+        .mockImplementation(((
+          path: string,
+          options?: Parameters<typeof fs.rm>[1]
+        ) =>
+          path === wrapperPath
+            ? Promise.reject(
+                Object.assign(new Error('folder is in use'), { code: 'EBUSY' })
+              )
+            : originalRm(path, options)) as typeof fs.rm)
+
+      const result = await extractLocalLibraryArchive({
+        archivePath: nestedArchivePath,
+        cleanupPath: wrapperPath,
+        destinationDirectory,
+        destinationName: 'Final Game',
+        selectedPaths: ['payload.txt']
+      })
+
+      expect(result).toEqual({
+        folderPath: join(destinationDirectory, 'Final Game'),
+        title: 'Final Game'
+      })
+      await expect(
+        fs.readFile(join(result.folderPath, 'payload.txt'), 'utf8')
+      ).resolves.toBe('kept payload')
+      expect(logWarning).toHaveBeenCalledWith(
+        [expect.stringContaining('could not remove'), expect.anything()],
+        'Backend'
+      )
+      // The source folder is left in place for the user to handle
+      await expect(fs.access(nestedArchivePath)).resolves.toBeUndefined()
+    } finally {
+      jest.restoreAllMocks()
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it('cancels an extraction that is in progress', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-cancel-extraction-')
+    )
+    const sourcePath = join(rootPath, 'payload.txt')
+    const archivePath = join(rootPath, 'Game.7z')
+
+    try {
+      await fs.writeFile(sourcePath, 'payload')
+      await execFileAsync(path7z, ['a', archivePath, sourcePath], {
+        cwd: rootPath,
+        windowsHide: true
+      })
+      await fs.rm(sourcePath)
+
+      expect(cancelLocalLibraryArchiveExtraction(archivePath)).toBe(false)
+
+      const extraction = extractLocalLibraryArchive({
+        archivePath,
+        destinationName: 'Cancelled Game',
+        selectedPaths: ['payload.txt']
+      })
+      expect(cancelLocalLibraryArchiveExtraction(archivePath)).toBe(true)
+
+      await expect(extraction).rejects.toThrow(
+        'Archive extraction was cancelled'
+      )
+      await expect(
+        fs.access(join(rootPath, 'Cancelled Game'))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(
+        (await fs.readdir(rootPath)).filter((name) =>
+          name.startsWith('.heroic-extract-')
+        )
+      ).toEqual([])
+
+      // A cancelled extraction does not block the next attempt
+      await expect(
+        extractLocalLibraryArchive({
+          archivePath,
+          destinationName: 'Second Try',
+          selectedPaths: ['payload.txt']
+        })
+      ).resolves.toMatchObject({ title: 'Second Try' })
     } finally {
       await fs.rm(rootPath, { recursive: true, force: true })
     }

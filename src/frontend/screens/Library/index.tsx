@@ -20,6 +20,7 @@ import { FavouriteGame, GameInfo, HiddenGame, Runner } from 'common/types'
 import type { VndbGameMatch } from 'common/types/vndb'
 import ErrorComponent from 'frontend/components/UI/ErrorComponent'
 import LibraryHeader from './components/LibraryHeader'
+import LibraryManualActions from './components/LibraryHeader/LibraryManualActions'
 import {
   amazonCategories,
   epicCategories,
@@ -1044,12 +1045,18 @@ export default React.memo(function Library(): JSX.Element {
               defaultValue_other: '{{count}} games'
             })}
             actions={
-              hasRecentGames ? undefined : (
-                <>
-                  <ConsoleModeButton data-tour="library-console-mode" />
-                  <AddGameButton data-tour="library-add-game" />
-                </>
-              )
+              <>
+                <LibraryManualActions
+                  list={libraryToShow}
+                  onVndbMatchesChange={setVndbMatches}
+                />
+                {!hasRecentGames && (
+                  <>
+                    <ConsoleModeButton data-tour="library-console-mode" />
+                    <AddGameButton data-tour="library-add-game" />
+                  </>
+                )}
+              </>
             }
           />
         )}

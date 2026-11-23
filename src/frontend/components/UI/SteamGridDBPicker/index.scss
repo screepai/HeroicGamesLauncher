@@ -101,10 +101,10 @@
     max-width: calc(100% - (2 * var(--space-2xs)));
     padding: 2px var(--space-2xs);
     overflow: hidden;
-    border-radius: 4px;
-    color: white;
+    border-radius: var(--radius-xs);
+    color: var(--ink-on-overlay);
     background: rgba(0, 0, 0, 0.75);
-    font-size: var(--font-size-sm);
+    font-size: var(--text-xs);
     text-overflow: ellipsis;
     white-space: nowrap;
     pointer-events: none;

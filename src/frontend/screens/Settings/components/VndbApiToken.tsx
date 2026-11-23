@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { InfoBox, TextInputField } from 'frontend/components/UI'
+import { TextInputField } from 'frontend/components/UI'
 import { dispatchVndbApiTokenChanged } from 'frontend/hooks/useHasVndbApiToken'
 import useSetting from 'frontend/hooks/useSetting'
 
@@ -40,17 +40,11 @@ export default function VndbApiToken() {
       htmlId="vndb-api-token"
       type="password"
       disabled={!enableVndbIntegration}
-      afterInput={
-        <InfoBox text={t('settings.advanced.details', 'Details')}>
-          <span style={{ userSelect: 'text' }}>
-            {t(
-              'settings.vndb.help.description',
-              'Provide your VNDB API token for authenticated VNDB actions such as list management. The token is stored encrypted when your system supports it. You can get one at {{url}}',
-              { url }
-            )}
-          </span>
-        </InfoBox>
-      }
+      info={t(
+        'settings.vndb.help.description',
+        'Provide your VNDB API token for authenticated VNDB actions such as list management. The token is stored encrypted when your system supports it. You can get one at {{url}}',
+        { url }
+      )}
     />
   )
 }

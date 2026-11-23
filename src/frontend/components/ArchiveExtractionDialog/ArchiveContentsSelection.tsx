@@ -1,7 +1,14 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { PathSelectionBox, TextInputField, Alert } from 'frontend/components/UI'
+import { Check } from 'lucide-react'
+import {
+  PathSelectionBox,
+  TextInputField,
+  Alert,
+  Button,
+  Icon
+} from 'frontend/components/UI'
 import { ArchiveTreeItem, type ArchiveTreeNode } from './ArchiveTree'
 
 export type ArchiveContentsSelectionModel = {
@@ -151,18 +158,16 @@ export function ArchiveContentsSelection({
   return (
     <>
       {isNestedArchive && (
-        <div className="archiveNestedNotice" role="status">
-          <p>
-            {t(
-              'box.local-library-archive.nested-selection-message',
-              'Heroic opened "{{title}}" from "{{archive}}". Choose the contents to extract.',
-              {
-                title: nestedArchiveTitle,
-                archive: previousArchiveFileName
-              }
-            )}
-          </p>
-        </div>
+        <Alert variant="info">
+          {t(
+            'box.local-library-archive.nested-selection-message',
+            'Heroic opened "{{title}}" from "{{archive}}". Choose the contents to extract.',
+            {
+              title: nestedArchiveTitle,
+              archive: previousArchiveFileName
+            }
+          )}
+        </Alert>
       )}
 
       {cleanupControls}
@@ -174,11 +179,11 @@ export function ArchiveContentsSelection({
       />
 
       <div className="archiveSelectionActions">
-        <button className="button is-secondary" onClick={actions.onToggleAll}>
+        <Button variant="secondary" size="sm" onClick={actions.onToggleAll}>
           {model.selectedPaths.size === 0
             ? t('box.select-all', 'Select All')
             : t('box.unselect-all', 'Unselect All')}
-        </button>
+        </Button>
         <span>
           {t('box.local-library-archive.selected-count', '{{count}} selected', {
             count: model.selectedPaths.size
@@ -202,19 +207,17 @@ export function ArchiveContentsSelection({
             )}
           </span>
         </div>
-        <button
-          className={[
-            'archiveFinalRootButton',
-            'archiveAutomaticRootButton',
-            model.finalRootPath === null ? 'is-selected' : ''
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          type="button"
+        <Button
+          className="archiveAutomaticRootButton"
+          variant={model.finalRootPath === null ? 'primary' : 'secondary'}
           aria-pressed={model.finalRootPath === null}
+          icon={
+            model.finalRootPath === null ? (
+              <Icon glyph={Check} size="sm" />
+            ) : undefined
+          }
           onClick={actions.onUseAutomaticRoot}
         >
-          {model.finalRootPath === null && <span aria-hidden="true">✓</span>}
           <span className="archiveAutomaticRootText">
             <strong>
               {t('box.local-library-archive.automatic-folder', 'Automatic')}
@@ -226,7 +229,7 @@ export function ArchiveContentsSelection({
               )}
             </small>
           </span>
-        </button>
+        </Button>
       </div>
 
       <div className="archiveTreeHelp">

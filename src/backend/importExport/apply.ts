@@ -64,6 +64,7 @@ import { isHeroicBackupManifest } from './validate'
 import { BACKUP_FORMAT_VERSION, BACKUP_PATHS } from './constants'
 import { sourcePaths } from './paths'
 import { countPlaytimeGames, isPlaytimeData, mergePlaytime } from './playtime'
+import { applyForkStages, captureForkLocalState } from './forkStages'
 
 const ROLLBACK_FILENAME = 'heroic-import-rollback.zip'
 
@@ -180,7 +181,8 @@ async function writePreApplySnapshot(
   const dest = rollbackArchivePath()
   const exportResult = await exportHeroicBackup({
     outputPath: dest,
-    stages
+    stages,
+    forSnapshot: true
   })
   if (!exportResult.success || !exportResult.manifest) {
     logError(
@@ -951,6 +953,7 @@ async function doApplyHeroicBackup(
   }
 
   const stages: HeroicApplyStageResult[] = []
+  const forkLocal = captureForkLocalState(zip, options)
 
   try {
     if (options.stages.includes('globalSettings')) {
@@ -978,6 +981,15 @@ async function doApplyHeroicBackup(
     if (options.stages.includes('categories')) {
       stages.push(applyCategories(zip))
     }
+    stages.push(
+      ...(await applyForkStages(
+        zip,
+        options,
+        forkLocal,
+        warnings,
+        rollbackMode
+      ))
+    )
     if (options.stages.includes('wineMetadata')) {
       stages.push(
         await applyWineMetadata(

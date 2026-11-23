@@ -1,35 +1,46 @@
 .dedicatedWinePrefixSetup {
-  background: var(--background-secondary, var(--background-lighter));
-  border-inline-start: 3px solid var(--accent);
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-neutral);
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  margin-block: var(--space-sm) var(--space-md);
-  padding: var(--space-unit-fixed) !important;
+  padding: var(--space-md);
+}
+
+.dedicatedWinePrefixSetup strong {
+  font-weight: var(--semibold);
 }
 
 .dedicatedWinePrefixSetup p {
+  color: var(--text-neutral-muted);
+  font-size: var(--text-sm);
   margin: 0;
 }
 
 .dedicatedWinePrefixSetup code {
-  background: var(--background);
-  border: 1px solid var(--neutral-04);
-  border-radius: var(--space-3xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-interactive);
+  font-size: var(--text-sm);
   overflow: hidden;
-  padding: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.dedicatedWinePrefixProgress,
+.dedicatedWinePrefixProgress {
+  color: var(--text-neutral-muted);
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-sm);
+  gap: var(--space-xs);
+}
+
 .dedicatedWinePrefixActions {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-sm);
-}
-
-.dedicatedWinePrefixProgress svg {
-  color: var(--accent);
 }

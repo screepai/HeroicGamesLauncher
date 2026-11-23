@@ -145,14 +145,14 @@ function CategoryItem({
 
   return (
     <div className={`Category${isDragging ? ' isDragging' : ''}`}>
-      <button
-        type="button"
-        className="button is-secondary Category__dragHandle"
+      <Button
+        size="sm"
+        variant="secondary"
+        className="Category__dragHandle"
         title={t('categories-manager.reorder', 'Reorder "{{name}}"', { name })}
+        icon={<Icon glyph={GripVertical} size="md" />}
         {...dragHandleProps}
-      >
-        <Icon glyph={GripVertical} size="md" />
-      </button>
+      />
       {!renameMode && <span>{name}</span>}
 
       {renameMode && (

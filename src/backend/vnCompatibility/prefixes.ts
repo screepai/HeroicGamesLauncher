@@ -1,4 +1,4 @@
-import { isAbsolute, join, relative, resolve } from 'path'
+import { posix } from 'path'
 import {
   existsSync,
   readFileSync,
@@ -24,6 +24,15 @@ import type {
   VnCompatibilityPrefixCreateResult,
   VnCompatibilityPrefixRecipe
 } from 'common/types/vnCompatibility'
+
+// Wine prefixes live on POSIX hosts (this feature is Linux-only), so their
+// paths are always handled with POSIX semantics, whatever platform runs the
+// code (for example the unit tests on Windows).
+const join = (...paths: string[]) => posix.join(...paths)
+const resolve = (...paths: string[]) => posix.resolve(...paths)
+const relative = (from: string, to: string) => posix.relative(from, to)
+const isAbsolute = (path: string) => posix.isAbsolute(path)
+const sep = posix.sep
 
 const activeGameCreations = new Set<string>()
 const activePrefixCreations = new Set<string>()
@@ -52,11 +61,12 @@ export function isDefaultWinePrefixPath(
   )
 }
 
-function isInside(basePath: string, candidatePath: string): boolean {
+export function isInside(basePath: string, candidatePath: string): boolean {
   const pathFromBase = relative(basePath, candidatePath)
   return (
     pathFromBase !== '' &&
-    !pathFromBase.startsWith('..') &&
+    pathFromBase !== '..' &&
+    !pathFromBase.startsWith(`..${sep}`) &&
     !isAbsolute(pathFromBase)
   )
 }

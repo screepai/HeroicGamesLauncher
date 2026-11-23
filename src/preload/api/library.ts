@@ -19,6 +19,7 @@ export const listLocalLibraryArchive = makeHandlerInvoker('listLocalLibraryArchi
 export const findLocalLibraryNestedArchives = makeHandlerInvoker('findLocalLibraryNestedArchives')
 export const extractLocalLibraryArchive = makeHandlerInvoker('extractLocalLibraryArchive')
 export const onLocalLibraryArchiveExtractionProgress = frontendListenerSlot('localLibraryArchiveExtractionProgress')
+export const cancelLocalLibraryArchiveExtraction = makeHandlerInvoker('cancelLocalLibraryArchiveExtraction')
 export const deleteLocalLibraryArchive = makeHandlerInvoker('deleteLocalLibraryArchive')
 export const backupLocalLibraryMetadata = makeHandlerInvoker('backupLocalLibraryMetadata')
 export const inspectLocalLibraryMetadataBackup = makeHandlerInvoker('inspectLocalLibraryMetadataBackup')

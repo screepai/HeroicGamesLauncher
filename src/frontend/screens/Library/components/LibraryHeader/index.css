@@ -24,59 +24,20 @@
   margin-block: var(--space-xs);
 }
 
-.libraryManualActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-}
-
-.libraryManualActions .vndbSyncButton {
-  margin: 0;
-}
-
 .libraryBulkSelection {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-sm);
+}
+
+.libraryBulkSelection {
   grid-column: 1 / -1;
 }
 
-.libraryBulkAction {
-  align-items: center;
-  background: var(--input-background);
-  border: 1px solid var(--modal-border);
-  border-radius: var(--space-md);
-  color: var(--text-default);
-  cursor: pointer;
-  display: inline-flex;
-  gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-md);
-}
-
-.libraryBulkAction:hover,
-.libraryBulkAction:focus-visible {
-  background: var(--accent-overlay);
-  color: var(--text-tertiary);
-}
-
-.libraryBulkAction:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.libraryBulkAction--danger:not(:disabled) {
-  border-color: var(--danger, #f44336);
-}
-
-.BulkGameOptionsDialog {
-  width: min(520px, 92vw);
-}
-
-.BulkGameOptionsDialog .button,
-.BulkGameOptionsDialog .button:hover,
-.BulkGameOptionsDialog .button:focus-visible {
-  color: var(--text-tertiary);
+.libraryBulkSelection > strong {
+  color: var(--text-neutral);
+  font-weight: var(--semibold);
 }
 
 .bulkGameOptionsContent {
@@ -89,46 +50,19 @@
   margin: 0;
 }
 
+.bulkGameOptionsToggles {
+  display: flex;
+  flex-direction: column;
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+.bulkGameOptionsToggles > * {
+  padding-block: var(--space-sm-fixed);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
 .bulkGameOptionsMixed {
-  color: var(--text-secondary);
-}
-
-.libraryBulkSelection .vndbSyncButton {
-  margin-inline-start: 0;
-}
-
-.vndbSyncButton {
-  align-items: center;
-  background: var(--input-background);
-  border: 1px solid var(--modal-border);
-  border-radius: var(--space-md);
-  color: var(--text-default);
-  cursor: pointer;
-  display: inline-flex;
-  font-family: var(--secondary-font-family);
-  gap: var(--space-xs);
-  margin-inline-start: calc(-1 * var(--space-md));
-  padding: var(--space-xs) var(--space-md);
-  text-transform: uppercase;
-  transition: 300ms;
-}
-
-.VndbSyncDialog .button,
-.VndbSyncDialog .button:hover,
-.VndbSyncDialog .button:focus-visible {
-  color: var(--text-tertiary);
-}
-
-.vndbSyncButton:hover,
-.vndbSyncButton:focus-visible {
-  background: var(--accent-overlay);
-  box-shadow: 0 0 0 3px var(--button-stroke, var(--text-default));
-  color: var(--text-tertiary);
-}
-
-.vndbSyncButton:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
+  color: var(--text-neutral-muted);
 }
 
 .vndbSyncIcon {
@@ -136,20 +70,32 @@
 }
 
 .vndbSyncIcon svg {
-  color: var(--accent);
+  color: var(--text-brand);
 }
 
 .vndbSyncIcon:hover svg,
 .vndbSyncIcon:focus-within svg {
-  color: var(--accent-overlay);
+  color: var(--text-neutral);
 }
 
 .vndbSyncIcon:disabled svg {
-  color: var(--icon-disabled);
+  color: var(--text-neutral-faint);
 }
 
-.VndbSyncDialog {
-  width: min(960px, 92vw);
+.vndbSyncSpinner {
+  animation: vndbSyncSpin 1s linear infinite;
+}
+
+@keyframes vndbSyncSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vndbSyncSpinner {
+    animation-duration: 3s;
+  }
 }
 
 .vndbSyncContent {
@@ -161,11 +107,41 @@
 
 .vndbSyncLoading {
   align-items: center;
-  color: var(--text-secondary);
+  color: var(--text-neutral-muted);
   display: flex;
+  flex-direction: column;
   gap: var(--space-md);
   justify-content: center;
   min-height: 240px;
+}
+
+.vndbSyncLoadingStatus {
+  align-items: center;
+  display: flex;
+  gap: var(--space-md);
+}
+
+.vndbSyncProgress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: min(100%, 480px);
+}
+
+.vndbSyncLoading .vndbSyncProgress {
+  align-self: center;
+}
+
+.vndbSyncProgressHeader {
+  align-items: center;
+  color: var(--text-neutral-muted);
+  display: flex;
+  gap: var(--space-md);
+  justify-content: space-between;
+}
+
+.vndbSyncRowError {
+  grid-column: 1 / -1;
 }
 
 .vndbSyncRows {
@@ -186,16 +162,17 @@
 
 .vndbSyncArrow {
   align-self: center;
-  color: var(--text-secondary);
-  font-weight: var(--bold);
+  display: inline-flex;
+  color: var(--text-neutral-muted);
+  font-weight: var(--semibold);
 }
 
 .vndbSyncCard {
   align-items: center;
-  background: var(--background);
-  border: 1px solid var(--modal-border);
-  border-radius: var(--space-xs);
-  color: var(--text-default);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-neutral);
   display: flex;
   gap: var(--space-sm);
   min-height: 86px;
@@ -212,25 +189,30 @@ button.vndbSyncCard {
 
 button.vndbSyncCard:hover,
 button.vndbSyncCard:focus-visible {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-overlay);
-  outline: none;
+  border-color: var(--border-brand);
+  background: var(--bg-surface-raised);
+}
+
+button.vndbSyncCard:focus-visible,
+.vndbSyncPickerResult:focus-visible {
+  outline: 2px solid var(--text-brand);
+  outline-offset: 2px;
 }
 
 .vndbSyncCard--result {
-  background: var(--input-background);
+  background: var(--bg-surface-raised);
 }
 
 .vndbSyncCard--empty {
   align-items: center;
-  color: var(--text-secondary);
+  color: var(--text-neutral-muted);
   justify-content: center;
 }
 
 .vndbSyncCardImage {
   aspect-ratio: 2 / 3;
-  background: var(--input-background);
-  border-radius: var(--space-3xs);
+  background: var(--bg-surface-raised);
+  border-radius: var(--radius-sm);
   flex: 0 0 48px;
   height: 72px;
   object-fit: cover;
@@ -246,14 +228,14 @@ button.vndbSyncCard:focus-visible {
 
 .vndbSyncCardTitle {
   font-size: var(--text-md);
-  font-weight: var(--bold);
+  font-weight: var(--semibold);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .vndbSyncCardMeta {
-  color: var(--text-secondary);
+  color: var(--text-neutral-muted);
   font-size: var(--text-sm);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -262,7 +244,7 @@ button.vndbSyncCard:focus-visible {
 
 .vndbSyncRelation {
   box-sizing: border-box;
-  color: var(--text-secondary);
+  color: var(--text-neutral-muted);
   display: block;
   font-size: var(--text-sm);
   max-width: 100%;
@@ -273,11 +255,11 @@ button.vndbSyncCard:focus-visible {
 
 .vndbSyncRelation--main {
   align-self: flex-start;
-  background: color-mix(in srgb, var(--success, #4caf50) 18%, transparent);
-  border: 1px solid var(--success, #4caf50);
-  border-radius: var(--space-3xs);
-  color: var(--success, #4caf50);
-  font-weight: var(--bold);
+  background: var(--bg-success-subtle);
+  border: 1px solid var(--border-success);
+  border-radius: var(--radius-pill);
+  color: var(--text-success);
+  font-weight: var(--semibold);
   padding: var(--space-3xs) var(--space-2xs);
 }
 
@@ -297,26 +279,26 @@ button.vndbSyncCard:focus-visible {
 }
 
 .vndbSyncReleaseDate {
-  background: var(--body-background);
-  border: 1px solid var(--modal-border);
-  border-radius: var(--space-3xs);
-  color: var(--text-secondary);
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  color: var(--text-neutral-muted);
   font-size: var(--text-sm);
   line-height: 1;
   padding: var(--space-3xs) var(--space-2xs);
 }
 
 .vndbSyncReleaseDate--newest {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: var(--bold);
+  background: var(--bg-brand-subtle);
+  border-color: var(--border-brand);
+  color: var(--text-brand);
+  font-weight: var(--semibold);
 }
 
 .vndbSyncPicker {
-  background: var(--body-background);
-  border: 1px solid var(--modal-border);
-  border-radius: var(--space-xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
@@ -332,6 +314,7 @@ button.vndbSyncCard:focus-visible {
 
 .vndbSyncPickerHeader h3 {
   font-size: var(--text-lg);
+  font-weight: var(--semibold);
   margin: 0;
 }
 
@@ -366,11 +349,10 @@ button.vndbSyncCard:focus-visible {
 }
 
 .vndbSyncPickerSection h4 {
-  color: var(--text-secondary);
+  color: var(--text-neutral-muted);
   font-size: var(--text-sm);
-  font-weight: var(--bold);
+  font-weight: var(--semibold);
   margin: 0;
-  text-transform: uppercase;
 }
 
 .vndbSyncPickerResults {
@@ -381,10 +363,10 @@ button.vndbSyncCard:focus-visible {
 
 .vndbSyncPickerResult {
   align-items: center;
-  background: var(--input-background);
-  border: 1px solid var(--modal-border);
-  border-radius: var(--space-xs);
-  color: var(--text-default);
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-neutral);
   cursor: pointer;
   display: flex;
   gap: var(--space-sm);
@@ -396,31 +378,26 @@ button.vndbSyncCard:focus-visible {
 
 .vndbSyncPickerResult:hover,
 .vndbSyncPickerResult:focus-visible {
-  border-color: var(--accent);
-  outline: none;
+  border-color: var(--border-brand);
 }
 
 .vndbSyncPickerResult--main {
-  background: color-mix(
-    in srgb,
-    var(--success, #4caf50) 12%,
-    var(--input-background)
-  );
-  border-color: var(--success, #4caf50);
+  background: var(--bg-success-subtle);
+  border-color: var(--border-success);
 }
 
 .vndbSyncPickerResult--newest {
-  background: color-mix(in srgb, var(--accent) 12%, var(--input-background));
-  border-color: var(--accent);
+  background: var(--bg-brand-subtle);
+  border-color: var(--border-brand);
 }
 
 .vndbSyncPickerResult--selected {
-  box-shadow: inset 0 0 0 2px var(--success, #4caf50);
+  border-color: var(--text-success);
 }
 
 .vndbSyncPickerResult img {
   aspect-ratio: 2 / 3;
-  border-radius: var(--space-3xs);
+  border-radius: var(--radius-sm);
   flex: 0 0 40px;
   height: 60px;
   object-fit: cover;
@@ -435,13 +412,14 @@ button.vndbSyncCard:focus-visible {
 }
 
 .vndbSyncPickerResult strong {
+  font-weight: var(--semibold);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .vndbSyncPickerResult small {
-  color: var(--text-secondary);
+  color: var(--text-neutral-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -450,32 +428,6 @@ button.vndbSyncCard:focus-visible {
 .vndbSyncResultBadges {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3xs);
-}
-
-.vndbSyncResultBadge {
-  border-radius: var(--space-3xs);
-  font-size: var(--text-sm);
-  font-weight: var(--bold);
-  line-height: 1;
-  padding: var(--space-3xs) var(--space-2xs);
-}
-
-.vndbSyncResultBadge--main {
-  background: var(--success, #4caf50);
-  color: var(--text-tertiary);
-}
-
-.vndbSyncResultBadge--newest {
-  background: var(--accent);
-  color: var(--text-tertiary);
-}
-
-.vndbSyncResultBadge--selected {
-  align-items: center;
-  background: var(--success, #4caf50);
-  color: var(--text-tertiary);
-  display: inline-flex;
   gap: var(--space-3xs);
 }
 

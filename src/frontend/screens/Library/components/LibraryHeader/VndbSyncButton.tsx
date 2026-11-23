@@ -1,18 +1,27 @@
 import {
-  faCheck,
-  faSearch,
-  faSpinner,
-  faSyncAlt
-} from '@fortawesome/free-solid-svg-icons'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+  ArrowRight,
+  Check,
+  LoaderCircle,
+  RefreshCw,
+  Search
+} from 'lucide-react'
 import type { GameInfo } from 'common/types'
 import type {
   VndbGameMatch,
   VndbGameMatchSuggestion,
   VndbRelease,
-  VndbSearchResult
+  VndbSearchResult,
+  VndbUserDataSyncResult,
+  VndbUserDataSyncTarget
 } from 'common/types/vndb'
-import { CachedImage, TextInputField, Alert } from 'frontend/components/UI'
+import {
+  CachedImage,
+  TextInputField,
+  Alert,
+  Badge,
+  Button,
+  ProgressBar
+} from 'frontend/components/UI'
 import { Tooltip } from '@mui/material'
 import {
   Modal,
@@ -26,14 +35,16 @@ import {
   getVndbMatchKey,
   getVndbUserDataSyncTarget
 } from 'common/vndb'
+import { searchResultToMatchUpdate } from 'common/vndbMatchUpdate'
 import {
   getVndbReleasesWithSelectedReleases,
   getVndbReleaseMainVisualNovelId,
-  getUniqueSortedVndbPlatforms,
   getVndbPlatformsLabel,
+  hasVndbSelectionChanged,
   normalizeVndbSelectedMatch,
   sortVndbItemsByDate,
-  sortVndbReleasesByDate
+  sortVndbReleasesByDate,
+  vndbMatchToSearchResult
 } from 'frontend/helpers/vndb'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -42,6 +53,7 @@ import useAppSetting from 'frontend/hooks/useAppSetting'
 type Props = {
   list: GameInfo[]
   variant?: 'header' | 'icon'
+  size?: 'sm' | 'md'
   onMatchesChange?: (matches: Record<string, VndbGameMatch>) => void
   autoOpen?: boolean
   hideTrigger?: boolean
@@ -49,6 +61,14 @@ type Props = {
 }
 
 type MatchState = Record<string, VndbSearchResult | null>
+
+type JobProgress = {
+  jobId: string
+  kind: 'match' | 'sync'
+  completed: number
+  total: number
+  cancelling: boolean
+}
 
 const manualSearchLimit = 50
 
@@ -65,34 +85,6 @@ type PickerResultSection = {
   items: PickerResultItem[]
 }
 
-function storedMatchToResult(match: VndbGameMatch): VndbSearchResult {
-  return {
-    id: match.vndbId,
-    title: match.vndbTitle,
-    aliases: match.aliases,
-    source: match.source ?? 'visualNovel',
-    imageUrl: match.imageUrl,
-    released: match.released,
-    average: match.average,
-    rating: match.rating,
-    votecount: match.votecount,
-    length: match.length,
-    lengthMinutes: match.lengthMinutes,
-    lengthVotes: match.lengthVotes,
-    description: match.description,
-    tags: match.tags,
-    developers: match.developers ?? [],
-    languages: match.languages ?? [],
-    platforms: getStoredMatchPlatforms(match),
-    relations: match.relations ?? [],
-    mainRelation: match.mainRelation,
-    latestRelease: match.latestRelease,
-    selectedReleases: match.selectedReleases,
-    releases: match.releases,
-    releaseVns: match.releaseVns
-  }
-}
-
 function getSelectedMatchFromStoredMatch(
   storedMatch: VndbGameMatch | undefined
 ): VndbSearchResult | null {
@@ -100,7 +92,7 @@ function getSelectedMatchFromStoredMatch(
     return null
   }
 
-  return storedMatchToResult(storedMatch)
+  return vndbMatchToSearchResult(storedMatch)
 }
 
 function getDisplayTitle(game: GameInfo): string {
@@ -148,6 +140,9 @@ function releaseToSearchResult(
   }
 }
 
+// Picker selections are not stored yet, so the backend's stored-match
+// hydration (`vndb.hydrateMatch`) cannot serve them; fetch the main visual
+// novel of the chosen entry directly instead.
 async function hydrateSelectedMatch(
   result: VndbSearchResult | null
 ): Promise<VndbSearchResult | null> {
@@ -189,13 +184,6 @@ function getUniqueSortedLanguages(languages: string[]): string[] {
   return [...new Set(languages.filter(Boolean))].sort((left, right) =>
     left.localeCompare(right)
   )
-}
-
-function getStoredMatchPlatforms(match: VndbGameMatch): string[] {
-  return getUniqueSortedVndbPlatforms([
-    ...(match.latestRelease?.platforms ?? []),
-    ...(match.releases?.flatMap((release) => release.platforms ?? []) ?? [])
-  ])
 }
 
 function getResultSelectedReleases(
@@ -447,6 +435,51 @@ function VndbDownloadedReleases({ releases }: { releases: VndbRelease[] }) {
   )
 }
 
+function VndbJobProgress({
+  progress,
+  onCancel
+}: {
+  progress: JobProgress
+  onCancel: () => void
+}) {
+  const { t } = useTranslation()
+  const { completed, total, kind, cancelling } = progress
+  const label =
+    kind === 'match'
+      ? t(
+          'vndb.sync.progress.matching',
+          'Searching VNDB... {{completed}} / {{total}}',
+          { completed, total }
+        )
+      : t(
+          'vndb.sync.progress.syncing',
+          'Syncing VNDB data... {{completed}} / {{total}}',
+          { completed, total }
+        )
+
+  return (
+    <div className="vndbSyncProgress">
+      <div className="vndbSyncProgressHeader">
+        <span>{label}</span>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onCancel}
+          disabled={cancelling}
+        >
+          {cancelling
+            ? t('vndb.sync.cancelling', 'Cancelling...')
+            : t('button.cancel', 'Cancel')}
+        </Button>
+      </div>
+      <ProgressBar
+        value={total > 0 ? (completed / total) * 100 : undefined}
+        label={label}
+      />
+    </div>
+  )
+}
+
 function VndbResultCard({
   result,
   onClick,
@@ -461,7 +494,7 @@ function VndbResultCard({
   if (!result) {
     return (
       <button className="vndbSyncCard vndbSyncCard--empty" onClick={onClick}>
-        <FontAwesomeIcon icon={faSearch} />
+        <Search size={16} />
         <span>{emptyLabel}</span>
       </button>
     )
@@ -498,6 +531,7 @@ function VndbResultCard({
 export default function VndbSyncButton({
   list,
   variant = 'header',
+  size = 'md',
   onMatchesChange,
   autoOpen = false,
   hideTrigger = false,
@@ -516,7 +550,14 @@ export default function VndbSyncButton({
   const [pickerResults, setPickerResults] = useState<VndbSearchResult[]>([])
   const [pickerLoading, setPickerLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [jobProgress, setJobProgress] = useState<JobProgress | null>(null)
   const autoOpenStarted = useRef(false)
+  const activeJobId = useRef<string | null>(null)
+  // Bumped on every load and on close, so a load that resumes after the
+  // dialog was closed (or reopened) stops instead of starting a search.
+  const loadToken = useRef(0)
+  const storedMatches = useRef<Record<string, VndbGameMatch>>({})
 
   const matchableGames = useMemo(() => list.filter(isMatchableGame), [list])
   const matchableGamesByKey = useMemo(
@@ -527,12 +568,78 @@ export default function VndbSyncButton({
     [matchableGames]
   )
 
+  useEffect(() => {
+    const updateProgress = (
+      jobId: string | undefined,
+      completed: number,
+      total: number
+    ) =>
+      setJobProgress((current) =>
+        current && current.jobId === jobId
+          ? { ...current, completed, total }
+          : current
+      )
+    const removeMatchListener = window.api.vndb.onMatchGamesProgress(
+      (_event, progress) =>
+        updateProgress(progress.jobId, progress.completed, progress.total)
+    )
+    const removeSyncListener = window.api.vndb.onSyncUserDataProgress(
+      (_event, progress) =>
+        updateProgress(progress.jobId, progress.completed, progress.total)
+    )
+
+    return () => {
+      removeMatchListener()
+      removeSyncListener()
+    }
+  }, [])
+
+  const startJob = useCallback((kind: JobProgress['kind'], total: number) => {
+    const jobId = `vndb-${kind}-${crypto.randomUUID()}`
+    activeJobId.current = jobId
+    setJobProgress({ jobId, kind, completed: 0, total, cancelling: false })
+    return jobId
+  }, [])
+
+  const finishJob = useCallback((jobId: string) => {
+    if (activeJobId.current === jobId) {
+      activeJobId.current = null
+    }
+    setJobProgress((current) => (current?.jobId === jobId ? null : current))
+  }, [])
+
+  function cancelJob(job: JobProgress) {
+    setJobProgress((current) =>
+      current?.jobId === job.jobId ? { ...current, cancelling: true } : current
+    )
+    const cancel =
+      job.kind === 'match'
+        ? window.api.vndb.cancelMatchGames(job.jobId)
+        : window.api.vndb.cancelSyncUserData(job.jobId)
+    cancel.catch((err) => console.error(err))
+  }
+
+  async function runUserDataSync(
+    targets: VndbUserDataSyncTarget[]
+  ): Promise<VndbUserDataSyncResult> {
+    const jobId = startJob('sync', targets.length)
+
+    try {
+      return await window.api.vndb.syncUserData(targets, { jobId })
+    } finally {
+      finishJob(jobId)
+    }
+  }
+
   const loadMatches = useCallback(async () => {
     setOpen(true)
     setLoadingMatches(true)
     setError(null)
+    setNotice(null)
     setPickerGameKey(null)
     setPickerResults([])
+    let jobId: string | undefined
+    const token = ++loadToken.current
 
     try {
       const targets = matchableGames.map((game) => ({
@@ -540,30 +647,65 @@ export default function VndbSyncButton({
         runner: game.runner,
         title: getDisplayTitle(game)
       }))
-      const storedMatches = await window.api.vndb.getAllGameMatches()
+      const currentStoredMatches = await window.api.vndb.getAllGameMatches()
+      if (token !== loadToken.current) {
+        return
+      }
+      storedMatches.current = currentStoredMatches
       const unmatchedTargets = targets.filter(
-        (target) => !storedMatches[getVndbMatchKey(target)]
+        (target) => !currentStoredMatches[getVndbMatchKey(target)]
       )
-      const matchedSuggestions = unmatchedTargets.length
-        ? await window.api.vndb.matchGames(unmatchedTargets)
-        : []
-      const matchedResults = new Map(
+      let matchedSuggestions: VndbGameMatchSuggestion[] = []
+      if (unmatchedTargets.length) {
+        jobId = startJob('match', unmatchedTargets.length)
+        matchedSuggestions = await window.api.vndb.matchGames(
+          unmatchedTargets,
+          { jobId }
+        )
+      }
+
+      // The dialog was closed (or reopened) while searching.
+      if (
+        token !== loadToken.current ||
+        (jobId && activeJobId.current !== jobId)
+      ) {
+        return
+      }
+
+      const matchedByKey = new Map(
         matchedSuggestions.map((suggestion) => [
           getVndbMatchKey(suggestion.game),
-          suggestion.result
+          suggestion
         ])
       )
-      const nextSuggestions = targets.map((game) => ({
-        game,
-        result: matchedResults.get(getVndbMatchKey(game)) ?? null
-      }))
+      const nextSuggestions: VndbGameMatchSuggestion[] = targets.map((game) => {
+        const matched = matchedByKey.get(getVndbMatchKey(game))
+        return {
+          game,
+          result: matched?.result ?? null,
+          error: matched?.error
+        }
+      })
       const nextSelectedMatches: MatchState = {}
 
       for (const suggestion of nextSuggestions) {
         const key = getVndbMatchKey(suggestion.game)
-        const storedMatch = storedMatches[key]
         nextSelectedMatches[key] =
-          getSelectedMatchFromStoredMatch(storedMatch) ?? suggestion.result
+          getSelectedMatchFromStoredMatch(currentStoredMatches[key]) ??
+          suggestion.result
+      }
+
+      const notSearched = matchedSuggestions.filter(
+        (suggestion) => suggestion.cancelled
+      ).length
+      if (notSearched > 0) {
+        setNotice(
+          t(
+            'vndb.sync.matching-cancelled',
+            'Matching cancelled. {{remaining}} game(s) were not searched; use "Search VNDB" to match them manually.',
+            { remaining: notSearched }
+          )
+        )
       }
 
       setSuggestions(nextSuggestions)
@@ -577,9 +719,18 @@ export default function VndbSyncButton({
         )
       )
     } finally {
-      setLoadingMatches(false)
+      // Another search may have started after this dialog was closed.
+      const superseded =
+        token !== loadToken.current ||
+        (activeJobId.current !== null && activeJobId.current !== jobId)
+      if (jobId) {
+        finishJob(jobId)
+      }
+      if (!superseded) {
+        setLoadingMatches(false)
+      }
     }
-  }, [matchableGames, t])
+  }, [finishJob, matchableGames, startJob, t])
 
   useEffect(() => {
     if (autoOpen && !autoOpenStarted.current && matchableGames.length) {
@@ -589,6 +740,11 @@ export default function VndbSyncButton({
   }, [autoOpen, loadMatches, matchableGames.length])
 
   function closeDialog() {
+    if (jobProgress) {
+      cancelJob(jobProgress)
+    }
+    loadToken.current++
+    activeJobId.current = null
     setOpen(false)
     onClose?.()
   }
@@ -707,49 +863,34 @@ export default function VndbSyncButton({
   async function syncMatches() {
     setSyncing(true)
     setError(null)
+    setNotice(null)
 
     try {
-      const updatedMatches = await window.api.vndb.syncGameMatches(
-        suggestions.map((suggestion) => {
-          const key = getVndbMatchKey({
-            appName: suggestion.game.appName,
-            runner: suggestion.game.runner
-          })
-          const selectedMatch = selectedMatches[key]
-          const normalizedMatch = normalizeVndbSelectedMatch(selectedMatch)
+      const updates = []
+      const changedTargets: VndbUserDataSyncTarget[] = []
 
-          return {
-            appName: suggestion.game.appName,
-            runner: suggestion.game.runner,
-            title: suggestion.game.title,
-            vndbId: normalizedMatch?.id ?? null,
-            vndbTitle: normalizedMatch?.title,
-            aliases: normalizedMatch?.aliases,
-            source: normalizedMatch?.source,
-            imageUrl: normalizedMatch?.imageUrl,
-            released: normalizedMatch?.released,
-            average: normalizedMatch?.average,
-            rating: normalizedMatch?.rating,
-            votecount: normalizedMatch?.votecount,
-            length: normalizedMatch?.length,
-            lengthMinutes: normalizedMatch?.lengthMinutes,
-            lengthVotes: normalizedMatch?.lengthVotes,
-            description: normalizedMatch?.description,
-            tags: normalizedMatch?.tags,
-            developers: normalizedMatch?.developers,
-            languages: normalizedMatch?.languages,
-            mainRelation: normalizedMatch?.mainRelation,
-            relations: normalizedMatch?.relations,
-            latestRelease: normalizedMatch?.latestRelease,
-            selectedReleases: normalizedMatch?.selectedReleases,
-            releases: normalizedMatch?.releases,
-            releaseVns: normalizedMatch?.releaseVns
-          }
-        })
-      )
-      await window.api.vndb.syncUserData(
-        matchableGames.map((game) => getVndbUserDataSyncTarget(game))
-      )
+      for (const suggestion of suggestions) {
+        const key = getVndbMatchKey(suggestion.game)
+        const normalizedMatch = normalizeVndbSelectedMatch(selectedMatches[key])
+        updates.push(
+          searchResultToMatchUpdate(suggestion.game, normalizedMatch)
+        )
+
+        const game = matchableGamesByKey.get(key)
+        if (
+          game &&
+          hasVndbSelectionChanged(storedMatches.current[key], normalizedMatch)
+        ) {
+          changedTargets.push(getVndbUserDataSyncTarget(game))
+        }
+      }
+
+      const updatedMatches = await window.api.vndb.syncGameMatches(updates)
+      // Only games whose match actually changed need their VNDB list entry
+      // updated; "Sync existing data" covers the full library.
+      if (changedTargets.length) {
+        await runUserDataSync(changedTargets)
+      }
       onMatchesChange?.(updatedMatches)
       closeDialog()
     } catch (err) {
@@ -763,11 +904,29 @@ export default function VndbSyncButton({
   async function syncStoredUserData() {
     setRefreshingMatches(true)
     setError(null)
+    setNotice(null)
 
     try {
-      await window.api.vndb.syncUserData(
+      const result = await runUserDataSync(
         matchableGames.map((game) => getVndbUserDataSyncTarget(game))
       )
+      if (result.cancelled) {
+        setNotice(
+          t(
+            'vndb.sync.sync-cancelled',
+            'VNDB data sync cancelled after {{synced}} game(s).',
+            { synced: result.synced }
+          )
+        )
+      } else if (result.errors.length > 0) {
+        setError(
+          t(
+            'vndb.sync.error.sync-data-partial',
+            '{{failed}} game(s) could not be synced with VNDB.',
+            { failed: result.errors.length }
+          )
+        )
+      }
     } catch (err) {
       console.error(err)
       setError(
@@ -801,19 +960,28 @@ export default function VndbSyncButton({
 
   return (
     <>
-      {!hideTrigger && (
-        <button
-          className={
-            variant === 'icon' ? 'svg-button vndbSyncIcon' : 'vndbSyncButton'
-          }
-          title={t('vndb.sync.title', 'Sync VNDB Titles')}
-          onClick={() => void loadMatches()}
-          disabled={!matchableGames.length}
-        >
-          <FontAwesomeIcon icon={variant === 'icon' ? faSyncAlt : faSearch} />
-          {variant === 'header' && t('vndb.sync.button', 'VNDB')}
-        </button>
-      )}
+      {!hideTrigger &&
+        (variant === 'icon' ? (
+          <button
+            className="svg-button vndbSyncIcon"
+            title={t('vndb.sync.title', 'Sync VNDB Titles')}
+            onClick={() => void loadMatches()}
+            disabled={!matchableGames.length}
+          >
+            <RefreshCw size={16} aria-hidden />
+          </button>
+        ) : (
+          <Button
+            variant="secondary"
+            size={size}
+            icon={<Search size={16} />}
+            title={t('vndb.sync.title', 'Sync VNDB Titles')}
+            onClick={() => void loadMatches()}
+            disabled={!matchableGames.length}
+          >
+            {t('vndb.sync.button', 'VNDB')}
+          </Button>
+        ))}
 
       {open && (
         <Modal
@@ -825,11 +993,27 @@ export default function VndbSyncButton({
           <ModalHeader>{t('vndb.sync.title', 'Sync VNDB Titles')}</ModalHeader>
           <ModalContent className="vndbSyncContent">
             {error && <Alert variant="warning">{error}</Alert>}
+            {notice && <Alert variant="info">{notice}</Alert>}
+
+            {jobProgress?.kind === 'sync' && (
+              <VndbJobProgress
+                progress={jobProgress}
+                onCancel={() => cancelJob(jobProgress)}
+              />
+            )}
 
             {loadingMatches ? (
               <div className="vndbSyncLoading">
-                <FontAwesomeIcon icon={faSpinner} spin size="2x" />
-                <span>{t('vndb.sync.loading', 'Searching VNDB...')}</span>
+                <div className="vndbSyncLoadingStatus">
+                  <LoaderCircle size={32} className="vndbSyncSpinner" />
+                  <span>{t('vndb.sync.loading', 'Searching VNDB...')}</span>
+                </div>
+                {jobProgress?.kind === 'match' && (
+                  <VndbJobProgress
+                    progress={jobProgress}
+                    onCancel={() => cancelJob(jobProgress)}
+                  />
+                )}
               </div>
             ) : (
               <>
@@ -843,12 +1027,13 @@ export default function VndbSyncButton({
                       >
                         <h3>{pickerSuggestion.game.title}</h3>
                       </Tooltip>
-                      <button
-                        className="button is-ghost"
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setPickerGameKey(null)}
                       >
                         {t('button.done', 'Done')}
-                      </button>
+                      </Button>
                     </div>
                     <TextInputField
                       htmlId="vndb-sync-search"
@@ -861,18 +1046,23 @@ export default function VndbSyncButton({
                         }
                       }}
                       afterInput={
-                        <button
-                          className="button is-secondary"
+                        <Button
+                          variant="secondary"
+                          icon={
+                            pickerLoading ? (
+                              <LoaderCircle
+                                size={16}
+                                className="vndbSyncSpinner"
+                              />
+                            ) : (
+                              <Search size={16} />
+                            )
+                          }
                           onClick={() => void searchPicker()}
                           disabled={pickerLoading}
                         >
-                          {pickerLoading ? (
-                            <FontAwesomeIcon icon={faSpinner} spin />
-                          ) : (
-                            <FontAwesomeIcon icon={faSearch} />
-                          )}
                           {t('button.search', 'Search')}
-                        </button>
+                        </Button>
                       }
                     />
                     <div className="vndbSyncPickerSections">
@@ -959,23 +1149,21 @@ export default function VndbSyncButton({
                                       </small>
                                       <span className="vndbSyncResultBadges">
                                         {isPinnedMain && (
-                                          <span className="vndbSyncResultBadge vndbSyncResultBadge--main">
-                                            Main
-                                          </span>
+                                          <Badge variant="success">Main</Badge>
                                         )}
                                         {isNewestRelease && (
-                                          <span className="vndbSyncResultBadge vndbSyncResultBadge--newest">
-                                            Newest
-                                          </span>
+                                          <Badge variant="accent">Newest</Badge>
                                         )}
                                         {isSelected && (
-                                          <span className="vndbSyncResultBadge vndbSyncResultBadge--selected">
-                                            <FontAwesomeIcon icon={faCheck} />
+                                          <Badge
+                                            variant="success"
+                                            glyph={Check}
+                                          >
                                             {t(
                                               'vndb.sync.selected',
                                               'Selected'
                                             )}
-                                          </span>
+                                          </Badge>
                                         )}
                                       </span>
                                       <VndbMainRelation
@@ -1039,7 +1227,9 @@ export default function VndbSyncButton({
                             </span>
                           </span>
                         </div>
-                        <span className="vndbSyncArrow">-&gt;</span>
+                        <span className="vndbSyncArrow" aria-hidden>
+                          <ArrowRight size={18} />
+                        </span>
                         <VndbResultCard
                           result={selectedMatch}
                           onClick={() => openPicker(suggestion)}
@@ -1049,6 +1239,17 @@ export default function VndbSyncButton({
                           )}
                           locale={i18n.language}
                         />
+                        {suggestion.error && !selectedMatch && (
+                          <div className="vndbSyncRowError">
+                            <Alert variant="warning">
+                              {t(
+                                'vndb.sync.error.match-game',
+                                'Could not search VNDB for this game: {{message}}',
+                                { message: suggestion.error }
+                              )}
+                            </Alert>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
@@ -1058,28 +1259,36 @@ export default function VndbSyncButton({
           </ModalContent>
           <ModalFooter>
             {syncVndbUserData && (
-              <button
-                className="button is-secondary"
+              <Button
+                variant="secondary"
+                icon={
+                  refreshingMatches ? (
+                    <LoaderCircle size={16} className="vndbSyncSpinner" />
+                  ) : (
+                    <RefreshCw size={16} />
+                  )
+                }
                 onClick={() => void syncStoredUserData()}
                 disabled={loadingMatches || syncing || refreshingMatches}
               >
-                {refreshingMatches ? (
-                  <FontAwesomeIcon icon={faSpinner} spin />
-                ) : (
-                  <FontAwesomeIcon icon={faSyncAlt} />
-                )}
                 {t('vndb.sync.sync-existing-data', 'Sync existing data')}
-              </button>
+              </Button>
             )}
-            <button
-              className="button is-secondary"
+            <Button
+              variant="secondary"
               onClick={closeDialog}
               disabled={syncing || refreshingMatches}
             >
               {t('button.cancel', 'Cancel')}
-            </button>
-            <button
-              className="button is-success"
+            </Button>
+            <Button
+              icon={
+                syncing ? (
+                  <LoaderCircle size={16} className="vndbSyncSpinner" />
+                ) : (
+                  <Check size={16} />
+                )
+              }
               onClick={() => void syncMatches()}
               disabled={
                 loadingMatches ||
@@ -1088,13 +1297,8 @@ export default function VndbSyncButton({
                 !suggestions.length
               }
             >
-              {syncing ? (
-                <FontAwesomeIcon icon={faSpinner} spin />
-              ) : (
-                <FontAwesomeIcon icon={faCheck} />
-              )}
               {t('button.confirm', 'Confirm')}
-            </button>
+            </Button>
           </ModalFooter>
         </Modal>
       )}

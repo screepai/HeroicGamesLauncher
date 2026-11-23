@@ -70,9 +70,12 @@ import type {
   VndbGameMatchSuggestion,
   VndbGameMatchTarget,
   VndbGameMatchUpdate,
+  VndbJobOptions,
+  VndbMatchGamesProgress,
   VndbSearchResult,
   VndbUserOptions,
   VndbUserOptionsUpdate,
+  VndbUserDataSyncProgress,
   VndbUserDataSyncResult,
   VndbUserDataSyncTarget
 } from './vndb'
@@ -233,8 +236,12 @@ interface AsyncIPCFunctions {
     rootPath?: string
     selectedPaths: string[]
   }) => Promise<{ folderPath: string; title: string }>
+  cancelLocalLibraryArchiveExtraction: (archivePath: string) => Promise<boolean>
   deleteLocalLibraryArchive: (archivePath: string) => Promise<void>
-  backupLocalLibraryMetadata: (directoryPath: string) => Promise<string>
+  backupLocalLibraryMetadata: (
+    directoryPath: string,
+    options?: { includeSecrets?: boolean }
+  ) => Promise<string>
   inspectLocalLibraryMetadataBackup: (backupPath: string) => Promise<{
     affectedGames: number
     backupPathStyle: 'windows' | 'posix' | 'unknown'
@@ -567,12 +574,18 @@ interface AsyncIPCFunctions {
     limit?: number
   }) => Promise<VndbSearchResult[]>
   'vndb.matchGames': (
-    games: VndbGameMatchTarget[]
+    games: VndbGameMatchTarget[],
+    options?: VndbJobOptions
   ) => Promise<VndbGameMatchSuggestion[]>
+  'vndb.cancelMatchGames': (jobId?: string) => Promise<boolean>
   'vndb.syncGameMatches': (
     updates: VndbGameMatchUpdate[]
   ) => Promise<Record<string, VndbGameMatch>>
   'vndb.getGameMatch': (args: {
+    appName: string
+    runner: Runner
+  }) => Promise<VndbGameMatch | null>
+  'vndb.hydrateMatch': (args: {
     appName: string
     runner: Runner
   }) => Promise<VndbGameMatch | null>
@@ -587,8 +600,10 @@ interface AsyncIPCFunctions {
     selected: boolean
   }) => Promise<void>
   'vndb.syncUserData': (
-    targets: VndbUserDataSyncTarget[]
+    targets: VndbUserDataSyncTarget[],
+    options?: VndbJobOptions
   ) => Promise<VndbUserDataSyncResult>
+  'vndb.cancelSyncUserData': (jobId?: string) => Promise<boolean>
   'vnCompatibility.get': (args: {
     titles: string[]
     engine?: string
@@ -685,6 +700,8 @@ interface FrontendMessages {
     >
   ) => void
   vndbMatchesChanged: (matches: Record<string, VndbGameMatch>) => void
+  vndbMatchGamesProgress: (progress: VndbMatchGamesProgress) => void
+  vndbSyncUserDataProgress: (progress: VndbUserDataSyncProgress) => void
   itchioOAuthCallback: (url: string) => void
 
   // Used inside tests, so we can be a bit lenient with the type checking here

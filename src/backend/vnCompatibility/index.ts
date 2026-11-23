@@ -28,6 +28,8 @@ type VnCompatibilityDataset = {
   prefixSetups: Record<string, VnCompatibilityPrefixSetup>
 }
 
+const FETCH_TIMEOUT_MS = 15_000
+
 const compatibilityCache = new CacheStore<VnCompatibilityDataset>(
   'vnwiki-compatibility-v2',
   60 * 24
@@ -138,16 +140,32 @@ function parseDataset(
   return { entries, notes: parsedNotes, prefixSetups: {} }
 }
 
-async function getDataset(): Promise<VnCompatibilityDataset> {
+// Concurrent callers (several game pages opening at once) share one download.
+let datasetRequest: Promise<VnCompatibilityDataset> | undefined
+
+function getDataset(): Promise<VnCompatibilityDataset> {
   const cached = compatibilityCache.get('dataset')
   if (cached) {
-    return cached
+    return Promise.resolve(cached)
   }
 
+  datasetRequest ??= fetchDataset().finally(() => {
+    datasetRequest = undefined
+  })
+  return datasetRequest
+}
+
+async function fetchDataset(): Promise<VnCompatibilityDataset> {
+  // The signal covers the response body as well as the connection, so a
+  // stalled download cannot hang the compatibility lookup forever.
+  const fetchWithTimeout = (url: string) =>
+    fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+
   const [listResponse, notesResponse, prefixesResponse] = await Promise.all([
-    fetch(compatibilityListUrl),
-    fetch(compatibilityNotesUrl),
-    fetch(winePrefixesGuideUrl)
+    fetchWithTimeout(compatibilityListUrl),
+    fetchWithTimeout(compatibilityNotesUrl),
+    // The prefix guide is optional; the rest of the dataset works without it
+    fetchWithTimeout(winePrefixesGuideUrl).catch(() => undefined)
   ])
 
   if (!listResponse.ok || !notesResponse.ok) {
@@ -160,8 +178,12 @@ async function getDataset(): Promise<VnCompatibilityDataset> {
     await listResponse.json(),
     await notesResponse.json()
   )
-  if (prefixesResponse.ok) {
-    dataset.prefixSetups = parsePrefixSetups(await prefixesResponse.text())
+  if (prefixesResponse?.ok) {
+    try {
+      dataset.prefixSetups = parsePrefixSetups(await prefixesResponse.text())
+    } catch {
+      // Keep the dataset without prefix setups
+    }
   }
   compatibilityCache.set('dataset', dataset)
   return dataset

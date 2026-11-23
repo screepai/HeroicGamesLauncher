@@ -340,3 +340,75 @@ export function getVndbReleaseMainVisualNovelId(
 ): string | undefined {
   return getReleaseMainVisualNovel(result)?.id
 }
+
+function getStoredMatchPlatforms(match: VndbGameMatch): string[] {
+  return getUniqueSortedVndbPlatforms([
+    ...(match.latestRelease?.platforms ?? []),
+    ...(match.releases?.flatMap((release) => release.platforms ?? []) ?? [])
+  ])
+}
+
+/** Converts a stored match back into the search-result shape the UI works with. */
+export function vndbMatchToSearchResult(
+  match: VndbGameMatch
+): VndbSearchResult {
+  return {
+    id: match.vndbId,
+    title: match.vndbTitle,
+    aliases: match.aliases,
+    source: match.source ?? 'visualNovel',
+    imageUrl: match.imageUrl,
+    released: match.released,
+    average: match.average,
+    rating: match.rating,
+    votecount: match.votecount,
+    length: match.length,
+    lengthMinutes: match.lengthMinutes,
+    lengthVotes: match.lengthVotes,
+    description: match.description,
+    tags: match.tags,
+    developers: match.developers ?? [],
+    languages: match.languages ?? [],
+    platforms: getStoredMatchPlatforms(match),
+    relations: match.relations ?? [],
+    mainRelation: match.mainRelation,
+    latestRelease: match.latestRelease,
+    selectedReleases: match.selectedReleases,
+    releases: match.releases,
+    releaseVns: match.releaseVns
+  }
+}
+
+function getSelectedReleaseIdsKey(releases: VndbRelease[]): string {
+  return releases
+    .map((release) => release.id)
+    .toSorted()
+    .join(',')
+}
+
+/**
+ * True when saving `selected` would change the stored match: a new game, a
+ * different visual novel, or a different set of downloaded releases.
+ * Clearing a match (null) is not a change that needs syncing to VNDB.
+ */
+export function hasVndbSelectionChanged(
+  stored: VndbGameMatch | undefined,
+  selected: VndbSearchResult | null
+): boolean {
+  if (!selected) {
+    return false
+  }
+
+  if (!stored || stored.vndbId !== selected.id) {
+    return true
+  }
+
+  const selectedReleases =
+    selected.selectedReleases ??
+    (selected.latestRelease ? [selected.latestRelease] : [])
+
+  return (
+    getSelectedReleaseIdsKey(getSelectedVndbReleases(stored)) !==
+    getSelectedReleaseIdsKey(selectedReleases)
+  )
+}

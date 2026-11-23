@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GameInfo } from 'common/types'
-import { Alert } from 'frontend/components/UI'
+import { Alert, Button, DetailList, LogPanel } from 'frontend/components/UI'
 import {
   Modal,
   ModalContent,
@@ -80,6 +80,7 @@ export default function SpecialCodecSetupDialog({
   return (
     <Modal
       className="SpecialCodecSetupDialog"
+      size="md"
       onClose={onClose}
       disableBackdropClose={isInstalling}
       disableEscapeKeyDown={isInstalling}
@@ -99,16 +100,19 @@ export default function SpecialCodecSetupDialog({
             { codecs: codecs.join(', '), template: prefixTemplate }
           )}
         </p>
-        <dl>
-          <div>
-            <dt>{t('compatibility.heroic-prefix', 'Heroic Wine prefix')}</dt>
-            <dd title={currentPrefix}>{currentPrefix}</dd>
-          </div>
-          <div>
-            <dt>{t('compatibility.special-codecs', 'Special Codecs')}</dt>
-            <dd>{codecs.join(', ')}</dd>
-          </div>
-        </dl>
+        <DetailList
+          items={[
+            {
+              label: t('compatibility.heroic-prefix', 'Heroic Wine prefix'),
+              value: currentPrefix,
+              title: currentPrefix
+            },
+            {
+              label: t('compatibility.special-codecs', 'Special Codecs'),
+              value: codecs.join(', ')
+            }
+          ]}
+        />
         {installState === 'confirming' && (
           <Alert variant="warning">
             {t(
@@ -118,36 +122,35 @@ export default function SpecialCodecSetupDialog({
           </Alert>
         )}
         {installState !== 'confirming' && (
-          <pre className="specialCodecSetupLog" aria-live="polite">
-            {messages.join('\n') ||
-              t('compatibility.codecs-preparing', 'Preparing installation…')}
-          </pre>
+          <div aria-live="polite">
+            <LogPanel
+              className="specialCodecSetupLog"
+              content={
+                messages.join('\n') ||
+                t('compatibility.codecs-preparing', 'Preparing installation…')
+              }
+            />
+          </div>
         )}
-        <button
-          className="vnCompatibilitySource"
+        <Button
+          variant="link"
+          size="sm"
           onClick={() => window.api.openExternalUrl(specialCodecsSourceUrl)}
           disabled={isInstalling}
         >
           {t('compatibility.open-codecs-source', 'Review helper source')}
-        </button>
+        </Button>
       </ModalContent>
       <ModalFooter>
-        <button
-          className="button is-secondary"
-          onClick={onClose}
-          disabled={isInstalling}
-        >
+        <Button variant="secondary" onClick={onClose} disabled={isInstalling}>
           {installState === 'confirming'
             ? t('compatibility.cancel', 'Cancel')
-            : t('button.close', 'Close')}
-        </button>
+            : t('translation:button.close', 'Close')}
+        </Button>
         {installState === 'confirming' && (
-          <button
-            className="button is-danger"
-            onClick={() => void installCodecs()}
-          >
+          <Button variant="dangerSubtle" onClick={() => void installCodecs()}>
             {t('compatibility.install-codecs', 'Run vn_winestuff')}
-          </button>
+          </Button>
         )}
       </ModalFooter>
     </Modal>

@@ -1,4 +1,4 @@
-import { Fragment, useContext } from 'react'
+import { Children, ReactNode, useContext } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   FolderOpen,
@@ -124,48 +124,61 @@ const InstalledInfo = ({ gameInfo, onIsVisualNovelChange }: Props) => {
       .join(', ')
   }
 
+  // Fork toggles sit outside a SettingsCard, so group them to get the same
+  // row spacing and dividers as upstream settings rows.
+  function renderToggles(...toggles: ReactNode[]) {
+    const visible = toggles.filter(Boolean)
+    if (!visible.length) return null
+    return (
+      <div className="installationInfoToggles">{Children.toArray(visible)}</div>
+    )
+  }
+
   const vndbReleaseInfo = selectedVndbReleases.length ? (
-    <>
+    <section className="installationInfoReleases">
+      <h3 className="installationInfoSubtitle">
+        {t('vndb.downloaded-releases-title', 'Downloaded releases')}
+      </h3>
       {selectedVndbReleases.map((release) => {
         const languages = getLanguageList(release.languages, i18n.language)
         const platforms = getVndbPlatformsLabel(release.platforms)
         const flags = getReleaseFlagsLabel(release)
 
-        return (
-          <Fragment key={release.id}>
-            <div>
-              <b>{t('vndb.downloaded-version', 'Downloaded version')}:</b>{' '}
-              {release.title}
-            </div>
-            <div>
-              <b>{t('vndb.release-id', 'Release ID')}:</b> {release.id}
-            </div>
-            {release.released && (
-              <div>
-                <b>{t('vndb.release-date', 'Release date')}:</b>{' '}
-                {release.released}
-              </div>
-            )}
-            {languages && (
-              <div>
-                <b>{t('vndb.release-languages', 'Release languages')}:</b>{' '}
-                {languages}
-              </div>
-            )}
-            {platforms && (
-              <div>
-                <b>{t('vndb.platforms', 'Platforms')}:</b> {platforms}
-              </div>
-            )}
-            {flags && (
-              <div>
-                <b>{t('vndb.release-flags', 'Release flags')}:</b> {flags}
-              </div>
-            )}
-          </Fragment>
-        )
+        const releaseItems: DetailItem[] = [
+          {
+            label: t('vndb.downloaded-version', 'Downloaded version'),
+            value: release.title
+          },
+          { label: t('vndb.release-id', 'Release ID'), value: release.id }
+        ]
+        if (release.released) {
+          releaseItems.push({
+            label: t('vndb.release-date', 'Release date'),
+            value: release.released
+          })
+        }
+        if (languages) {
+          releaseItems.push({
+            label: t('vndb.release-languages', 'Release languages'),
+            value: languages
+          })
+        }
+        if (platforms) {
+          releaseItems.push({
+            label: t('vndb.platforms', 'Platforms'),
+            value: platforms
+          })
+        }
+        if (flags) {
+          releaseItems.push({
+            label: t('vndb.release-flags', 'Release flags'),
+            value: flags
+          })
+        }
+
+        return <DetailList key={release.id} items={releaseItems} columns={2} />
       })}
-    </>
+    </section>
   ) : null
 
   const {
@@ -186,7 +199,7 @@ const InstalledInfo = ({ gameInfo, onIsVisualNovelChange }: Props) => {
     return (
       <Panel tone="glass" className="installationInfo">
         <DetailList items={items} columns={2} />
-        {visualNovelSetting}
+        {renderToggles(visualNovelSetting)}
         {vndbReleaseInfo}
       </Panel>
     )
@@ -278,22 +291,24 @@ const InstalledInfo = ({ gameInfo, onIsVisualNovelChange }: Props) => {
       <DetailList items={items} columns={2} />
       {runner === 'steam' && <SteamDlcList appName={gameInfo.app_name} />}
       {cloudSave.menu}
-      {visualNovelSetting}
-      {!isThirdParty && (is.win || is.linux) && (
-        <ToggleSwitch
-          htmlId="jp-locale"
-          value={jpLocale}
-          handleChange={() => setJpLocale(!jpLocale)}
-          title={t('setting.jp-locale', 'JP locale')}
-          description={t(
-            is.win
-              ? 'setting.jp-locale-description'
-              : 'setting.jp-locale-linux-description',
-            is.win
-              ? 'Launch this game through the configured Locale Emulator executable.'
-              : 'Set a Japanese locale and the Asia/Tokyo timezone when launching this game.'
-          )}
-        />
+      {renderToggles(
+        visualNovelSetting,
+        !isThirdParty && (is.win || is.linux) && (
+          <ToggleSwitch
+            htmlId="jp-locale"
+            value={jpLocale}
+            handleChange={() => setJpLocale(!jpLocale)}
+            title={t('setting.jp-locale', 'JP locale')}
+            description={t(
+              is.win
+                ? 'setting.jp-locale-description'
+                : 'setting.jp-locale-linux-description',
+              is.win
+                ? 'Launch this game through the configured Locale Emulator executable.'
+                : 'Set a Japanese locale and the Asia/Tokyo timezone when launching this game.'
+            )}
+          />
+        )
       )}
       {vndbReleaseInfo}
     </Panel>

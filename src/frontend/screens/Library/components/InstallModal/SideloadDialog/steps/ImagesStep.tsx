@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import axios from 'axios'
+import { useEffect, useRef, useState } from 'react'
 import classNames from 'classnames'
 import {
   Button,
@@ -20,6 +19,8 @@ type Props = {
   title: string
   hasSgdbKey: boolean
   includeVndb: boolean
+  /** True while the dialog is looking up a cover for the current title. */
+  searching: boolean
   imageUrl: string
   heroUrl: string
   setImageUrl: (val: string) => void
@@ -43,73 +44,28 @@ export default function ImagesStep({
   heroUrl,
   setHeroUrl,
   hasSgdbKey,
-  includeVndb
+  includeVndb,
+  searching
 }: Props) {
   const { t } = useTranslation('gamepage')
 
-  const [searching, setSearching] = useState(false)
   const [imageLoading, setImageLoading] = useState(false)
+
+  // Show the spinner until a new cover (e.g. one the dialog found on its
+  // own) has loaded; the image's onLoad/onError clears it.
+  const shownImageUrl = useRef(imageUrl)
+  useEffect(() => {
+    if (imageUrl !== shownImageUrl.current) {
+      shownImageUrl.current = imageUrl
+      setImageLoading(Boolean(imageUrl))
+    }
+  }, [imageUrl])
   const [sgdbTarget, setSgdbTarget] = useState<'cover' | 'square' | null>(null)
 
   const navigate = useNavigate()
   const goToAdvancedSettings = () => {
     backdropClick()
     navigate('/settings/advanced')
-  }
-
-  useEffect(() => {
-    searchImage()
-  }, [])
-
-  async function searchImage() {
-    if (!title.trim() || imageUrl) return
-    if (hasSgdbKey) {
-      if (!imageUrl) setSgdbTarget('square')
-      return
-    }
-    setSearching(true)
-
-    try {
-      if (includeVndb) {
-        try {
-          const vndbResults = await window.api.vndb.searchVisualNovels({
-            query: title,
-            limit: 5
-          })
-          const vndbImage = vndbResults.find(
-            (result) => result.imageUrl
-          )?.imageUrl
-
-          if (vndbImage) {
-            setImageLoading(true)
-            setImageUrl(vndbImage)
-            return
-          }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          window.api.logError(`VNDB cover search failed: ${message}`)
-        }
-      }
-
-      const response = await axios.get(
-        `https://steamgrid.usebottles.com/api/search/${encodeURIComponent(title)}`,
-        { timeout: 3500 }
-      )
-
-      if (response.status === 200) {
-        const steamGridImage = response.data as string
-
-        if (steamGridImage && steamGridImage.startsWith('http')) {
-          setImageUrl(steamGridImage)
-        }
-      } else {
-        throw new Error('Fetch failed')
-      }
-    } catch (error) {
-      window.api.logError(`${error}`)
-    } finally {
-      setSearching(false)
-    }
   }
 
   async function handleSelectLocalImage(target: 'cover' | 'square') {
@@ -164,7 +120,9 @@ export default function ImagesStep({
             'Pick a square cover and a hero banner, or search SteamGridDB'
           )}
         />
-        {!hasSgdbKey && (
+        {/* VNDB cover search works without a key, so only nag when
+            SteamGridDB would be the only search there is. */}
+        {!hasSgdbKey && !includeVndb && (
           <Alert variant="warning">
             {t(
               'edit-game.sgdb.no-key-prefix',

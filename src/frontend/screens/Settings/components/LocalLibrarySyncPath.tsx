@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Chip, MenuItem, SelectChangeEvent } from '@mui/material'
 
 import {
+  Button,
   PathSelectionBox,
   SelectField,
   TextInputField,
@@ -26,6 +27,7 @@ const LocalLibrarySyncPath = () => {
   const { customCategories, showDialogModal } = useContext(ContextProvider)
   const [newExclusionRule, setNewExclusionRule] = useState('')
   const [isBackingUpMetadata, setIsBackingUpMetadata] = useState(false)
+  const [includeBackupSecrets, setIncludeBackupSecrets] = useState(false)
   const [isRestoringMetadata, setIsRestoringMetadata] = useState(false)
   const [enableLocalLibraryWatcher, setEnableLocalLibraryWatcher] = useSetting(
     'enableLocalLibraryWatcher',
@@ -116,8 +118,12 @@ const LocalLibrarySyncPath = () => {
 
     setIsBackingUpMetadata(true)
     try {
-      const backupPath =
-        await window.api.backupLocalLibraryMetadata(backupDirectory)
+      const backupPath = await window.api.backupLocalLibraryMetadata(
+        backupDirectory,
+        {
+          includeSecrets: includeBackupSecrets
+        }
+      )
       showMetadataMessage(
         t(
           'setting.local-library-metadata-backup-success',
@@ -508,9 +514,11 @@ const LocalLibrarySyncPath = () => {
       />
 
       <MetadataActions
+        includeSecrets={includeBackupSecrets}
         isBackingUp={isBackingUpMetadata}
         isRestoring={isRestoringMetadata}
         onBackup={() => void backupLocalLibraryMetadata()}
+        onIncludeSecretsChange={setIncludeBackupSecrets}
         onRestore={() => void selectLocalLibraryMetadataBackup()}
       />
 
@@ -535,14 +543,14 @@ const LocalLibrarySyncPath = () => {
           'Folder name or wildcard pattern'
         )}
         afterInput={
-          <button
-            className="button is-primary rightButton"
-            type="button"
+          <Button
+            variant="secondary"
+            className="rightButton"
             disabled={!enableLocalLibraryWatcher || !newExclusionRule.trim()}
             onClick={addExclusionRule}
           >
             {t('box.add', 'Add')}
-          </button>
+          </Button>
         }
       />
 

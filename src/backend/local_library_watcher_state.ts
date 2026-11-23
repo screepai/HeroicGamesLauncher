@@ -118,29 +118,32 @@ async function readStateData(): Promise<LocalLibraryWatcherStateData> {
 }
 
 async function writeStateData(stateData: LocalLibraryWatcherStateData) {
-  try {
-    await fs.mkdir(dirname(statePath), { recursive: true })
-    const temporaryPath = `${statePath}.tmp`
-    await fs.writeFile(temporaryPath, JSON.stringify(stateData, null, 2))
-    await fs.rename(temporaryPath, statePath)
-  } catch (error) {
-    logWarning(
-      ['Unable to save the local library watcher state:', error],
-      LogPrefix.Backend
-    )
-  }
+  await fs.mkdir(dirname(statePath), { recursive: true })
+  const temporaryPath = `${statePath}.tmp`
+  await fs.writeFile(temporaryPath, JSON.stringify(stateData, null, 2))
+  await fs.rename(temporaryPath, statePath)
 }
 
 function saveStateData(
   update: (stateData: LocalLibraryWatcherStateData) => void
 ): Promise<void> {
-  pendingWrite = pendingWrite.then(async () => {
+  const write = pendingWrite.then(async () => {
     const stateData = await readStateData()
     update(stateData)
     await writeStateData(stateData)
   })
 
-  return pendingWrite
+  // Callers see the failure through the returned promise, but the shared
+  // chain must always resolve: a single rejected write would otherwise make
+  // every later save (and every load awaiting the chain) reject as well.
+  pendingWrite = write.catch((error) => {
+    logWarning(
+      ['Unable to save the local library watcher state:', error],
+      LogPrefix.Backend
+    )
+  })
+
+  return write
 }
 
 const localLibraryWatcherState: LocalLibraryWatcherState = {

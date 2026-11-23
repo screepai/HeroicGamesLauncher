@@ -6,13 +6,8 @@ import { Info } from 'lucide-react'
 
 import { getGameInfo, getInstallInfo, sendKill } from 'frontend/helpers'
 import { launch, updateGame, install } from 'frontend/helpers/library'
-import {
-  getSelectedVndbReleases,
-  getVndbReleasesWithSelectedReleases
-} from 'frontend/helpers/vndb'
-import type { VndbGameMatch } from 'common/types/vndb'
-import { getVndbMatchKey } from 'common/vndb'
 import useAppSetting from 'frontend/hooks/useAppSetting'
+import useVndbMatch from 'frontend/hooks/useVndbMatch'
 import VndbInfo from './components/VndbInfo'
 import VnCompatibilityInfo from './components/VnCompatibilityInfo'
 import { Link, useLocation, useParams } from 'react-router-dom'
@@ -74,33 +69,6 @@ import SettingsContext from 'frontend/screens/Settings/SettingsContext'
 import useGlobalState from 'frontend/state/GlobalStateV2'
 import { LaunchOptionSelector } from 'frontend/screens/Settings/components'
 
-function getVndbMatchMainVisualNovelId(
-  match: VndbGameMatch
-): string | undefined {
-  if (match.source !== 'release') {
-    return match.vndbId
-  }
-
-  return (
-    match.mainRelation?.id ??
-    match.releaseVns?.[0]?.id ??
-    (match.vndbId.startsWith('v') ? match.vndbId : undefined)
-  )
-}
-
-function vndbMatchNeedsGamePageDetails(match: VndbGameMatch) {
-  return (
-    match.released === undefined ||
-    match.developers === undefined ||
-    match.rating === undefined ||
-    match.lengthMinutes === undefined ||
-    match.description === undefined ||
-    match.tags === undefined ||
-    getSelectedVndbReleases(match).some((release) => !release.engineKnown) ||
-    match.releases?.some((release) => !release.engineKnown) === true
-  )
-}
-
 type GameTab =
   | 'overview'
   | 'info'
@@ -121,7 +89,6 @@ export default React.memo(function GamePage(): JSX.Element | null {
   const { gameInfo: locationGameInfo } = location.state
 
   const [wikiInfo, setWikiInfo] = useState<WikiInfo | null>(null)
-  const [vndbMatch, setVndbMatch] = useState<VndbGameMatch | null>(null)
 
   const { epic, gog, gameUpdates, platform, showDialogModal, connectivity } =
     useContext(ContextProvider)
@@ -140,6 +107,10 @@ export default React.memo(function GamePage(): JSX.Element | null {
   )
 
   const [gameInfo, setGameInfo] = useState(locationGameInfo)
+  const { match: vndbMatch, setMatch: setVndbMatch } = useVndbMatch(
+    gameInfo,
+    enableVndbIntegration
+  )
   const [gameSettings, setGameSettings] = useState<GameSettings | null>(null)
 
   const { status, folder, statusContext } = hasStatus(gameInfo)
@@ -325,131 +296,6 @@ export default React.memo(function GamePage(): JSX.Element | null {
       }
     })
   }, [appName])
-
-  useEffect(() => {
-    if (!enableVndbIntegration || !gameInfo.isVisualNovel) {
-      setVndbMatch(null)
-      return
-    }
-
-    let isMounted = true
-
-    window.api.vndb
-      .getGameMatch({ appName, runner })
-      .then((match) => {
-        if (isMounted) {
-          setVndbMatch(match)
-        }
-      })
-      .catch((error) => {
-        console.error(error)
-        if (isMounted) {
-          setVndbMatch(null)
-        }
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [appName, enableVndbIntegration, gameInfo.isVisualNovel, runner])
-
-  useEffect(() => {
-    if (
-      !enableVndbIntegration ||
-      !gameInfo.isVisualNovel ||
-      !vndbMatch ||
-      !vndbMatchNeedsGamePageDetails(vndbMatch)
-    ) {
-      return
-    }
-
-    const visualNovelId = getVndbMatchMainVisualNovelId(vndbMatch)
-    if (!visualNovelId?.startsWith('v')) {
-      return
-    }
-
-    let isMounted = true
-
-    window.api.vndb
-      .searchVisualNovels({
-        query: visualNovelId,
-        limit: 1
-      })
-      .then(async ([mainResult]) => {
-        if (
-          !isMounted ||
-          mainResult?.source !== 'visualNovel' ||
-          mainResult.id !== visualNovelId
-        ) {
-          return
-        }
-
-        const selectedReleases = getSelectedVndbReleases(vndbMatch)
-        const releases = selectedReleases.length
-          ? getVndbReleasesWithSelectedReleases(
-              mainResult.releases,
-              selectedReleases
-            )
-          : (mainResult.releases ?? vndbMatch.releases)
-        const hydratedSelectedReleases = selectedReleases.map(
-          (selectedRelease) =>
-            releases?.find((release) => release.id === selectedRelease.id) ??
-            selectedRelease
-        )
-        const selectedRelease = hydratedSelectedReleases[0]
-        const updatedMatches = await window.api.vndb.syncGameMatches([
-          {
-            appName: vndbMatch.appName,
-            runner: vndbMatch.runner,
-            title: vndbMatch.title,
-            vndbId: mainResult.id,
-            vndbTitle: mainResult.title,
-            aliases: mainResult.aliases,
-            source: 'visualNovel',
-            imageUrl: mainResult.imageUrl,
-            released: mainResult.released,
-            average: mainResult.average,
-            rating: mainResult.rating,
-            votecount: mainResult.votecount,
-            length: mainResult.length,
-            lengthMinutes: mainResult.lengthMinutes,
-            lengthVotes: mainResult.lengthVotes,
-            description: mainResult.description,
-            tags: mainResult.tags,
-            developers: mainResult.developers,
-            languages: mainResult.languages,
-            mainRelation: mainResult.mainRelation,
-            relations: mainResult.relations,
-            latestRelease:
-              selectedRelease ??
-              (vndbMatch.selectedReleases !== undefined
-                ? undefined
-                : (vndbMatch.latestRelease ?? mainResult.latestRelease)),
-            selectedReleases:
-              vndbMatch.selectedReleases === undefined
-                ? undefined
-                : hydratedSelectedReleases,
-            releases,
-            releaseVns:
-              selectedRelease?.vns ??
-              (vndbMatch.selectedReleases !== undefined
-                ? undefined
-                : (vndbMatch.releaseVns ?? mainResult.releaseVns))
-          }
-        ])
-
-        if (isMounted) {
-          setVndbMatch(updatedMatches[getVndbMatchKey(vndbMatch)])
-        }
-      })
-      .catch((error) => {
-        console.error(error)
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [enableVndbIntegration, gameInfo.isVisualNovel, vndbMatch])
 
   useEffect(() => {
     // when the user clicks the Play button, we disable it so the user can't click it again

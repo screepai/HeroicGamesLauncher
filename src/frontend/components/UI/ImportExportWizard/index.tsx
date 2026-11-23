@@ -31,6 +31,7 @@ import {
   StepSummary
 } from './steps'
 import type { PathChoice } from './shared'
+import { DEFAULT_IMPORT_EXTRAS, EXTRA_STAGES } from './labels'
 
 type WizardStep = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
@@ -72,6 +73,9 @@ export default function ImportExportWizard({ open, onClose }: Props) {
   const [includeGlobal, setIncludeGlobal] = useState(true)
   const [includeCategories, setIncludeCategories] = useState(true)
   const [includePlaytime, setIncludePlaytime] = useState(true)
+  const [includedExtras, setIncludedExtras] = useState<
+    Set<HeroicBackupStageId>
+  >(new Set(DEFAULT_IMPORT_EXTRAS))
   const [includedApps, setIncludedApps] = useState<Set<string>>(new Set())
   const [appFilter, setAppFilter] = useState('')
   const [includedCredentials, setIncludedCredentials] =
@@ -102,6 +106,7 @@ export default function ImportExportWizard({ open, onClose }: Props) {
       setIncludeGlobal(true)
       setIncludeCategories(true)
       setIncludePlaytime(true)
+      setIncludedExtras(new Set(DEFAULT_IMPORT_EXTRAS))
       setIncludedCredentials(DEFAULT_CREDENTIALS)
       setDownloadMissingGames(true)
     }
@@ -141,6 +146,7 @@ export default function ImportExportWizard({ open, onClose }: Props) {
       if (s === 'globalSettings') return includeGlobal
       if (s === 'categories') return includeCategories
       if (s === 'playtime') return includePlaytime
+      if (EXTRA_STAGES.includes(s)) return includedExtras.has(s)
       if (s === 'credentials') {
         return Object.values(includedCredentials).some(Boolean)
       }
@@ -152,6 +158,7 @@ export default function ImportExportWizard({ open, onClose }: Props) {
     includeGlobal,
     includeCategories,
     includePlaytime,
+    includedExtras,
     includedApps,
     includedCredentials
   ])
@@ -194,6 +201,15 @@ export default function ImportExportWizard({ open, onClose }: Props) {
       const next = new Set(prev)
       if (next.has(appName)) next.delete(appName)
       else next.add(appName)
+      return next
+    })
+  }
+
+  function toggleExtra(stage: HeroicBackupStageId) {
+    setIncludedExtras((prev) => {
+      const next = new Set(prev)
+      if (next.has(stage)) next.delete(stage)
+      else next.add(stage)
       return next
     })
   }
@@ -334,6 +350,8 @@ export default function ImportExportWizard({ open, onClose }: Props) {
               setIncludeCategories={setIncludeCategories}
               includePlaytime={includePlaytime}
               setIncludePlaytime={setIncludePlaytime}
+              includedExtras={includedExtras}
+              toggleExtra={toggleExtra}
             />
           )}
           {step === 3 && validation && (

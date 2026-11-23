@@ -1,4 +1,4 @@
-import { spawn } from 'child_process'
+import { type ChildProcess, spawn } from 'child_process'
 import { createHash } from 'crypto'
 import { chmod } from 'fs/promises'
 import { dirname, join } from 'path'
@@ -46,7 +46,37 @@ const supportedCodecs = new Set([
   'wmp11',
   'xaudio29'
 ])
+const codecInstallTimeoutMs = 30 * 60 * 1000
+const maxCodecMessages = 500
+const codecFailurePattern =
+  /cannot continue|some kind of error occurred|hash mismatch|invalid verb|duplicated verb|does not appear to exist|please run\s+wineboot|there is no usable wine executable|error occurred while downloading/i
 let codecInstallActive = false
+let activeCodecChild: ChildProcess | undefined
+
+function killCodecChild(child: ChildProcess) {
+  try {
+    // The helper runs in its own process group, so stop wine and winetricks
+    // together with the bash script.
+    if (child.pid !== undefined) {
+      process.kill(-child.pid, 'SIGTERM')
+    } else {
+      child.kill('SIGTERM')
+    }
+  } catch {
+    try {
+      child.kill('SIGTERM')
+    } catch {
+      // The process already exited
+    }
+  }
+}
+
+/** Stops a running Special Codecs installation (used when the app quits). */
+export function stopSpecialCodecsInstall() {
+  if (activeCodecChild) {
+    killCodecChild(activeCodecChild)
+  }
+}
 
 function getFileHash(path: string): string {
   return createHash('sha256').update(readFileSync(path)).digest('hex')
@@ -147,14 +177,23 @@ function runCodecScript({
     WINE64: wineBin,
     WINEPREFIX: winePrefix
   }
+  // Only the most recent lines are kept; failures are detected per chunk so
+  // that an error line is not missed once it has scrolled out of the buffer.
   const messages: string[] = []
+  let reportedFailure = false
   const sendProgress = (chunk: string) => {
     const nextMessages = chunk
       .split(/\r?\n/)
       .map((message) => message.trimEnd())
       .filter(Boolean)
     if (nextMessages.length === 0) return
+    if (codecFailurePattern.test(nextMessages.join('\n'))) {
+      reportedFailure = true
+    }
     messages.push(...nextMessages)
+    if (messages.length > maxCodecMessages) {
+      messages.splice(0, messages.length - maxCodecMessages)
+    }
     sendFrontendMessage('vnCompatibility.codecProgress', {
       appName,
       runner,
@@ -167,9 +206,23 @@ function runCodecScript({
     const finish = (result: VnCompatibilityCodecInstallResult) => {
       if (settled) return
       settled = true
+      clearTimeout(timeout)
+      activeCodecChild = undefined
       resolve(result)
     }
-    const child = spawn('bash', [scriptPath, ...codecs], { env })
+    const child = spawn('bash', [scriptPath, ...codecs], {
+      env,
+      detached: true
+    })
+    activeCodecChild = child
+    const timeout = setTimeout(() => {
+      killCodecChild(child)
+      finish({
+        status: 'error',
+        error: 'Special Codecs installation timed out'
+      })
+    }, codecInstallTimeoutMs)
+    timeout.unref()
 
     child.stdout.setEncoding('utf8')
     child.stdout.on('data', sendProgress)
@@ -179,12 +232,11 @@ function runCodecScript({
       finish({ status: 'error', error: String(error) })
     )
     child.on('close', (code) => {
-      const output = messages.join('\n')
-      const reportedFailure =
-        /cannot continue|some kind of error occurred|hash mismatch|invalid verb|duplicated verb|does not appear to exist|please run\s+wineboot|there is no usable wine executable|error occurred while downloading/i.test(
-          output
-        )
-      if (code === 0 && !reportedFailure) {
+      if (
+        code === 0 &&
+        !reportedFailure &&
+        !codecFailurePattern.test(messages.join('\n'))
+      ) {
         finish({ status: 'done' })
       } else {
         finish({

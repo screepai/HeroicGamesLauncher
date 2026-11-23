@@ -16,6 +16,7 @@ import ImportExportWizard from 'frontend/components/UI/ImportExportWizard'
 import ContextProvider from 'frontend/state/ContextProvider'
 import {
   ALL_STAGES,
+  DEFAULT_EXPORT_STAGES,
   stageLabels,
   timestampedBackupName
 } from 'frontend/components/UI/ImportExportWizard/labels'
@@ -42,7 +43,7 @@ export default function ImportExportSettings() {
 
   const [selectedStages, setSelectedStages] = useState<
     Set<HeroicBackupStageId>
-  >(new Set(ALL_STAGES))
+  >(new Set(DEFAULT_EXPORT_STAGES))
   const [outputDir, setOutputDir] = useState('')
   const [outputName, setOutputName] = useState(timestampedBackupName())
   const [exportInFlight, setExportInFlight] = useState(false)
@@ -172,6 +173,14 @@ export default function ImportExportSettings() {
           <SettingRow
             key={stage}
             label={stageLabels(t)[stage]}
+            description={
+              stage === 'secrets'
+                ? t(
+                    'import-export.export.secretsWarning',
+                    'Warning: your SteamGridDB and VNDB keys are written to the backup file without encryption. Keep the file private.'
+                  )
+                : undefined
+            }
             htmlFor={`ie-export-${stage}`}
           >
             <Checkbox

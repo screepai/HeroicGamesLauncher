@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { GameInfo, Status } from 'common/types'
 import type { VnCompatibilityResult } from 'common/types/vnCompatibility'
 import { isWindowsPlatform } from 'common/utils'
-import { Alert } from 'frontend/components/UI'
+import { Alert, Button, SettingsCard } from 'frontend/components/UI'
 import useAppSetting from 'frontend/hooks/useAppSetting'
 import { isDefaultWinePrefix } from 'frontend/helpers/winePrefix'
 import useGlobalState from 'frontend/state/GlobalStateV2'
@@ -91,19 +91,17 @@ export default function VnCompatibilityActions({ gameInfo, result }: Props) {
   return (
     <>
       {currentPrefix && (
-        <section className="vnCompatibilityCurrentPrefix">
-          <h3>
-            {t(
-              'compatibility.heroic-prefix-title',
-              'Current Heroic Wine prefix'
-            )}
-          </h3>
-          <p>
-            {t(
-              'compatibility.heroic-prefix-description',
-              'VNWiki names a recipe above; Heroic applies it to this configured per-game prefix.'
-            )}
-          </p>
+        <SettingsCard
+          className="vnCompatibilityCurrentPrefix"
+          title={t(
+            'compatibility.heroic-prefix-title',
+            'Current Heroic Wine prefix'
+          )}
+          description={t(
+            'compatibility.heroic-prefix-description',
+            'VNWiki names a recipe above; Heroic applies it to this configured per-game prefix.'
+          )}
+        >
           <code title={currentPrefix}>{currentPrefix}</code>
           {usesSharedPrefix && (
             <Alert variant="warning">
@@ -115,8 +113,9 @@ export default function VnCompatibilityActions({ gameInfo, result }: Props) {
           )}
           <div className="vnCompatibilityPrefixActions">
             {usesSharedPrefix && (
-              <button
-                className="button is-primary"
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={openWineSettings}
                 disabled={operationBusy}
               >
@@ -124,24 +123,22 @@ export default function VnCompatibilityActions({ gameInfo, result }: Props) {
                   'compatibility.create-separate-prefix-settings',
                   'Create separate prefix in settings'
                 )}
-              </button>
+              </Button>
             )}
-            <button
-              className="button is-secondary"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => window.api.showItemInFolder(currentPrefix)}
             >
               {t('compatibility.open-prefix-folder', 'Open prefix folder')}
-            </button>
+            </Button>
             {!usesSharedPrefix && (
-              <button
-                className="button is-secondary"
-                onClick={openWineSettings}
-              >
+              <Button variant="secondary" size="sm" onClick={openWineSettings}>
                 {t('compatibility.change-prefix', 'Change in game settings')}
-              </button>
+              </Button>
             )}
           </div>
-        </section>
+        </SettingsCard>
       )}
       <div className="vnCompatibilityEntries">
         {result.entries.map((entry) => (

@@ -1,4 +1,6 @@
 import { useTranslation } from 'react-i18next'
+import { Button, DetailList, SettingsCard } from 'frontend/components/UI'
+import type { DetailItem } from 'frontend/components/UI/DetailList'
 import type {
   VnCompatibilityEntry as CompatibilityEntry,
   VnCompatibilityPrefixSetup
@@ -39,7 +41,9 @@ function PrefixSetup({
 
   return (
     <section className="vnCompatibilitySetup">
-      <h4>{t('compatibility.setup-title', 'Guided setup')}</h4>
+      <h4 className="vnCompatibilitySetupTitle">
+        {t('compatibility.setup-title', 'Guided setup')}
+      </h4>
       <p>
         {t(
           'compatibility.setup-prefix',
@@ -51,15 +55,18 @@ function PrefixSetup({
         <div>
           <b>{t('compatibility.special-codecs', 'Special Codecs')}:</b>{' '}
           {setup.specialCodecs.join(', ')}
-          <button
-            className="vnCompatibilitySource"
+          <Button
+            variant="link"
+            size="sm"
             onClick={() => window.api.openExternalUrl(specialCodecsUrl)}
           >
             {t('compatibility.open-codecs-guide', 'Open codec guide')}
-          </button>
+          </Button>
           {codecAction !== 'hidden' && (
-            <button
-              className="button is-primary vnCompatibilityInstallCodecs"
+            <Button
+              variant="primary"
+              size="sm"
+              className="vnCompatibilityInstallCodecs"
               onClick={() => onInstallCodecs(setup.specialCodecs)}
               disabled={codecAction !== 'ready'}
               title={codecActionTitle}
@@ -68,7 +75,7 @@ function PrefixSetup({
                 'compatibility.install-codecs-in-prefix',
                 'Set up codecs with vn_winestuff'
               )}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -78,12 +85,13 @@ function PrefixSetup({
           {setup.winetricks.join(', ')}
         </div>
       )}
-      <button
-        className="vnCompatibilitySource"
+      <Button
+        variant="link"
+        size="sm"
         onClick={() => window.api.openExternalUrl(winePrefixesUrl)}
       >
         {t('compatibility.open-prefix-guide', 'Open prefix setup guide')}
-      </button>
+      </Button>
     </section>
   )
 }
@@ -101,33 +109,33 @@ export default function VnCompatibilityEntry({
 }) {
   const { t } = useTranslation('gamepage')
 
+  const items: DetailItem[] = [
+    { label: t('compatibility.linux', 'Linux'), value: entry.linux || '❓' },
+    {
+      label: t('compatibility.steam-deck', 'Steam Deck'),
+      value: entry.steamDeck || '❓'
+    }
+  ]
+  if (entry.engine) {
+    items.push({
+      label: t('compatibility.engine', 'Engine'),
+      value: entry.engine
+    })
+  }
+  items.push(
+    {
+      label: t('compatibility.wine-prefix', 'Wine prefix'),
+      value: entry.winePrefix || '—'
+    },
+    {
+      label: t('compatibility.wine-version', 'Wine/Proton version'),
+      value: entry.wineVersion || '—'
+    }
+  )
+
   return (
-    <article className="vnCompatibilityEntry">
-      <h3>{entry.title}</h3>
-      <dl>
-        <div>
-          <dt>{t('compatibility.linux', 'Linux')}</dt>
-          <dd>{entry.linux || '❓'}</dd>
-        </div>
-        <div>
-          <dt>{t('compatibility.steam-deck', 'Steam Deck')}</dt>
-          <dd>{entry.steamDeck || '❓'}</dd>
-        </div>
-        {entry.engine && (
-          <div>
-            <dt>{t('compatibility.engine', 'Engine')}</dt>
-            <dd>{entry.engine}</dd>
-          </div>
-        )}
-        <div>
-          <dt>{t('compatibility.wine-prefix', 'Wine prefix')}</dt>
-          <dd>{entry.winePrefix || '—'}</dd>
-        </div>
-        <div>
-          <dt>{t('compatibility.wine-version', 'Wine/Proton version')}</dt>
-          <dd>{entry.wineVersion || '—'}</dd>
-        </div>
-      </dl>
+    <SettingsCard className="vnCompatibilityEntry" title={entry.title}>
+      <DetailList items={items} columns={2} />
       <PrefixSetup
         prefix={entry.winePrefix}
         setup={prefixSetup}
@@ -141,6 +149,6 @@ export default function VnCompatibilityEntry({
           ))}
         </ul>
       )}
-    </article>
+    </SettingsCard>
   )
 }

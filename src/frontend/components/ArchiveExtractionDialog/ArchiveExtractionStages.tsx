@@ -1,5 +1,4 @@
-import { CircularProgress, LinearProgress } from '@mui/material'
-import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined'
+import { FileArchive, LoaderCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -8,7 +7,14 @@ import type {
   LocalLibraryArchiveInfo,
   LocalLibraryWatchEntry
 } from 'common/types'
-import { TextInputField, Alert } from 'frontend/components/UI'
+import {
+  TextInputField,
+  Alert,
+  Button,
+  Icon,
+  ProgressBar,
+  Stepper
+} from 'frontend/components/UI'
 import {
   ModalContent,
   ModalFooter,
@@ -102,15 +108,13 @@ export function ArchivePrompt({
   return (
     <>
       {isNestedArchive ? (
-        <div className="archiveNestedNotice" role="status">
-          <p>
-            {t(
-              'box.local-library-archive.nested-message',
-              'Heroic found "{{title}}" inside "{{archive}}". Extract it to continue to the game files.',
-              { title, archive: previousArchiveFileName }
-            )}
-          </p>
-        </div>
+        <Alert variant="info">
+          {t(
+            'box.local-library-archive.nested-message',
+            'Heroic found "{{title}}" inside "{{archive}}". Extract it to continue to the game files.',
+            { title, archive: previousArchiveFileName }
+          )}
+        </Alert>
       ) : (
         <p>
           {source === 'manual'
@@ -184,15 +188,13 @@ export function NestedArchiveCandidates({
 
   return (
     <>
-      <div className="archiveNestedNotice" role="status">
-        <p>
-          {t(
-            'box.local-library-archive.nested-candidates-message',
-            'Heroic found {{count}} nested archive inside "{{folder}}". Extract it, or keep this folder as-is.',
-            { count: archives.length, folder: extractedFolder.title }
-          )}
-        </p>
-      </div>
+      <Alert variant="info">
+        {t(
+          'box.local-library-archive.nested-candidates-message',
+          'Heroic found {{count}} nested archive inside "{{folder}}". Extract it, or keep this folder as-is.',
+          { count: archives.length, folder: extractedFolder.title }
+        )}
+      </Alert>
       <div className="archiveNestedCandidates" role="list">
         {archives.map((archive) => {
           const archiveName =
@@ -204,21 +206,23 @@ export function NestedArchiveCandidates({
               role="listitem"
             >
               <div className="archiveNestedCandidateInfo">
-                <InsertDriveFileOutlinedIcon aria-hidden="true" />
+                <Icon glyph={FileArchive} size="lg" />
                 <div>
                   <strong>{archive.title}</strong>
                   <code title={archive.folderPath}>{archiveName}</code>
                 </div>
               </div>
-              <button
-                className="button is-secondary archiveNestedCandidateButton"
+              <Button
+                className="archiveNestedCandidateButton"
+                variant="secondary"
+                size="sm"
                 onClick={() => onOpenArchive(archive, previousArchivePath)}
               >
                 {t(
                   'box.local-library-archive.extract-this-archive',
                   'Extract this archive'
                 )}
-              </button>
+              </Button>
             </div>
           )
         })}
@@ -246,7 +250,11 @@ export function ArchiveBusyState({
   if (stage !== 'extracting') {
     return (
       <div className="archiveExtractionLoading">
-        <CircularProgress size={32} />
+        <Icon
+          glyph={LoaderCircle}
+          size="xl"
+          className="archiveExtractionSpinner"
+        />
         <span>
           {stage === 'loading'
             ? t(
@@ -264,16 +272,21 @@ export function ArchiveBusyState({
 
   return (
     <div className="archiveExtractionProgress">
-      <div className="archiveExtractionProgressHeader">
-        <span>
-          {t(
-            'box.local-library-archive.extracting',
-            'Extracting selected contents...'
-          )}
-        </span>
-        <span>{progress.percent}%</span>
-      </div>
-      <LinearProgress variant="determinate" value={progress.percent} />
+      <span>
+        {t(
+          'box.local-library-archive.extracting',
+          'Extracting selected contents...'
+        )}
+      </span>
+      <ProgressBar
+        value={progress.percent}
+        size="md"
+        showValue
+        label={t(
+          'box.local-library-archive.extracting',
+          'Extracting selected contents...'
+        )}
+      />
       <div className="archiveExtractionCurrentFile" aria-live="polite">
         <b>
           {t('box.local-library-archive.current-file', 'Currently extracting')}:
@@ -343,6 +356,8 @@ type ContentActions = {
     previousArchivePath: string | null
   ) => void
   onPasswordChange: (password: string) => void
+  /** Enter in the password field: runs the step's primary action. */
+  onPasswordSubmit: () => void
   selection: ArchiveContentsSelectionActions
 }
 
@@ -414,6 +429,23 @@ function ArchiveStageContent({
   }
 }
 
+function getActiveStep(stage: ArchiveExtractionStage): number {
+  switch (stage) {
+    case 'prompt':
+    case 'multipart-prompt':
+    case 'multipart-waiting':
+      return 0
+    case 'loading':
+    case 'selection':
+    case 'nested-selection':
+      return 1
+    case 'extracting':
+      return 2
+    default:
+      return 3
+  }
+}
+
 export function ArchiveExtractionContent({
   actions,
   model
@@ -426,8 +458,20 @@ export function ArchiveExtractionContent({
     model.passwordRequired &&
     (model.stage === 'prompt' || model.stage === 'selection')
 
+  const steps = [
+    { title: t('box.local-library-archive.step.detect', 'Detect') },
+    { title: t('box.local-library-archive.step.choose', 'Choose') },
+    { title: t('box.local-library-archive.step.extract', 'Extract') },
+    { title: t('box.local-library-archive.step.finish', 'Finish') }
+  ]
+
   return (
     <ModalContent className="archiveExtractionContent">
+      <Stepper
+        className="archiveStepper"
+        steps={steps}
+        activeStep={getActiveStep(model.stage)}
+      />
       <ArchiveStageContent actions={actions} model={model} />
       {showPassword && (
         <TextInputField
@@ -437,6 +481,12 @@ export function ArchiveExtractionContent({
           onChange={actions.onPasswordChange}
           type="password"
           autoComplete="off"
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+              event.preventDefault()
+              actions.onPasswordSubmit()
+            }
+          }}
         />
       )}
       {model.error && <Alert variant="warning">{model.error}</Alert>}
@@ -446,6 +496,7 @@ export function ArchiveExtractionContent({
 
 type FooterActions = {
   onCancel: () => void
+  onCancelExtraction: () => void
   onCheckParts: () => void
   onDeleteArchive: () => void
   onExtractSelection: () => void
@@ -478,78 +529,75 @@ export function ArchiveExtractionFooter({
   return (
     <ModalFooter>
       {stage !== 'delete-prompt' && (
-        <button
-          className="button is-secondary"
-          onClick={actions.onCancel}
-          disabled={isBusy}
+        <Button
+          variant="secondary"
+          onClick={
+            stage === 'extracting'
+              ? actions.onCancelExtraction
+              : actions.onCancel
+          }
+          disabled={isBusy && stage !== 'extracting'}
         >
-          {t('button.cancel', 'Cancel')}
-        </button>
+          {stage === 'extracting'
+            ? t('box.local-library-archive.stop-extraction', 'Stop extraction')
+            : t('button.cancel', 'Cancel')}
+        </Button>
       )}
       {stage === 'prompt' && (
-        <button
-          className="button is-success"
+        <Button
+          variant="primary"
           onClick={actions.onPrepareArchive}
           disabled={passwordMissing}
         >
           {error ? t('button.retry', 'Retry') : t('box.extract', 'Extract')}
-        </button>
+        </Button>
       )}
       {stage === 'multipart-prompt' && archiveInfo && (
         <>
-          <button
-            className="button is-secondary"
-            onClick={actions.onUseAvailableParts}
-          >
+          <Button variant="secondary" onClick={actions.onUseAvailableParts}>
             {t(
               'box.local-library-archive.use-available-parts',
               'Use available parts'
             )}
-          </button>
-          <button
-            className="button is-success"
-            onClick={actions.onWaitForParts}
-          >
+          </Button>
+          <Button variant="primary" onClick={actions.onWaitForParts}>
             {t(
               'box.local-library-archive.wait-for-parts',
               'Wait for more parts'
             )}
-          </button>
+          </Button>
         </>
       )}
       {stage === 'multipart-waiting' && (
-        <button className="button is-success" onClick={actions.onCheckParts}>
+        <Button variant="primary" onClick={actions.onCheckParts}>
           {t(
             'box.local-library-archive.check-available-parts',
             'Check available parts'
           )}
-        </button>
+        </Button>
       )}
       {stage === 'nested-selection' && (
-        <button className="button is-success" onClick={actions.onUseFolderAsIs}>
+        <Button variant="primary" onClick={actions.onUseFolderAsIs}>
           {t('box.local-library-archive.use-folder-as-is', 'Use folder as-is')}
-        </button>
+        </Button>
       )}
       {stage === 'selection' && (
-        <button
-          className="button is-success"
+        <Button
+          variant="primary"
           onClick={actions.onExtractSelection}
           disabled={!canExtractSelection}
         >
           {t('box.extract-selected', 'Extract Selected')}
-        </button>
+        </Button>
       )}
       {stage === 'delete-prompt' && (
         <>
-          <button className="button is-secondary" onClick={actions.onFinish}>
+          <Button variant="secondary" onClick={actions.onFinish}>
             {t('box.local-library-archive.keep-archive', 'Keep Archive')}
-          </button>
-          <button
-            className="button is-danger"
-            onClick={actions.onDeleteArchive}
-          >
+          </Button>
+          <Button variant="danger" onClick={actions.onDeleteArchive}>
             {t('box.local-library-archive.delete-archive', 'Delete Archive')}
-          </button>
+          </Button>
         </>
       )}
     </ModalFooter>

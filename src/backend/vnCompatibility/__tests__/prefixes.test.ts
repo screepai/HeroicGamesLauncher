@@ -58,6 +58,7 @@ import {
   createDedicatedPrefix,
   getDedicatedPrefixPath,
   getRecipePrefixPath,
+  isInside,
   normalizeWinePrefixPath
 } from '../prefixes'
 import { isWindowsPlatform } from 'common/utils'
@@ -101,6 +102,31 @@ describe('getDedicatedPrefixPath', () => {
   it('places shared recipes under a stable managed folder', () => {
     expect(getRecipePrefixPath('/prefixes', 'WMP11 + Quartz')).toBe(
       '/prefixes/recipes/wmp11-quartz'
+    )
+  })
+})
+
+describe('isInside', () => {
+  it('accepts direct and nested children', () => {
+    expect(isInside('/prefixes', '/prefixes/game')).toBe(true)
+    expect(isInside('/prefixes', '/prefixes/a/b')).toBe(true)
+  })
+
+  it('accepts names that merely start with two dots', () => {
+    expect(isInside('/prefixes', '/prefixes/..foo')).toBe(true)
+    expect(isInside('/prefixes', '/prefixes/...')).toBe(true)
+  })
+
+  it('rejects the base itself, parents and siblings', () => {
+    expect(isInside('/prefixes', '/prefixes')).toBe(false)
+    expect(isInside('/prefixes', '/')).toBe(false)
+    expect(isInside('/prefixes', '/prefixes-other/game')).toBe(false)
+    expect(isInside('/prefixes', '/other')).toBe(false)
+  })
+
+  it('allows a dedicated prefix folder named like a dotted name', () => {
+    expect(getDedicatedPrefixPath('/prefixes', '..foo', 'test-game')).toBe(
+      '/prefixes/..foo'
     )
   })
 })

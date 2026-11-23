@@ -14,6 +14,8 @@ const mockGlobalConfigGet = jest.fn()
 const mockConfigStoreGet = jest.fn()
 const mockConfigStoreSet = jest.fn()
 const mockTimestampStoreSet = jest.fn()
+const mockTimestampStoreDelete = jest.fn()
+const mockLogError = jest.fn()
 const mockWriteConfig = jest.fn()
 let mockTimestampStoreRawStore: Record<string, unknown> = {}
 let mockGamesConfigPath = ''
@@ -71,7 +73,8 @@ jest.mock('backend/constants/key_value_stores', () => ({
     get raw_store() {
       return mockTimestampStoreRawStore
     },
-    set: mockTimestampStoreSet
+    set: mockTimestampStoreSet,
+    delete: mockTimestampStoreDelete
   }
 }))
 jest.mock('backend/constants/paths', () => ({
@@ -83,7 +86,8 @@ jest.mock('backend/constants/paths', () => ({
   }
 }))
 jest.mock('backend/logger', () => ({
-  logWarning: jest.fn()
+  logWarning: jest.fn(),
+  logError: mockLogError
 }))
 jest.mock('backend/utils', () => ({
   getMigratedExecutablePath: mockGetMigratedExecutablePath,
@@ -427,8 +431,6 @@ describe('SideloadLibraryManager metadata backup and restore', () => {
       gameOverrides: Record<string, unknown>
       localLibrarySettings: Record<string, unknown>
       playtime: Record<string, unknown>
-      steamGridDbApiKey: string
-      vndbApiToken: string
       vndbMatches: Record<string, unknown>
       version: number
     }
@@ -459,8 +461,11 @@ describe('SideloadLibraryManager metadata backup and restore', () => {
         totalPlayed: 123
       }
     })
-    expect(backup.steamGridDbApiKey).toBe('sgdb-token')
-    expect(backup.vndbApiToken).toBe('vndb-token')
+    expect(backup).not.toHaveProperty('steamGridDbApiKey')
+    expect(backup).not.toHaveProperty('vndbApiToken')
+    const rawBackup = await readFile(backupPath, 'utf8')
+    expect(rawBackup).not.toContain('sgdb-token')
+    expect(rawBackup).not.toContain('vndb-token')
     expect(backup.vndbMatches).toEqual({
       'legendary:epic-game': makeVndbMatch({
         appName: 'epic-game',
@@ -470,7 +475,64 @@ describe('SideloadLibraryManager metadata backup and restore', () => {
     })
   })
 
+  it('includes decrypted API keys only when includeSecrets is set', async () => {
+    mockLibraryStoreGet.mockReturnValue([makeGame()])
+    mockGetSettings.mockReturnValue({
+      ...localLibrarySettings,
+      steamGridDbApiKey: 'encrypted:sgdb-token'
+    })
+    mockGetDecryptedApiToken.mockReturnValue('vndb-token')
+    mockConfigStoreGet.mockImplementation(
+      (_key: string, defaultValue) => defaultValue
+    )
+    const manager = new SideloadLibraryManager()
+
+    const withoutSecretsPath = await manager.backupMetadata(tempDirectory, {})
+    const withSecretsPath = await manager.backupMetadata(tempDirectory, {
+      includeSecrets: true
+    })
+
+    const withoutSecrets = JSON.parse(
+      await readFile(withoutSecretsPath, 'utf8')
+    ) as Record<string, unknown>
+    const withSecrets = JSON.parse(
+      await readFile(withSecretsPath, 'utf8')
+    ) as Record<string, unknown>
+    expect(withoutSecrets).not.toHaveProperty('steamGridDbApiKey')
+    expect(withoutSecrets).not.toHaveProperty('vndbApiToken')
+    expect(withSecrets.steamGridDbApiKey).toBe('sgdb-token')
+    expect(withSecrets.vndbApiToken).toBe('vndb-token')
+  })
+
+  it('does not touch stored API keys when restoring a backup without secrets', async () => {
+    const backupPath = join(tempDirectory, 'backup.json')
+    await writeFile(
+      backupPath,
+      JSON.stringify({
+        games: [makeGame()],
+        localLibrarySettings,
+        version: 1
+      }),
+      'utf8'
+    )
+    mockLibraryStoreGet.mockReturnValue([])
+    const manager = new SideloadLibraryManager()
+
+    await expect(manager.restoreMetadata(backupPath)).resolves.toMatchObject({
+      steamGridDbApiKey: false,
+      vndbApiToken: false
+    })
+
+    expect(mockSetStoredApiToken).not.toHaveBeenCalled()
+    expect(mockSetSetting).not.toHaveBeenCalledWith(
+      'steamGridDbApiKey',
+      expect.anything()
+    )
+  })
+
   it('merges restored games, applies overrides, and refreshes the sideload library', async () => {
+    mockEnvironment.isLinux = true
+    mockEnvironment.isWindows = false
     const existingGame = makeGame({
       app_name: 'existing-game',
       title: 'Existing Game'
@@ -588,7 +650,7 @@ describe('SideloadLibraryManager metadata backup and restore', () => {
       playtime: 1,
       steamGridDbApiKey: true,
       vndbApiToken: true,
-      vndbMatches: 2
+      vndbMatches: 1
     })
 
     expect(mockLibraryStoreSet).toHaveBeenCalledWith('games', [
@@ -652,8 +714,8 @@ describe('SideloadLibraryManager metadata backup and restore', () => {
       'games.customCategoriesOrder',
       ['Backlog', 'Playing', 'Finished']
     )
+    // Matches for games that are not part of the restored library are ignored.
     expect(mockVndbMatchesStoreSet).toHaveBeenCalledWith('matches', {
-      'legendary:legendary-vn': restoredLegendaryMatch,
       'sideload:other-game': existingMatch,
       'sideload:restored-new-game': restoredNewMatch
     })
@@ -668,7 +730,6 @@ describe('SideloadLibraryManager metadata backup and restore', () => {
       2,
       'vndbMatchesChanged',
       {
-        'legendary:legendary-vn': restoredLegendaryMatch,
         'sideload:other-game': existingMatch,
         'sideload:restored-new-game': restoredNewMatch
       }
@@ -869,5 +930,425 @@ describe('SideloadLibraryManager metadata backup and restore', () => {
       'Metadata backup contains invalid sideloaded games.'
     )
     expect(mockLibraryStoreSet).not.toHaveBeenCalled()
+  })
+})
+
+describe('SideloadLibraryManager metadata restore across operating systems', () => {
+  let tempDirectory: string
+
+  beforeEach(async () => {
+    jest.clearAllMocks()
+    mockGetAllGameOverrides.mockReturnValue({})
+    mockVndbMatchesStoreGet.mockReturnValue({})
+    mockGetDecryptedApiToken.mockReturnValue('')
+    mockGetSettings.mockReturnValue(localLibrarySettings)
+    mockTimestampStoreRawStore = {}
+    mockConfigStoreGet.mockImplementation((key: string, defaultValue) =>
+      key === 'games.customCategories'
+        ? {}
+        : key === 'games.customCategoriesOrder'
+          ? []
+          : defaultValue
+    )
+    mockGlobalConfigGet.mockReturnValue({
+      getSettings: mockGetSettings,
+      setSetting: mockSetSetting
+    })
+    mockLibraryStoreGet.mockReturnValue([])
+    tempDirectory = await mkdtemp(join(tmpdir(), 'heroic-sideload-restore-'))
+    mockGamesConfigPath = tempDirectory
+  })
+
+  afterEach(async () => {
+    await rm(tempDirectory, { force: true, recursive: true })
+  })
+
+  async function writeBackup(backup: Record<string, unknown>) {
+    const backupPath = join(tempDirectory, 'backup.json')
+    await writeFile(
+      backupPath,
+      JSON.stringify({
+        exportedAt: '2026-07-02T00:00:00.000Z',
+        version: 1,
+        ...backup
+      }),
+      'utf8'
+    )
+    return backupPath
+  }
+
+  function setPlatform(platform: 'linux' | 'windows') {
+    mockEnvironment.isLinux = platform === 'linux'
+    mockEnvironment.isWindows = platform === 'windows'
+    mockEnvironment.isMac = false
+  }
+
+  it('maps or skips path settings and per-game wine paths for a Windows backup on Linux', async () => {
+    setPlatform('linux')
+    await writeFile(
+      join(tempDirectory, 'visual-novel.json'),
+      JSON.stringify({
+        'visual-novel': {
+          savesPath: '/home/test/saves',
+          winePrefix: '/home/test/Prefixes/visual-novel',
+          wineVersion: { bin: '/usr/bin/wine', name: 'System', type: 'wine' }
+        },
+        version: 'v0'
+      }),
+      'utf8'
+    )
+    const backupPath = await writeBackup({
+      games: [makeGame()],
+      gameSettings: {
+        'visual-novel': {
+          jpLocale: true,
+          savesPath: 'E:\\Saves',
+          targetExe: 'C:\\Games\\Visual Novel\\game.exe',
+          winePrefix: 'C:\\Games\\prefix',
+          wineVersion: {
+            bin: 'D:\\wine\\bin\\wine',
+            name: 'Wine',
+            type: 'wine'
+          }
+        }
+      },
+      localLibrarySettings: {
+        ...localLibrarySettings,
+        defaultInstallPath: 'C:\\Games\\Installs',
+        defaultSteamPath: 'C:\\Steam',
+        defaultWinePrefixDir: 'D:\\Prefixes',
+        egsLinkedPath: 'C:\\Games\\egs',
+        localeEmulatorPath: 'C:\\Locale Emulator\\LEProc.exe',
+        localLibrarySyncPath: 'C:\\Games\\Library',
+        migrationArchivePath: 'C:\\Games\\Archive'
+      }
+    })
+    const manager = new SideloadLibraryManager()
+
+    const result = await manager.restoreMetadata(backupPath, {
+      pathMapping: { destinationPath: '/mnt/games', sourcePath: 'C:\\Games' }
+    })
+
+    // Paths under the mapped root are rewritten to POSIX paths.
+    expect(mockSetSetting).toHaveBeenCalledWith(
+      'defaultInstallPath',
+      '/mnt/games/Installs'
+    )
+    expect(mockSetSetting).toHaveBeenCalledWith(
+      'egsLinkedPath',
+      '/mnt/games/egs'
+    )
+    expect(mockSetSetting).toHaveBeenCalledWith(
+      'localLibrarySyncPath',
+      '/mnt/games/Library'
+    )
+    expect(mockSetSetting).toHaveBeenCalledWith(
+      'migrationArchivePath',
+      '/mnt/games/Archive'
+    )
+    // Windows paths that cannot be mapped are never written.
+    for (const key of [
+      'defaultSteamPath',
+      'defaultWinePrefixDir',
+      'localeEmulatorPath'
+    ]) {
+      expect(mockSetSetting).not.toHaveBeenCalledWith(key, expect.anything())
+    }
+    expect(result.localLibrarySettings).toMatchObject({
+      defaultInstallPath: '/mnt/games/Installs',
+      defaultSteamPath: localLibrarySettings.defaultSteamPath,
+      defaultWinePrefixDir: localLibrarySettings.defaultWinePrefixDir,
+      localLibrarySyncPath: '/mnt/games/Library'
+    })
+    // Per-game settings: mapped where possible, otherwise the target value.
+    expect(mockWriteConfig).toHaveBeenCalledWith('visual-novel', {
+      jpLocale: true,
+      savesPath: '/home/test/saves',
+      targetExe: '/mnt/games/Visual Novel/game.exe',
+      winePrefix: '/mnt/games/prefix',
+      wineVersion: { bin: '/usr/bin/wine', name: 'System', type: 'wine' }
+    })
+  })
+
+  it('skips every foreign path when no path mapping is given', async () => {
+    setPlatform('linux')
+    const backupPath = await writeBackup({
+      games: [makeGame()],
+      gameSettings: {
+        'visual-novel': {
+          jpLocale: true,
+          winePrefix: 'C:\\Games\\prefix',
+          wineVersion: {
+            bin: 'C:\\wine\\wine.exe',
+            name: 'Wine',
+            type: 'wine'
+          }
+        }
+      },
+      localLibrarySettings: {
+        ...localLibrarySettings,
+        defaultInstallPath: 'C:\\Games\\Installs',
+        localLibrarySyncPath: 'C:\\Games\\Library'
+      }
+    })
+    const manager = new SideloadLibraryManager()
+
+    await manager.restoreMetadata(backupPath)
+
+    expect(mockSetSetting).not.toHaveBeenCalledWith(
+      'defaultInstallPath',
+      expect.anything()
+    )
+    expect(mockSetSetting).not.toHaveBeenCalledWith(
+      'localLibrarySyncPath',
+      expect.anything()
+    )
+    expect(mockWriteConfig).toHaveBeenCalledWith('visual-novel', {
+      jpLocale: true
+    })
+  })
+
+  it('maps or skips path settings and per-game wine paths for a Linux backup on Windows', async () => {
+    setPlatform('windows')
+    const backupPath = await writeBackup({
+      games: [
+        makeGame({
+          install: {
+            executable: '/mnt/games/vn/game.exe',
+            platform: 'linux'
+          }
+        })
+      ],
+      gameSettings: {
+        'visual-novel': {
+          jpLocale: true,
+          targetExe: '/mnt/games/vn/game.exe',
+          winePrefix: '/home/test/Games/Heroic/Prefixes/visual-novel',
+          wineVersion: { bin: '/usr/bin/wine', name: 'System', type: 'wine' }
+        }
+      },
+      localLibrarySettings: {
+        ...localLibrarySettings,
+        defaultInstallPath: '/mnt/games/Installs',
+        defaultSteamPath: '/home/test/.steam/steam',
+        localLibrarySyncPath: '/mnt/games/Library'
+      }
+    })
+    const manager = new SideloadLibraryManager()
+
+    await manager.restoreMetadata(backupPath, {
+      pathMapping: { destinationPath: 'D:\\Games', sourcePath: '/mnt/games' }
+    })
+
+    expect(mockSetSetting).toHaveBeenCalledWith(
+      'defaultInstallPath',
+      'D:\\Games\\Installs'
+    )
+    expect(mockSetSetting).toHaveBeenCalledWith(
+      'localLibrarySyncPath',
+      'D:\\Games\\Library'
+    )
+    expect(mockSetSetting).not.toHaveBeenCalledWith(
+      'defaultSteamPath',
+      expect.anything()
+    )
+    expect(mockWriteConfig).toHaveBeenCalledWith('visual-novel', {
+      jpLocale: true,
+      targetExe: 'D:\\Games\\vn\\game.exe'
+    })
+  })
+
+  it('only restores VNDB matches for restored games', async () => {
+    setPlatform('linux')
+    const restoredMatch = makeVndbMatch({ appName: 'restored-game' })
+    const strayMatch = makeVndbMatch({ appName: 'not-in-backup', vndbId: 'v9' })
+    const backupPath = await writeBackup({
+      games: [makeGame({ app_name: 'restored-game' })],
+      vndbMatches: {
+        'sideload:not-in-backup': strayMatch,
+        'sideload:restored-game': restoredMatch
+      }
+    })
+    const manager = new SideloadLibraryManager()
+
+    await expect(manager.restoreMetadata(backupPath)).resolves.toMatchObject({
+      vndbMatches: 1
+    })
+
+    expect(mockVndbMatchesStoreSet).toHaveBeenCalledWith('matches', {
+      'sideload:restored-game': restoredMatch
+    })
+  })
+
+  describe('when the restore fails midway', () => {
+    const previousGame = makeGame({
+      app_name: 'restored-new-game',
+      title: 'Previous Game'
+    })
+    const previousMatch = makeVndbMatch({
+      appName: 'restored-new-game',
+      vndbId: 'v-old'
+    })
+
+    async function arrangePreviousState() {
+      setPlatform('linux')
+      mockLibraryStoreGet.mockReturnValue([previousGame])
+      mockGetAllGameOverrides.mockReturnValue({
+        'restored-new-game': { title: 'Previous Title' }
+      })
+      mockGetSettings.mockReturnValue({
+        ...localLibrarySettings,
+        autoVndbSyncNewGames: false,
+        steamGridDbApiKey: 'encrypted:previous-key'
+      })
+      mockGetDecryptedApiToken.mockReturnValue('previous-token')
+      mockTimestampStoreRawStore = {
+        'restored-new-game': { totalPlayed: 5 }
+      }
+      mockVndbMatchesStoreGet.mockReturnValue({
+        'sideload:restored-new-game': previousMatch
+      })
+      mockConfigStoreGet.mockImplementation((key: string, defaultValue) =>
+        key === 'games.customCategories'
+          ? { Backlog: ['restored-new-game_sideload'] }
+          : key === 'games.customCategoriesOrder'
+            ? ['Backlog']
+            : defaultValue
+      )
+      await writeFile(
+        join(tempDirectory, 'restored-new-game.json'),
+        JSON.stringify({
+          'restored-new-game': { jpLocale: false },
+          version: 'v0'
+        }),
+        'utf8'
+      )
+
+      return writeBackup({
+        categories: {
+          customCategories: { Playing: ['restored-new-game_sideload'] },
+          customCategoriesOrder: ['Playing']
+        },
+        gameOverrides: { 'restored-new-game': { title: 'Restored Title' } },
+        gameSettings: { 'restored-new-game': { jpLocale: true } },
+        games: [makeGame({ app_name: 'restored-new-game', title: 'Restored' })],
+        localLibrarySettings: {
+          ...localLibrarySettings,
+          autoVndbSyncNewGames: true
+        },
+        playtime: {
+          'restored-new-game': {
+            firstPlayed: '2026-03-01T00:00:00.000Z',
+            totalPlayed: 321
+          }
+        },
+        steamGridDbApiKey: 'restored-key',
+        vndbApiToken: 'restored-token',
+        vndbMatches: {
+          'sideload:restored-new-game': makeVndbMatch({
+            appName: 'restored-new-game',
+            vndbId: 'v-new'
+          })
+        }
+      })
+    }
+
+    it('rolls every store back and rethrows when the last write fails', async () => {
+      const backupPath = await arrangePreviousState()
+      mockVndbMatchesStoreSet.mockImplementationOnce(() => {
+        throw new Error('disk full')
+      })
+      const manager = new SideloadLibraryManager()
+
+      await expect(manager.restoreMetadata(backupPath)).rejects.toThrow(
+        'disk full'
+      )
+
+      expect(mockLibraryStoreSet).toHaveBeenLastCalledWith('games', [
+        previousGame
+      ])
+      expect(mockSetGameOverrides).toHaveBeenLastCalledWith(
+        'restored-new-game',
+        { title: 'Previous Title' }
+      )
+      expect(mockSetSetting).toHaveBeenCalledWith('autoVndbSyncNewGames', false)
+      expect(mockSetSetting).toHaveBeenCalledWith(
+        'steamGridDbApiKey',
+        'encrypted:previous-key'
+      )
+      expect(mockSetStoredApiToken).toHaveBeenLastCalledWith('previous-token')
+      expect(mockConfigStoreSet).toHaveBeenCalledWith(
+        'games.customCategories',
+        { Backlog: ['restored-new-game_sideload'] }
+      )
+      expect(mockConfigStoreSet).toHaveBeenLastCalledWith(
+        'games.customCategoriesOrder',
+        ['Backlog']
+      )
+      expect(mockWriteConfig).toHaveBeenLastCalledWith('restored-new-game', {
+        jpLocale: false
+      })
+      expect(mockTimestampStoreSet).toHaveBeenLastCalledWith(
+        'restored-new-game.totalPlayed',
+        5
+      )
+      expect(mockTimestampStoreDelete).toHaveBeenCalledWith(
+        'restored-new-game.firstPlayed'
+      )
+      expect(mockVndbMatchesStoreSet).toHaveBeenLastCalledWith('matches', {
+        'sideload:restored-new-game': previousMatch
+      })
+      expect(mockSendFrontendMessage).not.toHaveBeenCalled()
+    })
+
+    it('does not write later stores when an earlier step fails', async () => {
+      const backupPath = await arrangePreviousState()
+      mockWriteConfig.mockRejectedValueOnce(new Error('config locked'))
+      const manager = new SideloadLibraryManager()
+
+      await expect(manager.restoreMetadata(backupPath)).rejects.toThrow(
+        'config locked'
+      )
+
+      expect(mockLibraryStoreSet).not.toHaveBeenCalled()
+      expect(mockVndbMatchesStoreSet).not.toHaveBeenCalled()
+      expect(mockTimestampStoreSet).not.toHaveBeenCalled()
+      expect(mockSetGameOverrides).toHaveBeenLastCalledWith(
+        'restored-new-game',
+        { title: 'Previous Title' }
+      )
+      expect(mockSetStoredApiToken).toHaveBeenLastCalledWith('previous-token')
+      expect(mockSendFrontendMessage).not.toHaveBeenCalled()
+    })
+
+    it('still rolls back the remaining steps when one rollback fails', async () => {
+      const backupPath = await arrangePreviousState()
+      mockVndbMatchesStoreSet.mockImplementationOnce(() => {
+        throw new Error('disk full')
+      })
+      mockSetStoredApiToken.mockImplementation((token: string) => {
+        if (token === 'previous-token') {
+          throw new Error('keychain unavailable')
+        }
+      })
+      const manager = new SideloadLibraryManager()
+
+      await expect(manager.restoreMetadata(backupPath)).rejects.toThrow(
+        'disk full'
+      )
+
+      expect(mockLogError).toHaveBeenCalledWith(
+        expect.stringContaining('keychain unavailable'),
+        'Sideload'
+      )
+      expect(mockLibraryStoreSet).toHaveBeenLastCalledWith('games', [
+        previousGame
+      ])
+      expect(mockSetGameOverrides).toHaveBeenLastCalledWith(
+        'restored-new-game',
+        { title: 'Previous Title' }
+      )
+      mockSetStoredApiToken.mockReset()
+    })
   })
 })

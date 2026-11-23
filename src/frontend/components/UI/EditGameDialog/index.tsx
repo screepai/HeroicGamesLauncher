@@ -143,7 +143,9 @@ export default function EditGameDialog({ gameInfo, backdropClick }: Props) {
               }
             />
           </details>
-          {!hasSgdbKey && (
+          {/* VNDB cover search works without a key, so only nag when it is
+              the only search there is. */}
+          {!hasSgdbKey && !gameInfo.isVisualNovel && (
             <Alert variant="warning">
               {t(
                 'edit-game.sgdb.no-key-prefix',

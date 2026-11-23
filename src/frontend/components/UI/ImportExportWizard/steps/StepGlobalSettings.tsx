@@ -2,7 +2,10 @@ import { useTranslation } from 'react-i18next'
 
 import ToggleSwitch from 'frontend/components/UI/ToggleSwitch'
 
-import type { HeroicBackupValidationReport } from 'common/types/importExport'
+import type {
+  HeroicBackupStageId,
+  HeroicBackupValidationReport
+} from 'common/types/importExport'
 
 interface Props {
   validation: HeroicBackupValidationReport
@@ -14,6 +17,8 @@ interface Props {
   setIncludeCategories: (v: boolean) => void
   includePlaytime: boolean
   setIncludePlaytime: (v: boolean) => void
+  includedExtras: Set<HeroicBackupStageId>
+  toggleExtra: (stage: HeroicBackupStageId) => void
 }
 
 export default function StepGlobalSettings({
@@ -25,12 +30,69 @@ export default function StepGlobalSettings({
   includeCategories,
   setIncludeCategories,
   includePlaytime,
-  setIncludePlaytime
+  setIncludePlaytime,
+  includedExtras,
+  toggleExtra
 }: Props) {
   const { t } = useTranslation()
   const { manifest } = validation
   const hasGlobal = manifest.stages.includes('globalSettings')
   const hasCategories = manifest.stages.includes('categories')
+  const allExtras: Array<{
+    stage: HeroicBackupStageId
+    title: string
+    hint: string
+  }> = [
+    {
+      stage: 'vndbMatches',
+      title: t(
+        'import-export.step3.vndbMatches',
+        'Import VNDB matches ({{count}})',
+        { count: manifest.counts.vndbMatches ?? 0 }
+      ),
+      hint: t(
+        'import-export.step3.vndbMatchesHint',
+        'Adds the VNDB matches from the backup to your current ones.'
+      )
+    },
+    {
+      stage: 'gameOverrides',
+      title: t(
+        'import-export.step3.gameOverrides',
+        'Import game metadata overrides ({{count}})',
+        { count: manifest.counts.gameOverrides ?? 0 }
+      ),
+      hint: t(
+        'import-export.step3.gameOverridesHint',
+        'Restores custom titles and artwork. Artwork stored as a path on another operating system is skipped.'
+      )
+    },
+    {
+      stage: 'categoryOrder',
+      title: t(
+        'import-export.step3.categoryOrder',
+        'Import custom category order'
+      ),
+      hint: t(
+        'import-export.step3.categoryOrderHint',
+        'Applies the order of your custom categories from the backup.'
+      )
+    },
+    {
+      stage: 'secrets',
+      title: t(
+        'import-export.step3.secrets',
+        'Import SteamGridDB and VNDB API keys'
+      ),
+      hint: t(
+        'import-export.step3.secretsHint',
+        'Off by default. These were saved unencrypted in the backup file. Only turn this on if you trust the file; the keys are encrypted again on this computer.'
+      )
+    }
+  ]
+  const extras = allExtras.filter((extra) =>
+    manifest.stages.includes(extra.stage)
+  )
   return (
     <section>
       <h3 className="ImportExportWizard__heading">
@@ -110,6 +172,17 @@ export default function StepGlobalSettings({
           </p>
         </div>
       )}
+      {extras.map(({ stage, title, hint }) => (
+        <div key={stage} className="ImportExportWizard__categoriesToggle">
+          <ToggleSwitch
+            htmlId={`ie-include-${stage}`}
+            title={title}
+            value={includedExtras.has(stage)}
+            handleChange={() => toggleExtra(stage)}
+          />
+          <p className="ImportExportWizard__hint">{hint}</p>
+        </div>
+      ))}
     </section>
   )
 }

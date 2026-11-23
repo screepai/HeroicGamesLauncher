@@ -1,6 +1,14 @@
 import { randomUUID } from 'crypto'
 import { promises as fs } from 'fs'
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'path'
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+  sep
+} from 'path'
 
 import { path7z } from '7zip-bin-full'
 import sanitizeFilename from 'sanitize-filename'
@@ -18,6 +26,7 @@ import type {
 } from 'common/types'
 
 import { fixAsarPath } from './constants/paths'
+import { logWarning, LogPrefix } from './logger'
 import { spawnAsync } from './utils'
 
 type ExtractArchiveOptions = {
@@ -47,7 +56,15 @@ const PASSWORD_ERROR_PATTERN =
 const INCOMPLETE_ARCHIVE_ERROR_PATTERN =
   /unexpected end of archive|missing volume|cannot find volume/i
 const BACKSPACE_CHARACTER = String.fromCharCode(8)
+const EXTRACTION_CANCELLED_MESSAGE = 'Archive extraction was cancelled'
 
+// SECURITY NOTE: 7-Zip only accepts the password through the `-p` switch in
+// non-interactive mode. Reading it from a piped stdin does not work reliably:
+// 7z.exe on Windows reads the password prompt from the console device (not
+// from stdin), so a piped password is ignored and the archive is reported as
+// "Wrong password". As a result the password is visible in the process
+// argument list (e.g. `ps` or Task Manager) for the lifetime of the 7z child
+// process. Do not log these arguments.
 function getArchivePasswordArgument(password?: string): string {
   return `-p${password ?? ''}`
 }
@@ -270,7 +287,8 @@ function isPathInside(parentPath: string, childPath: string): boolean {
   const pathDifference = relative(parentPath, childPath)
   return (
     pathDifference.length > 0 &&
-    !pathDifference.startsWith('..') &&
+    pathDifference !== '..' &&
+    !pathDifference.startsWith(`..${sep}`) &&
     !isAbsolute(pathDifference)
   )
 }
@@ -365,7 +383,16 @@ async function pruneExtractedTree(
 }
 
 async function removeStagingPath(stagingPath: string): Promise<void> {
-  await fs.rm(stagingPath, { recursive: true, force: true }).catch(() => {})
+  // Retries cover handles that are still being released (for example right
+  // after the 7z child was killed on Windows).
+  await fs
+    .rm(stagingPath, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100
+    })
+    .catch(() => {})
 }
 
 async function moveExtractionResult(
@@ -643,54 +670,105 @@ async function findLocalLibraryNestedArchives(
     })
 }
 
+const activeExtractions = new Map<string, AbortController>()
+
+/**
+ * Cancels a running extraction started with the same `archivePath` that was
+ * passed to `extractLocalLibraryArchive`. Returns whether one was running.
+ */
+function cancelLocalLibraryArchiveExtraction(archivePath: string): boolean {
+  const controller = activeExtractions.get(archivePath)
+  if (!controller) {
+    return false
+  }
+
+  controller.abort()
+  return true
+}
+
+function cancelAllLocalLibraryArchiveExtractions(): void {
+  activeExtractions.forEach((controller) => controller.abort())
+}
+
 async function extractLocalLibraryArchive(
   options: ExtractArchiveOptions
 ): Promise<{ folderPath: string; title: string }> {
   const { onBeforePathCreated, onProgress, password } = options
-  const plan = await createArchiveExtractionPlan(options)
-  const progressReporter = createExtractionProgressReporter(onProgress)
+  if (activeExtractions.has(options.archivePath)) {
+    throw new Error('This archive is already being extracted')
+  }
 
-  onBeforePathCreated?.(plan.stagingPath)
-  onBeforePathCreated?.(plan.destinationPath)
-  await fs.mkdir(plan.stagingPath)
+  const abortController = new AbortController()
+  const { signal } = abortController
+  activeExtractions.set(options.archivePath, abortController)
 
   try {
-    progressReporter.start()
-    const { code, stdout, stderr } = await spawnAsync(
-      fixAsarPath(path7z),
-      [
-        'x',
-        '-y',
-        '-bb1',
-        '-bsp1',
-        '-sccUTF-8',
-        getArchivePasswordArgument(password),
-        `-o${plan.stagingPath}`,
-        '--',
-        plan.archivePath
-      ],
-      { windowsHide: true },
-      progressReporter.handleOutput
-    )
-    progressReporter.handleOutput('\n')
-
-    if (code !== 0) {
-      throw getArchiveCommandError(
-        stdout,
-        stderr,
-        'Unable to extract the archive'
-      )
+    const plan = await createArchiveExtractionPlan(options)
+    if (signal.aborted) {
+      throw new Error(EXTRACTION_CANCELLED_MESSAGE)
     }
 
-    await pruneExtractedTree(plan.stagingPath, plan.selectedPaths)
-    await moveExtractionResult(
-      plan.stagingPath,
-      plan.destinationPath,
-      plan.archivePath,
-      plan.rootPath
-    )
+    const progressReporter = createExtractionProgressReporter(onProgress)
+
+    onBeforePathCreated?.(plan.stagingPath)
+    onBeforePathCreated?.(plan.destinationPath)
+    await fs.mkdir(plan.stagingPath)
+
+    try {
+      progressReporter.start()
+      const { code, stdout, stderr } = await spawnAsync(
+        fixAsarPath(path7z),
+        [
+          'x',
+          '-y',
+          '-bb1',
+          '-bsp1',
+          '-sccUTF-8',
+          getArchivePasswordArgument(password),
+          `-o${plan.stagingPath}`,
+          '--',
+          plan.archivePath
+        ],
+        { windowsHide: true, signal },
+        progressReporter.handleOutput
+      )
+      progressReporter.handleOutput('\n')
+
+      if (code !== 0) {
+        throw getArchiveCommandError(
+          stdout,
+          stderr,
+          'Unable to extract the archive'
+        )
+      }
+
+      await pruneExtractedTree(plan.stagingPath, plan.selectedPaths)
+      await moveExtractionResult(
+        plan.stagingPath,
+        plan.destinationPath,
+        plan.archivePath,
+        plan.rootPath
+      )
+    } catch (error) {
+      await removeStagingPath(plan.stagingPath)
+      throw error
+    }
+
+    // The extraction already succeeded and the result is in place. Failing to
+    // remove the source folder must not turn that into an error (and must not
+    // trigger a staging cleanup of a path that no longer exists).
     if (plan.cleanupPath) {
-      await fs.rm(plan.cleanupPath, { recursive: true, force: true })
+      try {
+        await fs.rm(plan.cleanupPath, { recursive: true, force: true })
+      } catch (error) {
+        logWarning(
+          [
+            `Extracted "${plan.archivePath}" but could not remove "${plan.cleanupPath}":`,
+            error
+          ],
+          LogPrefix.Backend
+        )
+      }
     }
     progressReporter.complete()
 
@@ -699,12 +777,18 @@ async function extractLocalLibraryArchive(
       title: plan.destinationName
     }
   } catch (error) {
-    await removeStagingPath(plan.stagingPath)
+    if (signal.aborted) {
+      throw new Error(EXTRACTION_CANCELLED_MESSAGE)
+    }
     throw error
+  } finally {
+    activeExtractions.delete(options.archivePath)
   }
 }
 
 export {
+  cancelAllLocalLibraryArchiveExtractions,
+  cancelLocalLibraryArchiveExtraction,
   deleteLocalLibraryArchive,
   extractLocalLibraryArchive,
   findLocalLibraryNestedArchives,
@@ -712,6 +796,7 @@ export {
   getArchivePart,
   getArchiveTitle,
   inspectLocalLibraryArchive,
+  isPathInside,
   listLocalLibraryArchive,
   parseArchiveListing,
   validateDestinationName

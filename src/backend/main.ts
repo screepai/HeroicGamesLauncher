@@ -1481,8 +1481,8 @@ addListener('addNewApp', (e, args) =>
   libraryManagerMap['sideload'].addNewApp(args)
 )
 
-addHandler('backupLocalLibraryMetadata', (_e, directoryPath) =>
-  libraryManagerMap.sideload.backupMetadata(directoryPath)
+addHandler('backupLocalLibraryMetadata', (_e, directoryPath, options) =>
+  libraryManagerMap.sideload.backupMetadata(directoryPath, options)
 )
 
 addHandler('inspectLocalLibraryMetadataBackup', (_e, backupPath) =>

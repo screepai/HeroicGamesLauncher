@@ -1,4 +1,4 @@
-import { promises as fs } from 'fs'
+import { appendFileSync, promises as fs } from 'fs'
 import { join } from 'path'
 
 const mockAppSettings = {
@@ -46,6 +46,7 @@ import type {
 } from '../local_library_watcher_state'
 import { backendEvents } from '../backend_events'
 import { addHandler, sendFrontendMessage } from '../ipc'
+import { logWarning } from '../logger'
 
 type SettingChangedHandler = (payload: {
   key: string
@@ -121,6 +122,11 @@ function createWatcherState(
 }
 
 describe('local library watcher', () => {
+  afterEach(() => {
+    jest.restoreAllMocks()
+    ;(logWarning as jest.Mock).mockClear()
+  })
+
   it('finds only newly added entry names', () => {
     expect(
       getAddedEntryNames(
@@ -608,6 +614,213 @@ describe('local library watcher', () => {
       await delay(100)
 
       expect(onFolderAdded).not.toHaveBeenCalled()
+    } finally {
+      watcher.stop()
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it('compares entry names case-insensitively when asked to', () => {
+    const previousEntries = new Set(['Game'])
+    const currentEntries = new Set(['game', 'New Game'])
+
+    expect(getAddedEntryNames(previousEntries, currentEntries)).toEqual([
+      'game',
+      'New Game'
+    ])
+    expect(
+      getAddedEntryNames(previousEntries, currentEntries, [], true)
+    ).toEqual(['New Game'])
+  })
+
+  it.each([true, false])(
+    'handles a differently cased extraction destination (case-insensitive: %p)',
+    async (caseInsensitiveNames) => {
+      const rootPath = await fs.mkdtemp(
+        join(process.cwd(), '.tmp-heroic-local-library-')
+      )
+      const onFolderAdded = jest.fn()
+      const watcher = new LocalLibraryWatcher(
+        onFolderAdded,
+        createWatcherState(),
+        { ...testWatcherOptions, caseInsensitiveNames }
+      )
+
+      try {
+        await watcher.setPath(rootPath)
+        watcher.suppressPath(join(rootPath, 'extracted game'))
+        await fs.mkdir(join(rootPath, 'Extracted Game'))
+
+        if (caseInsensitiveNames) {
+          // Windows: the folder created as "Extracted Game" is the suppressed one
+          await delay(250)
+          expect(onFolderAdded).not.toHaveBeenCalled()
+        } else {
+          await waitFor(() => expect(onFolderAdded).toHaveBeenCalledTimes(1))
+        }
+      } finally {
+        watcher.stop()
+        await fs.rm(rootPath, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('suppresses a path whose parent differs only by case on Windows', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-local-library-')
+    )
+    const onFolderAdded = jest.fn()
+    const watcher = new LocalLibraryWatcher(
+      onFolderAdded,
+      createWatcherState(),
+      { ...testWatcherOptions, caseInsensitiveNames: true }
+    )
+
+    try {
+      await watcher.setPath(rootPath)
+      watcher.suppressPath(join(rootPath.toUpperCase(), 'Extracted Game'))
+      await fs.mkdir(join(rootPath, 'Extracted Game'))
+      await delay(250)
+
+      expect(onFolderAdded).not.toHaveBeenCalled()
+    } finally {
+      watcher.stop()
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it('gives up on an entry that never stops changing', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-local-library-')
+    )
+    const entryPath = join(rootPath, 'Endless Download')
+    const onFolderAdded = jest.fn()
+    const state = createWatcherState()
+    const watcher = new LocalLibraryWatcher(onFolderAdded, state, {
+      ...testWatcherOptions,
+      entryStabilityMaxAttempts: 4
+    })
+    let restartedWatcher: InstanceType<typeof LocalLibraryWatcher> | undefined
+    let writer: NodeJS.Timeout | undefined
+
+    try {
+      await watcher.setPath(rootPath)
+      await fs.mkdir(entryPath)
+      writer = setInterval(() => {
+        try {
+          appendFileSync(join(entryPath, 'data.bin'), 'more data')
+        } catch {
+          // The folder is removed at the end of the test
+        }
+      }, 5)
+
+      await waitFor(
+        () =>
+          expect(logWarning).toHaveBeenCalledWith(
+            [expect.stringContaining('Giving up on local library entry')],
+            'Backend'
+          ),
+        2000
+      )
+
+      // Once it settles after giving up, nothing is reported or retried
+      clearInterval(writer)
+      writer = undefined
+      await delay(250)
+      expect(onFolderAdded).not.toHaveBeenCalled()
+
+      // It was not saved as already seen, so a restart offers it again
+      watcher.stop()
+      const onRestartedFolderAdded = jest.fn()
+      restartedWatcher = new LocalLibraryWatcher(
+        onRestartedFolderAdded,
+        state,
+        testWatcherOptions
+      )
+      await restartedWatcher.setPath(rootPath)
+      await waitFor(() =>
+        expect(onRestartedFolderAdded).toHaveBeenCalledWith(
+          expect.objectContaining({ folderPath: entryPath })
+        )
+      )
+    } finally {
+      if (writer) clearInterval(writer)
+      watcher.stop()
+      restartedWatcher?.stop()
+      await fs.rm(rootPath, { recursive: true, force: true })
+    }
+  })
+
+  it.each(['EACCES', 'EPERM'])(
+    'treats %s while checking an entry as terminal',
+    async (code) => {
+      const rootPath = await fs.mkdtemp(
+        join(process.cwd(), '.tmp-heroic-local-library-')
+      )
+      const entryPath = join(rootPath, 'Locked Game')
+      const onFolderAdded = jest.fn()
+      const watcher = new LocalLibraryWatcher(
+        onFolderAdded,
+        createWatcherState(),
+        testWatcherOptions
+      )
+      const originalStat = fs.stat.bind(fs)
+      let lockedChecks = 0
+      jest.spyOn(fs, 'stat').mockImplementation((async (path: string) => {
+        if (path === entryPath) {
+          lockedChecks++
+          throw Object.assign(new Error(code), { code })
+        }
+        return originalStat(path)
+      }) as unknown as typeof fs.stat)
+
+      try {
+        await watcher.setPath(rootPath)
+        await fs.mkdir(entryPath)
+
+        await waitFor(() => expect(lockedChecks).toBe(1))
+        await delay(250)
+
+        expect(lockedChecks).toBe(1)
+        expect(onFolderAdded).not.toHaveBeenCalled()
+        expect(logWarning).toHaveBeenCalledWith(
+          [expect.stringContaining('No permission'), expect.anything()],
+          'Backend'
+        )
+      } finally {
+        watcher.stop()
+        await fs.rm(rootPath, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('retries transient errors while checking an entry', async () => {
+    const rootPath = await fs.mkdtemp(
+      join(process.cwd(), '.tmp-heroic-local-library-')
+    )
+    const entryPath = join(rootPath, 'Busy Game')
+    const onFolderAdded = jest.fn()
+    const watcher = new LocalLibraryWatcher(
+      onFolderAdded,
+      createWatcherState(),
+      testWatcherOptions
+    )
+    const originalStat = fs.stat.bind(fs)
+    let busyChecks = 0
+    jest.spyOn(fs, 'stat').mockImplementation((async (path: string) => {
+      if (path === entryPath && busyChecks < 2) {
+        busyChecks++
+        throw Object.assign(new Error('EBUSY'), { code: 'EBUSY' })
+      }
+      return originalStat(path)
+    }) as unknown as typeof fs.stat)
+
+    try {
+      await watcher.setPath(rootPath)
+      await fs.mkdir(entryPath)
+
+      await waitFor(() => expect(onFolderAdded).toHaveBeenCalledTimes(1))
+      expect(busyChecks).toBe(2)
     } finally {
       watcher.stop()
       await fs.rm(rootPath, { recursive: true, force: true })

@@ -30,14 +30,10 @@ import { removePrefix } from 'backend/utils/uninstaller'
 import { removeRecentGame } from 'backend/recent_games/recent_games'
 import { isLinux, isMac, isWindows } from 'backend/constants/environment'
 import { removeNonSteamGame } from 'backend/shortcuts/nonesteamgame/nonesteamgame'
+import { getExecutableDir } from './pathStyle'
+import { getUnsafeGameFolderReason } from './safeFolders'
 
 import type LogWriter from 'backend/logger/log_writer'
-
-function getExecutableDir(executable: string): string {
-  const usesBackslash = executable.includes('\\')
-  const executableDir = dirname(executable.replaceAll('\\', '/'))
-  return usesBackslash ? executableDir.replaceAll('/', '\\') : executableDir
-}
 
 export default class SideloadGame implements Game {
   private readonly id: string
@@ -134,11 +130,33 @@ export default class SideloadGame implements Game {
     }
     libraryStore.set('games', current)
 
+    let keptFolder: string | undefined
     if (deleteFiles && executable !== undefined) {
-      rmSync(dirname(executable), { recursive: true })
+      const gameFolder = dirname(executable)
+      const unsafeReason = getUnsafeGameFolderReason(gameFolder)
+      if (unsafeReason) {
+        // The executable does not sit in a folder of its own, so removing
+        // "its folder" would take unrelated files (or a whole drive) with it.
+        keptFolder = gameFolder
+        logWarning(
+          `Not deleting the files of ${title}: ${unsafeReason}`,
+          LogPrefix.Backend
+        )
+      } else if (existsSync(gameFolder)) {
+        rmSync(gameFolder, { recursive: true })
+      }
     }
 
-    notify({ title, body: i18next.t('notify.uninstalled') })
+    notify({
+      title,
+      body: keptFolder
+        ? i18next.t('notify.uninstalled-files-kept', {
+            defaultValue:
+              'Removed from Heroic. Its files were not deleted because {{folder}} is not a game-only folder.',
+            folder: keptFolder
+          })
+        : i18next.t('notify.uninstalled')
+    })
 
     removeShortcutsUtil(this)
     removeRecentGame(this.id)
@@ -212,6 +230,14 @@ export default class SideloadGame implements Game {
 
     if (!installPath) {
       return { status: 'error', error: 'No install path found' }
+    }
+
+    const unsafeReason = getUnsafeGameFolderReason(installPath)
+    if (unsafeReason) {
+      return {
+        status: 'error',
+        error: `Cannot move this game's folder: ${unsafeReason}. Move the game into a folder of its own first.`
+      }
     }
 
     const moveImpl = isWindows ? moveOnWindows : moveOnUnix

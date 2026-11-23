@@ -9,6 +9,10 @@ export type HeroicBackupStageId =
   | 'wineMetadata'
   | 'sideloadLibrary'
   | 'categories'
+  | 'categoryOrder'
+  | 'vndbMatches'
+  | 'gameOverrides'
+  | 'secrets'
 
 export type HeroicBackupPlatform = 'linux' | 'darwin' | 'win32'
 
@@ -28,6 +32,9 @@ export interface HeroicBackupManifest {
     sideloadGames: number
     categories?: number
     playtimeGames?: number
+    categoryOrder?: number
+    vndbMatches?: number
+    gameOverrides?: number
   }
 }
 
@@ -36,6 +43,8 @@ export type CredentialPresence = Partial<Record<Runner, boolean>>
 export interface HeroicExportOptions {
   outputPath: string
   stages: HeroicBackupStageId[]
+  /** Internal: rollback snapshots keep secrets in device-encrypted form. */
+  forSnapshot?: boolean
 }
 
 export interface HeroicExportResult {

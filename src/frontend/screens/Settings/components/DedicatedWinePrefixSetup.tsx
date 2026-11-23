@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import CircularProgress from '@mui/material/CircularProgress'
 import type { Runner } from 'common/types'
 import type { VnCompatibilityPrefixRecipe } from 'common/types/vnCompatibility'
-import { Alert } from 'frontend/components/UI'
+import { Alert, Button, ProgressBar } from 'frontend/components/UI'
 
 type PrefixCreationState =
   | { status: 'idle' }
@@ -169,17 +168,22 @@ export default function DedicatedWinePrefixSetup({
       )}
       {creation.status === 'creating' && (
         <div className="dedicatedWinePrefixProgress">
-          <CircularProgress size={20} />
           <span>
             {t(
               'compatibility.creating-prefix-detail',
               'Creating and initializing the prefix. This can take a minute…'
             )}
           </span>
+          <ProgressBar
+            label={t(
+              'compatibility.creating-prefix-detail',
+              'Creating and initializing the prefix. This can take a minute…'
+            )}
+          />
         </div>
       )}
       {creation.status === 'error' && (
-        <Alert variant="warning">
+        <Alert variant="error">
           {t('compatibility.create-prefix-failed', 'Could not create prefix:')}{' '}
           {creation.error}
         </Alert>
@@ -189,9 +193,10 @@ export default function DedicatedWinePrefixSetup({
         {creation.status === 'idle' && (
           <>
             {recipes.map((recipe) => (
-              <button
+              <Button
                 key={recipe.name}
-                className="button is-primary"
+                variant="primary"
+                size="sm"
                 onClick={() => setCreation({ status: 'confirming', recipe })}
               >
                 {t(
@@ -199,13 +204,12 @@ export default function DedicatedWinePrefixSetup({
                   'Use {{recipe}} recipe prefix',
                   { recipe: recipe.name }
                 )}
-              </button>
+              </Button>
             ))}
             {usesSharedPrefix && (
-              <button
-                className={
-                  recipes.length ? 'button is-secondary' : 'button is-primary'
-                }
+              <Button
+                variant={recipes.length ? 'secondary' : 'primary'}
+                size="sm"
                 onClick={() =>
                   setCreation({ status: 'confirming', recipe: null })
                 }
@@ -214,27 +218,29 @@ export default function DedicatedWinePrefixSetup({
                   'compatibility.create-isolated-prefix',
                   'Create isolated prefix'
                 )}
-              </button>
+              </Button>
             )}
           </>
         )}
         {(creation.status === 'confirming' || creation.status === 'error') && (
           <>
-            <button
-              className="button is-secondary"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setCreation({ status: 'idle' })}
             >
               {t('compatibility.cancel', 'Cancel')}
-            </button>
-            <button
-              className="button is-primary"
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => void createDedicatedPrefix()}
             >
               {t(
                 'compatibility.create-and-use-prefix',
                 'Create and use prefix'
               )}
-            </button>
+            </Button>
           </>
         )}
       </div>

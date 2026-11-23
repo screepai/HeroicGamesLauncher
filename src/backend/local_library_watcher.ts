@@ -14,6 +14,7 @@ import {
   type LocalLibraryWatcherQueuedEntry,
   type LocalLibraryWatcherState
 } from './local_library_watcher_state'
+import { isWindows } from './constants/environment'
 import { logWarning, LogPrefix } from './logger'
 
 type LocalLibraryFolder = {
@@ -23,8 +24,10 @@ type LocalLibraryFolder = {
 }
 
 type LocalLibraryWatcherOptions = {
+  caseInsensitiveNames?: boolean
   entryStableChecks?: number
   entryStabilityIntervalMs?: number
+  entryStabilityMaxAttempts?: number
   maxConcurrentStabilityChecks?: number
   watchDebounceMs?: number
   watchPollIntervalMs?: number
@@ -37,6 +40,10 @@ const ENTRY_STABILITY_INTERVAL_MS = 1000
 const ENTRY_STABLE_CHECKS = 2
 const MAX_CONCURRENT_STABILITY_CHECKS = 2
 const WATCH_POLL_INTERVAL_MS = 5000
+// Gives up on an entry that never settles (about 30 minutes with the default
+// interval) instead of polling it forever.
+const ENTRY_STABILITY_MAX_ATTEMPTS = 1800
+const SET_PATH_DEBOUNCE_MS = 200
 
 function getLibraryEntryNames(
   entries: Dirent[],
@@ -59,11 +66,15 @@ function getLibraryEntryNames(
 function getAddedEntryNames(
   previousEntries: Set<string>,
   currentEntries: Set<string>,
-  exclusionRules: string[] = []
+  exclusionRules: string[] = [],
+  caseInsensitive = false
 ): string[] {
+  const toKey = (name: string) => (caseInsensitive ? name.toLowerCase() : name)
+  const previousKeys = new Set([...previousEntries].map(toKey))
+
   return [...currentEntries].filter(
     (entry) =>
-      !previousEntries.has(entry) &&
+      !previousKeys.has(toKey(entry)) &&
       !matchesExclusionRule(entry, exclusionRules)
   )
 }
@@ -183,6 +194,12 @@ async function getArchiveStabilitySignature(
   return signatureParts.join('\0')
 }
 
+/**
+ * Resolves to a signature while the entry exists and is readable, `null` when
+ * waiting is pointless (the entry is gone, or access to it is denied) and
+ * `undefined` for errors that may be transient (the caller retries them, up
+ * to its attempt limit).
+ */
 async function getEntryStabilitySignature(
   entryPath: string,
   isArchive: boolean
@@ -199,7 +216,20 @@ async function getEntryStabilitySignature(
 
     return null
   } catch (error) {
-    return getErrorCode(error) === 'ENOENT' ? null : undefined
+    const code = getErrorCode(error)
+    if (code === 'ENOENT') {
+      return null
+    }
+
+    if (code === 'EACCES' || code === 'EPERM') {
+      logWarning(
+        [`No permission to inspect local library entry "${entryPath}":`, error],
+        LogPrefix.Backend
+      )
+      return null
+    }
+
+    return undefined
   }
 }
 
@@ -219,8 +249,10 @@ class LocalLibraryWatcher {
   private reconcileRequested = false
   private reconcileRunning = false
   private revision = 0
+  private readonly caseInsensitiveNames: boolean
   private readonly entryStableChecks: number
   private readonly entryStabilityIntervalMs: number
+  private readonly entryStabilityMaxAttempts: number
   private readonly maxConcurrentStabilityChecks: number
   private readonly watchDebounceMs: number
   private readonly watchPollIntervalMs: number
@@ -230,7 +262,12 @@ class LocalLibraryWatcher {
     private readonly state: LocalLibraryWatcherState = localLibraryWatcherState,
     options: LocalLibraryWatcherOptions = {}
   ) {
+    this.caseInsensitiveNames = options.caseInsensitiveNames ?? isWindows
     this.entryStableChecks = options.entryStableChecks ?? ENTRY_STABLE_CHECKS
+    this.entryStabilityMaxAttempts = Math.max(
+      1,
+      options.entryStabilityMaxAttempts ?? ENTRY_STABILITY_MAX_ATTEMPTS
+    )
     this.entryStabilityIntervalMs =
       options.entryStabilityIntervalMs ?? ENTRY_STABILITY_INTERVAL_MS
     this.maxConcurrentStabilityChecks = Math.max(
@@ -252,15 +289,30 @@ class LocalLibraryWatcher {
     this.detectArchives = detectArchives
   }
 
+  /**
+   * Entry names are compared through this key so that, on case-insensitive
+   * file systems (Windows), `Game` and `game` are the same entry. The
+   * pending and suppressed sets store keys; known entries keep real names.
+   */
+  private getEntryKey(name: string): string {
+    return this.caseInsensitiveNames ? name.toLowerCase() : name
+  }
+
   suppressPath(path: string): void {
-    if (this.rootPath && dirname(resolve(path)) === resolve(this.rootPath)) {
+    if (
+      this.rootPath &&
+      this.getEntryKey(dirname(resolve(path))) ===
+        this.getEntryKey(resolve(this.rootPath))
+    ) {
       const entryName = basename(path)
+      const entryKey = this.getEntryKey(entryName)
       this.knownEntries.add(entryName)
-      this.pendingEntries.delete(entryName)
+      this.pendingEntries.delete(entryKey)
       this.queuedEntries = this.queuedEntries.filter(
-        (queuedEntry) => basename(queuedEntry.folderPath) !== entryName
+        (queuedEntry) =>
+          this.getEntryKey(basename(queuedEntry.folderPath)) !== entryKey
       )
-      this.suppressedEntries.add(entryName)
+      this.suppressedEntries.add(entryKey)
       void this.saveQueuedEntries(this.rootPath)
     }
   }
@@ -341,11 +393,14 @@ class LocalLibraryWatcher {
       addedEntries = getAddedEntryNames(
         previousEntries,
         currentEntries,
-        this.exclusionRules
+        this.exclusionRules,
+        this.caseInsensitiveNames
       ).filter(
         (entryName) =>
           !this.queuedEntries.some(
-            (queuedEntry) => basename(queuedEntry.folderPath) === entryName
+            (queuedEntry) =>
+              this.getEntryKey(basename(queuedEntry.folderPath)) ===
+              this.getEntryKey(entryName)
           )
       )
       this.reportAddedEntriesWhenReady(addedEntries, nextRootPath, revision)
@@ -453,16 +508,20 @@ class LocalLibraryWatcher {
     const addedEntries = getAddedEntryNames(
       this.knownEntries,
       currentEntries,
-      this.exclusionRules
+      this.exclusionRules,
+      this.caseInsensitiveNames
     ).filter(
       (entryName) =>
-        !this.suppressedEntries.has(entryName) &&
-        !this.pendingEntries.has(entryName)
+        !this.suppressedEntries.has(this.getEntryKey(entryName)) &&
+        !this.pendingEntries.has(this.getEntryKey(entryName))
     )
 
-    for (const entryName of this.suppressedEntries) {
-      if (currentEntries.has(entryName)) {
-        this.suppressedEntries.delete(entryName)
+    const currentEntryKeys = new Set(
+      [...currentEntries].map((entryName) => this.getEntryKey(entryName))
+    )
+    for (const entryKey of this.suppressedEntries) {
+      if (currentEntryKeys.has(entryKey)) {
+        this.suppressedEntries.delete(entryKey)
       }
     }
 
@@ -478,30 +537,37 @@ class LocalLibraryWatcher {
   private getPersistableEntries(): Set<string> {
     return new Set(
       [...this.knownEntries].filter(
-        (entryName) => !this.pendingEntries.has(entryName)
+        (entryName) => !this.pendingEntries.has(this.getEntryKey(entryName))
       )
     )
   }
 
   private async saveKnownEntries(rootPath: string): Promise<void> {
-    await this.state.save(rootPath, this.getPersistableEntries())
+    // Persisting is best effort; the state module already logs failures.
+    await this.state
+      .save(rootPath, this.getPersistableEntries())
+      .catch(() => {})
   }
 
   private filterQueuedEntries(
     queuedEntries: LocalLibraryWatcherQueuedEntry[],
     currentEntries: Set<string>
   ): LocalLibraryFolder[] {
+    const currentEntryKeys = new Set(
+      [...currentEntries].map((entryName) => this.getEntryKey(entryName))
+    )
+
     return queuedEntries.filter((queuedEntry) => {
       const entryName = basename(queuedEntry.folderPath)
       return (
-        currentEntries.has(entryName) &&
+        currentEntryKeys.has(this.getEntryKey(entryName)) &&
         !matchesExclusionRule(entryName, this.exclusionRules)
       )
     })
   }
 
   private async saveQueuedEntries(rootPath: string): Promise<void> {
-    await this.state.saveQueue(rootPath, this.queuedEntries)
+    await this.state.saveQueue(rootPath, this.queuedEntries).catch(() => {})
   }
 
   private async queueEntry(
@@ -524,7 +590,7 @@ class LocalLibraryWatcher {
     revision: number
   ): void {
     for (const entryName of entryNames) {
-      this.pendingEntries.add(entryName)
+      this.pendingEntries.add(this.getEntryKey(entryName))
       void this.reportAddedEntryWhenReady(entryName, rootPath, revision)
     }
   }
@@ -563,13 +629,18 @@ class LocalLibraryWatcher {
       if (
         !(await this.waitForEntryToStabilize(folderPath, isArchive, revision))
       ) {
+        // Not reported (gave up, access denied or gone): forget it, so it is
+        // not persisted as already seen and the next scan offers it again.
+        if (rootPath === this.rootPath && revision === this.revision) {
+          this.knownEntries.delete(entryName)
+        }
         return
       }
 
       if (
         rootPath !== this.rootPath ||
         revision !== this.revision ||
-        this.suppressedEntries.has(entryName)
+        this.suppressedEntries.has(this.getEntryKey(entryName))
       ) {
         return
       }
@@ -583,7 +654,7 @@ class LocalLibraryWatcher {
       this.onFolderAdded(folder)
     } finally {
       releaseStabilityCheck()
-      this.pendingEntries.delete(entryName)
+      this.pendingEntries.delete(this.getEntryKey(entryName))
 
       if (rootPath === this.rootPath && revision === this.revision) {
         await this.saveKnownEntries(rootPath)
@@ -598,8 +669,18 @@ class LocalLibraryWatcher {
   ): Promise<boolean> {
     let previousSignature: string | undefined
     let stableChecks = 0
+    // The parts of a split archive are usually copied one after another, with
+    // pauses between them. Require a longer quiet period before reporting one.
+    const requiredStableChecks =
+      isArchive && getArchivePart(basename(entryPath))
+        ? this.entryStableChecks * 2
+        : this.entryStableChecks
 
-    while (revision === this.revision) {
+    for (
+      let attempt = 0;
+      attempt < this.entryStabilityMaxAttempts && revision === this.revision;
+      attempt++
+    ) {
       const signature = await getEntryStabilitySignature(entryPath, isArchive)
 
       if (signature === null) {
@@ -608,7 +689,7 @@ class LocalLibraryWatcher {
 
       if (signature && signature === previousSignature) {
         stableChecks++
-        if (stableChecks >= this.entryStableChecks) {
+        if (stableChecks >= requiredStableChecks) {
           return true
         }
       } else {
@@ -617,6 +698,15 @@ class LocalLibraryWatcher {
       }
 
       await delay(this.entryStabilityIntervalMs)
+    }
+
+    if (revision === this.revision) {
+      logWarning(
+        [
+          `Giving up on local library entry "${entryPath}": it did not settle after ${this.entryStabilityMaxAttempts} checks`
+        ],
+        LogPrefix.Backend
+      )
     }
 
     return false
@@ -637,6 +727,39 @@ function drainLocalLibraryWatcherQueue(): Promise<LocalLibraryFolder[]> {
   return localLibraryWatcher.drainQueuedEntries()
 }
 
+function applyLocalLibraryWatcherPath(): void {
+  const settings = GlobalConfig.get().getSettings()
+  localLibraryWatcher
+    .setPath(
+      settings.enableLocalLibraryWatcher &&
+        typeof settings.localLibrarySyncPath === 'string'
+        ? settings.localLibrarySyncPath
+        : ''
+    )
+    .catch((error) => {
+      logWarning(
+        ['Unable to update the local library watcher path:', error],
+        LogPrefix.Backend
+      )
+    })
+}
+
+let setPathTimeout: NodeJS.Timeout | undefined
+
+// Restoring a backup (or editing settings quickly) changes several watcher
+// settings in a row. Coalesce them into a single watcher restart that reads
+// the final settings.
+function scheduleLocalLibraryWatcherPathUpdate(): void {
+  if (setPathTimeout) {
+    clearTimeout(setPathTimeout)
+  }
+
+  setPathTimeout = setTimeout(() => {
+    setPathTimeout = undefined
+    applyLocalLibraryWatcherPath()
+  }, SET_PATH_DEBOUNCE_MS)
+}
+
 function initLocalLibraryWatcher(): void {
   if (initialized) {
     return
@@ -646,9 +769,7 @@ function initLocalLibraryWatcher(): void {
   const settings = GlobalConfig.get().getSettings()
   localLibraryWatcher.setExclusionRules(settings.localLibrarySyncExclusions)
   localLibraryWatcher.setDetectArchives(settings.detectLocalLibraryArchives)
-  void localLibraryWatcher.setPath(
-    settings.enableLocalLibraryWatcher ? settings.localLibrarySyncPath : ''
-  )
+  applyLocalLibraryWatcherPath()
 
   addHandler('drainLocalLibraryWatcherQueue', drainLocalLibraryWatcherQueue)
 
@@ -661,28 +782,16 @@ function initLocalLibraryWatcher(): void {
       )
     }
 
-    if (key === 'enableLocalLibraryWatcher') {
-      const settings = GlobalConfig.get().getSettings()
-      void localLibraryWatcher.setPath(
-        newValue === true ? settings.localLibrarySyncPath : ''
-      )
-    }
-
     if (key === 'detectLocalLibraryArchives') {
-      const settings = GlobalConfig.get().getSettings()
       localLibraryWatcher.setDetectArchives(newValue === true)
-      void localLibraryWatcher.setPath(
-        settings.enableLocalLibraryWatcher ? settings.localLibrarySyncPath : ''
-      )
     }
 
-    if (key === 'localLibrarySyncPath') {
-      const settings = GlobalConfig.get().getSettings()
-      void localLibraryWatcher.setPath(
-        settings.enableLocalLibraryWatcher && typeof newValue === 'string'
-          ? newValue
-          : ''
-      )
+    if (
+      key === 'enableLocalLibraryWatcher' ||
+      key === 'detectLocalLibraryArchives' ||
+      key === 'localLibrarySyncPath'
+    ) {
+      scheduleLocalLibraryWatcherPathUpdate()
     }
   })
 }

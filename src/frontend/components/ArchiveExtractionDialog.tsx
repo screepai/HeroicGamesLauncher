@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Checkbox, FormControlLabel } from '@mui/material'
 import type { TFunction } from 'i18next'
@@ -71,6 +71,7 @@ export default function ArchiveExtractionDialog({
   source = 'watcher'
 }: Props) {
   const { t } = useTranslation()
+  const cancelRequested = useRef(false)
   const askToDeleteArchiveAfterExtraction = useAppSetting(
     'askToDeleteArchiveAfterExtraction',
     true
@@ -383,10 +384,17 @@ export default function ArchiveExtractionDialog({
     setStage('extracting')
     setExtractionProgress({ percent: 0 })
     setError('')
+    cancelRequested.current = false
 
     try {
       const retainedPreviousArchivePath =
         await deletePreviousArchiveIfRequested()
+
+      // Stop was clicked before the backend extraction was registered.
+      if (cancelRequested.current) {
+        setStage('selection')
+        return
+      }
 
       const nextExtractedFolder = await window.api.extractLocalLibraryArchive({
         archivePath: archiveInfo?.archivePath ?? activeArchive.folderPath,
@@ -407,6 +415,13 @@ export default function ArchiveExtractionDialog({
         retainedPreviousArchivePath
       )
     } catch (extractionError) {
+      if (
+        extractionError instanceof Error &&
+        /extraction was cancelled/i.test(extractionError.message)
+      ) {
+        setStage('selection')
+        return
+      }
       if (isPasswordError(extractionError)) {
         setPasswordRequired(true)
       }
@@ -426,6 +441,13 @@ export default function ArchiveExtractionDialog({
           : 'selection'
       )
     }
+  }
+
+  const cancelExtraction = () => {
+    cancelRequested.current = true
+    void window.api.cancelLocalLibraryArchiveExtraction(
+      archiveInfo?.archivePath ?? activeArchive.folderPath
+    )
   }
 
   const finishExtraction = () => {
@@ -478,7 +500,21 @@ export default function ArchiveExtractionDialog({
   const destinationDirectoryValid =
     !isNestedArchive || destinationDirectory.trim().length > 0
   const passwordMissing = passwordRequired && password.length === 0
+  const canExtractSelection =
+    folderNameValid &&
+    destinationDirectoryValid &&
+    selectedPaths.size > 0 &&
+    !passwordMissing
   const closeDialog = stage === 'delete-prompt' ? finishExtraction : onClose
+
+  // Enter in the password field does what the primary footer button does.
+  const submitPassword = () => {
+    if (stage === 'prompt' && !passwordMissing) {
+      void prepareArchive()
+    } else if (stage === 'selection' && canExtractSelection) {
+      void extractArchive()
+    }
+  }
   const deletePreviousArchiveControl = previousArchivePath && (
     <FormControlLabel
       className="archiveDeletePreviousLabel"
@@ -576,6 +612,7 @@ export default function ArchiveExtractionDialog({
         actions={{
           onOpenArchive: openNestedArchive,
           onPasswordChange: setPassword,
+          onPasswordSubmit: submitPassword,
           selection: {
             onDestinationDirectoryChange: setDestinationDirectory,
             onFolderNameChange: setFolderName,
@@ -594,17 +631,13 @@ export default function ArchiveExtractionDialog({
       <ArchiveExtractionFooter
         stage={stage}
         archiveInfo={archiveInfo}
-        canExtractSelection={
-          folderNameValid &&
-          destinationDirectoryValid &&
-          selectedPaths.size > 0 &&
-          !passwordMissing
-        }
+        canExtractSelection={canExtractSelection}
         error={error}
         isBusy={isBusy}
         passwordMissing={passwordMissing}
         actions={{
           onCancel: onClose,
+          onCancelExtraction: cancelExtraction,
           onCheckParts: () => void finishWaiting(),
           onDeleteArchive: () => void deleteArchive(),
           onExtractSelection: () => void extractArchive(),

@@ -91,6 +91,10 @@ export interface VndbGameMatchTarget {
 export interface VndbGameMatchSuggestion {
   game: VndbGameMatchTarget
   result: VndbSearchResult | null
+  /** Set when the lookup for this game failed; `result` is null in that case. */
+  error?: string
+  /** True when bulk matching was cancelled before this game was looked up. */
+  cancelled?: boolean
 }
 
 export interface VndbGameMatch {
@@ -168,6 +172,32 @@ export interface VndbUserDataSyncResult {
     appName: string
     message: string
   }>
+  /** True when the sync was cancelled; remaining targets are counted as skipped. */
+  cancelled?: boolean
+}
+
+export interface VndbJobOptions {
+  /** Identifies the job in progress events and `cancel*` calls. */
+  jobId?: string
+}
+
+export interface VndbUserDataSyncProgress {
+  jobId?: string
+  /** Targets fully processed so far (synced, skipped or failed). */
+  completed: number
+  total: number
+  appName?: string
+  synced: number
+  skipped: number
+  errors: number
+}
+
+export interface VndbMatchGamesProgress {
+  jobId?: string
+  completed: number
+  total: number
+  /** The suggestion that just finished (partial result). */
+  suggestion: VndbGameMatchSuggestion
 }
 
 export interface VndbGameMatchUpdate {

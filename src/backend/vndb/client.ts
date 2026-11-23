@@ -6,6 +6,7 @@ import {
   encryptSecret,
   isEncryptedSecretValue
 } from 'backend/utils/secureSecret'
+import { notifyVndbApiTokenChanged } from './tokenEvents'
 
 export const vndbClient = new VndbClient({
   userAgent: `HeroicGamesLauncher/${app.getVersion()}`
@@ -36,13 +37,26 @@ export function getDecryptedApiToken(): string {
   return decryptSecret(stored, 'vndb')
 }
 
-export function refreshVndbClientApiToken(): void {
+// The client token only changes through setStoredApiToken, so the stored token
+// is read once (lazily, on first use) instead of before every request.
+let clientTokenLoaded = false
+
+/**
+ * Loads the stored token into the shared client. No-op after the first call
+ * unless `force` is set; token changes go through setStoredApiToken.
+ */
+export function refreshVndbClientApiToken(options?: { force?: boolean }): void {
+  if (clientTokenLoaded && !options?.force) {
+    return
+  }
+
   const token = getDecryptedApiToken()
   if (token) {
     vndbClient.setToken(token)
   } else {
     vndbClient.clearToken()
   }
+  clientTokenLoaded = true
 }
 
 export function setStoredApiToken(token: string): void {
@@ -55,4 +69,6 @@ export function setStoredApiToken(token: string): void {
   } else {
     vndbClient.clearToken()
   }
+  clientTokenLoaded = true
+  notifyVndbApiTokenChanged()
 }

@@ -84,6 +84,28 @@ function getStoredNullableString(key: string): string | null {
   }
 }
 
+function getOrderedCustomCategories(
+  customCategories: Record<string, string[]>,
+  customCategoriesOrder: string[]
+): string[] {
+  const categories = Array.from(new Set(Object.keys(customCategories))).sort()
+  const orderedCategories = customCategoriesOrder.filter((cat) =>
+    categories.includes(cat)
+  )
+  const unorderedCategories = categories.filter(
+    (cat) => !orderedCategories.includes(cat)
+  )
+
+  return [...orderedCategories, ...unorderedCategories]
+}
+
+type CustomCategoriesUpdate = Partial<
+  Pick<
+    StateProps,
+    'customCategories' | 'customCategoriesOrder' | 'currentCustomCategories'
+  >
+>
+
 type T = TFunction<'gamepage'> & TFunction<'translations'>
 
 interface Props {
@@ -492,19 +514,11 @@ class GlobalState extends PureComponent<Props> {
     configStore.set('games.favourites', newFavouriteGames)
   }
 
-  getCustomCategories = () => {
-    const categories = Array.from(
-      new Set(Object.keys(this.state.customCategories))
-    ).sort()
-    const orderedCategories = this.state.customCategoriesOrder.filter((cat) =>
-      categories.includes(cat)
+  getCustomCategories = () =>
+    getOrderedCustomCategories(
+      this.state.customCategories,
+      this.state.customCategoriesOrder
     )
-    const unorderedCategories = categories.filter(
-      (cat) => !orderedCategories.includes(cat)
-    )
-
-    return [...orderedCategories, ...unorderedCategories]
-  }
 
   getCurrentCustomCategories = () =>
     Array.from(new Set(this.state.currentCustomCategories)).sort()
@@ -583,16 +597,48 @@ class GlobalState extends PureComponent<Props> {
     this.setCurrentCustomCategories(newCurrentCustomCategories)
   }
 
-  setCustomCategoriesOrder = (categories: string[]) => {
-    const newCustomCategoriesOrder = categories.filter(
-      (cat, index) =>
-        this.state.customCategories[cat] && categories.indexOf(cat) === index
-    )
+  /**
+   * Applies a custom-categories update computed from the latest state, so
+   * several calls in the same tick build on each other instead of
+   * overwriting one another, and persists what was computed.
+   */
+  private updateCustomCategories = (
+    compute: (state: StateProps) => CustomCategoriesUpdate
+  ) => {
+    let update: CustomCategoriesUpdate = {}
 
-    this.setState({
-      customCategoriesOrder: newCustomCategoriesOrder
-    })
-    configStore.set('games.customCategoriesOrder', newCustomCategoriesOrder)
+    this.setState(
+      (state: StateProps) => {
+        update = compute(state)
+        return update as StateProps
+      },
+      () => {
+        if (update.customCategories) {
+          configStore.set('games.customCategories', update.customCategories)
+        }
+        if (update.customCategoriesOrder) {
+          configStore.set(
+            'games.customCategoriesOrder',
+            update.customCategoriesOrder
+          )
+        }
+        if (update.currentCustomCategories) {
+          storage.setItem(
+            'current_custom_categories',
+            JSON.stringify(update.currentCustomCategories)
+          )
+        }
+      }
+    )
+  }
+
+  setCustomCategoriesOrder = (categories: string[]) => {
+    this.updateCustomCategories((state) => ({
+      customCategoriesOrder: categories.filter(
+        (cat, index) =>
+          state.customCategories[cat] && categories.indexOf(cat) === index
+      )
+    }))
   }
 
   restoreCustomCategories = ({
@@ -657,28 +703,29 @@ class GlobalState extends PureComponent<Props> {
       appName: string
     }>
   ) => {
-    const newCustomCategories = Object.fromEntries(
-      Object.entries(this.state.customCategories).map(([category, games]) => [
-        category,
-        [...games]
-      ])
-    )
+    this.updateCustomCategories((state) => {
+      const newCustomCategories = Object.fromEntries(
+        Object.entries(state.customCategories).map(([category, games]) => [
+          category,
+          [...games]
+        ])
+      )
 
-    for (const { fromCategory, toCategory, appName } of moves) {
-      if (fromCategory && newCustomCategories[fromCategory]) {
-        newCustomCategories[fromCategory] = newCustomCategories[
-          fromCategory
-        ].filter((game) => game !== appName)
+      for (const { fromCategory, toCategory, appName } of moves) {
+        if (fromCategory && newCustomCategories[fromCategory]) {
+          newCustomCategories[fromCategory] = newCustomCategories[
+            fromCategory
+          ].filter((game) => game !== appName)
+        }
+        if (toCategory && newCustomCategories[toCategory]) {
+          newCustomCategories[toCategory] = [
+            ...new Set([...newCustomCategories[toCategory], appName])
+          ]
+        }
       }
-      if (toCategory && newCustomCategories[toCategory]) {
-        newCustomCategories[toCategory] = [
-          ...new Set([...newCustomCategories[toCategory], appName])
-        ]
-      }
-    }
 
-    this.setState({ customCategories: newCustomCategories })
-    configStore.set('games.customCategories', newCustomCategories)
+      return { customCategories: newCustomCategories }
+    })
   }
 
   setGamesCustomCategoryMembership = (
@@ -686,31 +733,37 @@ class GlobalState extends PureComponent<Props> {
     appNames: string[],
     assigned: boolean
   ) => {
-    const selectedAppNames = new Set(appNames)
-    const categoryExists = Boolean(this.state.customCategories[category])
-    const gamesInCategory = this.state.customCategories[category] || []
-    const nextGames = assigned
-      ? [...new Set([...gamesInCategory, ...appNames])]
-      : gamesInCategory.filter((game) => !selectedAppNames.has(game))
-    const newCustomCategories = {
-      ...this.state.customCategories,
-      [category]: nextGames
-    }
-    const newCustomCategoriesOrder = categoryExists
-      ? this.state.customCategoriesOrder
-      : [...this.getCustomCategories(), category]
-    const newCurrentCustomCategories =
-      !categoryExists && this.state.currentCustomCategories.length > 0
-        ? [...this.state.currentCustomCategories, category]
-        : this.state.currentCustomCategories
+    this.updateCustomCategories((state) => {
+      const selectedAppNames = new Set(appNames)
+      const categoryExists = Boolean(state.customCategories[category])
+      const gamesInCategory = state.customCategories[category] || []
+      const nextGames = assigned
+        ? [...new Set([...gamesInCategory, ...appNames])]
+        : gamesInCategory.filter((game) => !selectedAppNames.has(game))
+      const newCustomCategories = {
+        ...state.customCategories,
+        [category]: nextGames
+      }
+      const newCustomCategoriesOrder = categoryExists
+        ? state.customCategoriesOrder
+        : [
+            ...getOrderedCustomCategories(
+              state.customCategories,
+              state.customCategoriesOrder
+            ),
+            category
+          ]
+      const newCurrentCustomCategories =
+        !categoryExists && state.currentCustomCategories.length > 0
+          ? [...state.currentCustomCategories, category]
+          : state.currentCustomCategories
 
-    this.setState({
-      customCategories: newCustomCategories,
-      customCategoriesOrder: newCustomCategoriesOrder,
-      currentCustomCategories: newCurrentCustomCategories
+      return {
+        customCategories: newCustomCategories,
+        customCategoriesOrder: newCustomCategoriesOrder,
+        currentCustomCategories: newCurrentCustomCategories
+      }
     })
-    configStore.set('games.customCategories', newCustomCategories)
-    configStore.set('games.customCategoriesOrder', newCustomCategoriesOrder)
   }
 
   handleShowDialogModal = ({

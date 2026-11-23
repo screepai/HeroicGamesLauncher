@@ -8,6 +8,9 @@ const mockVndbClient = {
   getAuthInfo: jest.fn(),
   getUserLabels: jest.fn(),
   getUserList: jest.fn(),
+  getReleases: jest.fn(),
+  getRelease: jest.fn(),
+  getVisualNovel: jest.fn(),
   searchVisualNovels: jest.fn(),
   updateUserListEntry: jest.fn(),
   updateUserReleaseEntry: jest.fn()
@@ -41,6 +44,8 @@ jest.mock('../vndb/electronStore', () => ({
   }
 }))
 
+import { notifyVndbApiTokenChanged } from '../vndb/tokenEvents'
+import { clearVndbUserCache } from '../vndb/userCache'
 import {
   getVndbGameMatch,
   getVndbUserOptions,
@@ -55,6 +60,7 @@ import {
 describe('VNDB global settings', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    clearVndbUserCache()
     mockSettings.enableVndbIntegration = true
     mockSettings.syncVndbUserData = true
     mockConfigStoreGet.mockReturnValue(mockSettings)
@@ -435,5 +441,309 @@ describe('VNDB match persistence', () => {
 
     expect(matches).toEqual({})
     expect(mockVndbMatchesStoreSet).toHaveBeenCalledWith('matches', {})
+  })
+})
+
+describe('VNDB bulk matching', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockSettings.enableVndbIntegration = true
+    mockConfigStoreGet.mockReturnValue(mockSettings)
+  })
+
+  it('returns a per-game error instead of rejecting the whole batch', async () => {
+    mockVndbClient.searchVisualNovels.mockImplementation(
+      async (query: string) => {
+        if (query === 'Broken Match Title') {
+          throw new Error('boom')
+        }
+        return [{ id: 'v1', title: query }]
+      }
+    )
+    const games = [
+      { appName: 'ok', runner: 'sideload' as const, title: 'Fine Match Title' },
+      {
+        appName: 'bad',
+        runner: 'sideload' as const,
+        title: 'Broken Match Title'
+      }
+    ]
+
+    const suggestions = await matchVndbGames(games)
+
+    expect(suggestions).toHaveLength(2)
+    expect(suggestions[0]).toMatchObject({
+      game: games[0],
+      result: { id: 'v1' }
+    })
+    expect(suggestions[1]).toEqual({
+      game: games[1],
+      result: null,
+      error: 'boom'
+    })
+  })
+
+  it('reports progress per game and stops when cancelled', async () => {
+    mockVndbClient.searchVisualNovels.mockImplementation(
+      async (query: string) => [{ id: 'v2', title: query }]
+    )
+    const controller = new AbortController()
+    const games = Array.from({ length: 12 }, (_, index) => ({
+      appName: `cancel-${index}`,
+      runner: 'sideload' as const,
+      title: `Cancellable Title ${index}`
+    }))
+    const onProgress = jest.fn(({ completed }: { completed: number }) => {
+      if (completed >= 3) {
+        controller.abort()
+      }
+    })
+
+    const suggestions = await matchVndbGames(games, {
+      signal: controller.signal,
+      onProgress
+    })
+
+    expect(suggestions).toHaveLength(games.length)
+    expect(suggestions.some((suggestion) => suggestion.cancelled)).toBe(true)
+    expect(onProgress).toHaveBeenCalledWith(
+      expect.objectContaining({ total: games.length })
+    )
+    expect(
+      suggestions.filter((suggestion) => !suggestion.cancelled)
+    ).toHaveLength(onProgress.mock.calls.length)
+  })
+})
+
+describe('VNDB user auth/label caching', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    clearVndbUserCache()
+    mockSettings.enableVndbIntegration = true
+    mockConfigStoreGet.mockReturnValue(mockSettings)
+    mockHasStoredApiToken.mockReturnValue(true)
+    mockVndbClient.getAuthInfo.mockResolvedValue({
+      id: 'u1',
+      username: 'test-user',
+      permissions: ['listread', 'listwrite']
+    })
+    mockVndbClient.getUserLabels.mockResolvedValue({ labels: [] })
+    mockVndbClient.getUserList.mockResolvedValue({ results: [] })
+  })
+
+  it('fetches auth info and labels once across repeated reads', async () => {
+    await getVndbUserOptions('v1')
+    await getVndbUserOptions('v2')
+    await getVndbUserOptions('v3')
+
+    expect(mockVndbClient.getAuthInfo).toHaveBeenCalledTimes(1)
+    expect(mockVndbClient.getUserLabels).toHaveBeenCalledTimes(1)
+    expect(mockVndbClient.getUserList).toHaveBeenCalledTimes(3)
+  })
+
+  it('refetches after the cache TTL expires', async () => {
+    const now = jest.spyOn(Date, 'now')
+    now.mockReturnValue(1_000_000)
+    await getVndbUserOptions('v1')
+
+    now.mockReturnValue(1_000_000 + 10 * 60 * 1000 + 1)
+    await getVndbUserOptions('v1')
+    now.mockRestore()
+
+    expect(mockVndbClient.getAuthInfo).toHaveBeenCalledTimes(2)
+  })
+
+  it('invalidates the cache when the API token changes', async () => {
+    await getVndbUserOptions('v1')
+    notifyVndbApiTokenChanged()
+    await getVndbUserOptions('v1')
+
+    expect(mockVndbClient.getAuthInfo).toHaveBeenCalledTimes(2)
+    expect(mockVndbClient.getUserLabels).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not cache failed auth requests', async () => {
+    mockVndbClient.getAuthInfo.mockRejectedValueOnce(new Error('offline'))
+
+    await expect(getVndbUserOptions('v1')).rejects.toThrow('offline')
+    await expect(getVndbUserOptions('v1')).resolves.toMatchObject({
+      hasToken: true
+    })
+    expect(mockVndbClient.getAuthInfo).toHaveBeenCalledTimes(2)
+  })
+
+  it('refetches labels (counts) after the list was changed', async () => {
+    mockVndbClient.updateUserListEntry.mockResolvedValue(undefined)
+    await getVndbUserOptions('v1')
+    await updateVndbUserOptions('v1', { vote: 80 })
+
+    expect(mockVndbClient.getAuthInfo).toHaveBeenCalledTimes(1)
+    expect(mockVndbClient.getUserLabels).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('VNDB release lookup', () => {
+  function makeRelease(id: string, vnIds: string[], released: string) {
+    return {
+      id,
+      title: id,
+      released,
+      languages: [],
+      platforms: [],
+      vns: vnIds.map((vnId) => ({ id: vnId, title: vnId }))
+    }
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    mockSettings.enableVndbIntegration = true
+    mockConfigStoreGet.mockReturnValue(mockSettings)
+  })
+
+  it('fetches releases for all hydrated search results in one request', async () => {
+    mockVndbClient.searchVisualNovels.mockResolvedValue([
+      { id: 'v10', title: 'One' },
+      { id: 'v11', title: 'Two' },
+      { id: 'v12', title: 'Three' }
+    ])
+    mockVndbClient.getReleases.mockImplementation(
+      async (query: { filters: unknown[] }) => {
+        // Distinguish the title search from the per-VN release lookup
+        if (query.filters[0] === 'search') {
+          return { results: [], more: false }
+        }
+        return {
+          results: [
+            makeRelease('r1', ['v10'], '2020-01-01'),
+            makeRelease('r2', ['v11', 'v12'], '2021-01-01')
+          ],
+          more: false
+        }
+      }
+    )
+
+    const results = await searchVndbVisualNovels('batched releases query')
+
+    const releaseLookups = mockVndbClient.getReleases.mock.calls.filter(
+      ([query]) => query.filters[0] === 'vn'
+    )
+    expect(releaseLookups).toHaveLength(1)
+    expect(releaseLookups[0][0].filters).toEqual([
+      'vn',
+      '=',
+      ['or', ['id', '=', 'v10'], ['id', '=', 'v11'], ['id', '=', 'v12']]
+    ])
+    expect(results.map((result) => result.releases?.map((r) => r.id))).toEqual([
+      ['r1'],
+      ['r2'],
+      ['r2']
+    ])
+  })
+
+  it('follows pagination instead of stopping at the first page', async () => {
+    mockVndbClient.getVisualNovel.mockResolvedValue({ id: 'v20', title: 'Big' })
+    const firstPage = Array.from({ length: 100 }, (_, index) =>
+      makeRelease(`r${index}`, ['v20'], '2019-01-01')
+    )
+    const secondPage = [makeRelease('r-last', ['v20'], '2022-02-02')]
+    mockVndbClient.getReleases
+      .mockResolvedValueOnce({ results: firstPage, more: true })
+      .mockResolvedValueOnce({ results: secondPage, more: false })
+
+    const [result] = await searchVndbVisualNovels('v20')
+
+    expect(mockVndbClient.getReleases).toHaveBeenCalledTimes(2)
+    expect(mockVndbClient.getReleases.mock.calls[0][0]).toMatchObject({
+      page: 1
+    })
+    expect(mockVndbClient.getReleases.mock.calls[1][0]).toMatchObject({
+      page: 2
+    })
+    expect(result.releases).toHaveLength(101)
+    expect(result.releases?.[0].id).toBe('r-last')
+    expect(result.latestRelease?.id).toBe('r-last')
+  })
+})
+
+describe('VNDB user-data sync progress and cancellation', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    clearVndbUserCache()
+    mockSettings.enableVndbIntegration = true
+    mockSettings.syncVndbUserData = true
+    mockConfigStoreGet.mockReturnValue(mockSettings)
+    mockHasStoredApiToken.mockReturnValue(true)
+    mockVndbClient.getAuthInfo.mockResolvedValue({
+      id: 'u1',
+      username: 'test-user',
+      permissions: ['listread', 'listwrite']
+    })
+    mockVndbClient.getUserList.mockResolvedValue({ results: [] })
+    mockVndbClient.updateUserListEntry.mockResolvedValue(undefined)
+  })
+
+  it('emits progress per target and skips the rest once cancelled', async () => {
+    const targets = Array.from({ length: 5 }, (_, index) => ({
+      appName: `sync-${index}`,
+      runner: 'gog' as const
+    }))
+    mockVndbMatchesStoreGet.mockReturnValue(
+      Object.fromEntries(
+        targets.map((target, index) => [
+          `gog:${target.appName}`,
+          {
+            ...target,
+            title: target.appName,
+            vndbId: `v${index + 1}`,
+            vndbTitle: target.appName,
+            syncedAt: '2026-06-21T00:00:00.000Z'
+          }
+        ])
+      )
+    )
+    const controller = new AbortController()
+    const onProgress = jest.fn(({ completed }: { completed: number }) => {
+      if (completed === 2) {
+        controller.abort()
+      }
+    })
+
+    const result = await syncVndbUserData(targets, {
+      signal: controller.signal,
+      onProgress
+    })
+
+    expect(onProgress).toHaveBeenCalledTimes(2)
+    expect(onProgress).toHaveBeenLastCalledWith(
+      expect.objectContaining({ completed: 2, total: 5 })
+    )
+    expect(result).toMatchObject({ cancelled: true, synced: 2, skipped: 3 })
+  })
+})
+
+describe('VNDB match persistence rewrites', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('does not rewrite the store when a re-sync changes nothing', () => {
+    mockVndbMatchesStoreGet.mockReturnValue({})
+    const update = {
+      appName: 'same',
+      runner: 'sideload' as const,
+      title: 'Same',
+      vndbId: 'v99',
+      vndbTitle: 'Same VN'
+    }
+    syncVndbGameMatches([update])
+    const [, storedMatches] = mockVndbMatchesStoreSet.mock.calls[0]
+    mockVndbMatchesStoreSet.mockClear()
+    mockVndbMatchesStoreGet.mockReturnValue(
+      JSON.parse(JSON.stringify(storedMatches))
+    )
+
+    syncVndbGameMatches([update])
+
+    expect(mockVndbMatchesStoreSet).not.toHaveBeenCalled()
   })
 })

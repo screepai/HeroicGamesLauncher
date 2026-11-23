@@ -75,12 +75,58 @@ describe('VNDB API token storage', () => {
   it('decrypts encrypted tokens and refreshes the client', () => {
     storedToken = 'encrypted:stored-token'
 
-    refreshVndbClientApiToken()
+    refreshVndbClientApiToken({ force: true })
 
     expect(mockDecryptSecret).toHaveBeenCalledWith(
       'encrypted:stored-token',
       'vndb'
     )
     expect(mockClient.setToken).toHaveBeenCalledWith('decrypted-token')
+  })
+})
+
+describe('VNDB client token loading', () => {
+  beforeEach(() => {
+    jest.resetModules()
+    jest.clearAllMocks()
+    mockEncryptSecret.mockImplementation(
+      (value: string) => `encrypted:${value}`
+    )
+    mockDecryptSecret.mockReturnValue('decrypted-token')
+    mockIsEncryptedSecretValue.mockImplementation((value: string) =>
+      value.startsWith('encrypted:')
+    )
+  })
+
+  function loadClientModule(token: string) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { GlobalConfig: Config } = require('../../config')
+    jest.spyOn(Config, 'get').mockReturnValue({
+      getSettings: jest.fn(() => ({ vndbApiToken: token })),
+      setSetting: mockSetSetting
+    })
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('../client') as typeof import('../client')
+  }
+
+  it('loads the stored token into the client only once', () => {
+    const client = loadClientModule('encrypted:stored-token')
+
+    client.refreshVndbClientApiToken()
+    client.refreshVndbClientApiToken()
+    client.refreshVndbClientApiToken()
+
+    expect(mockDecryptSecret).toHaveBeenCalledTimes(1)
+    expect(mockClient.setToken).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not reload the stored token after setStoredApiToken', () => {
+    const client = loadClientModule('')
+
+    client.setStoredApiToken('new-token')
+    mockClient.setToken.mockClear()
+    client.refreshVndbClientApiToken()
+
+    expect(mockClient.setToken).not.toHaveBeenCalled()
   })
 })

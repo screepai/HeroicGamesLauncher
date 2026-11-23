@@ -16,6 +16,7 @@ import type {
 import { BACKUP_FORMAT_VERSION, BACKUP_PATHS } from './constants'
 import { sourcePaths } from './paths'
 import { countPlaytimeGames } from './playtime'
+import { exportForkStages, finishForkExport } from './forkStages'
 
 function addFileIfExists(
   zip: AdmZip,
@@ -245,12 +246,15 @@ export async function exportHeroicBackup(
       }
     }
 
+    await exportForkStages(zip, options, manifest)
+
     zip.addFile(
       BACKUP_PATHS.manifest,
       Buffer.from(JSON.stringify(manifest, null, 2), 'utf-8')
     )
 
     await zip.writeZipPromise(outputPath)
+    finishForkExport(outputPath, options)
 
     logInfo(['Exported Heroic backup to', outputPath], LogPrefix.ImportExport)
     return { success: true, path: outputPath, manifest }

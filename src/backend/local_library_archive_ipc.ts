@@ -1,5 +1,9 @@
+import { app } from 'electron'
+
 import { addHandler, sendFrontendMessage } from './ipc'
 import {
+  cancelAllLocalLibraryArchiveExtractions,
+  cancelLocalLibraryArchiveExtraction,
   deleteLocalLibraryArchive,
   extractLocalLibraryArchive,
   findLocalLibraryNestedArchives,
@@ -28,6 +32,13 @@ addHandler('extractLocalLibraryArchive', (_event, args) =>
       )
   })
 )
+
+addHandler('cancelLocalLibraryArchiveExtraction', (_event, archivePath) =>
+  cancelLocalLibraryArchiveExtraction(archivePath)
+)
+
+// Do not leave 7z children running when the app quits mid-extraction
+app.on('before-quit', cancelAllLocalLibraryArchiveExtractions)
 
 addHandler('deleteLocalLibraryArchive', (_event, archivePath) =>
   deleteLocalLibraryArchive(archivePath)

@@ -1,36 +1,11 @@
-.ArchiveExtractionDialog {
-  width: min(760px, 90vw);
-}
-
-.ArchiveExtractionDialog .button,
-.ArchiveExtractionDialog .button:hover,
-.ArchiveExtractionDialog .button:focus-visible {
-  color: var(--text-tertiary);
-}
-
 .archiveExtractionContent {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  min-width: min(620px, 75vw);
 }
 
 .archivePath {
   overflow-wrap: anywhere;
-}
-
-.archiveNestedNotice {
-  background: var(--background-lighter);
-  border-inline-start: 4px solid var(--accent);
-  border-radius: var(--space-xs);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  padding: var(--space-md);
-}
-
-.archiveNestedNotice p {
-  margin: 0;
 }
 
 .archiveNestedCandidates {
@@ -43,9 +18,9 @@
 
 .archiveNestedCandidate {
   align-items: center;
-  background: var(--background-darker);
-  border: 1px solid var(--modal-border);
-  border-radius: var(--space-xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   display: flex;
   gap: var(--space-md);
   justify-content: space-between;
@@ -67,7 +42,7 @@
 }
 
 .archiveNestedCandidateInfo code {
-  color: var(--text-secondary);
+  color: var(--text-neutral-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -78,9 +53,30 @@
 }
 
 .archiveNestedRetentionNote {
-  color: var(--text-secondary);
+  color: var(--text-neutral-muted);
   font-size: var(--text-sm);
   margin: 0;
+}
+
+.archiveStepper {
+  margin-block-end: var(--space-xs);
+}
+
+.archiveExtractionSpinner {
+  animation: archiveSpin 1s linear infinite;
+  color: var(--text-brand);
+}
+
+@keyframes archiveSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .archiveExtractionSpinner {
+    animation: none;
+  }
 }
 
 .archiveExtractionLoading {
@@ -99,11 +95,6 @@
   justify-content: center;
   min-height: 220px;
   width: 100%;
-}
-
-.archiveExtractionProgressHeader {
-  display: flex;
-  justify-content: space-between;
 }
 
 .archiveExtractionCurrentFile {
@@ -127,9 +118,9 @@
 }
 
 .archiveOutputSettings {
-  background: var(--background-darker);
-  border: 1px solid var(--modal-border);
-  border-radius: var(--space-xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
@@ -145,26 +136,26 @@
 
 .archiveOutputSettingsHeader span,
 .archiveOutputPreview span {
-  color: var(--text-secondary);
+  color: var(--text-neutral-muted);
   font-size: var(--text-sm);
 }
 
 .archiveOutputPreview {
-  background: var(--input-background);
-  border: 1px solid var(--modal-border);
-  border-radius: var(--space-xs);
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   padding: var(--space-sm);
 }
 
 .archiveOutputPreview code {
-  color: var(--text-default);
+  color: var(--text-neutral);
   overflow-wrap: anywhere;
 }
 
 .archiveTree {
-  background: var(--background-darker);
-  border: 1px solid var(--text-default);
-  border-radius: var(--space-xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   max-height: 360px;
   overflow: auto;
   padding: var(--space-sm);
@@ -187,7 +178,7 @@
 }
 
 .ArchiveExtractionDialog .archiveTreeLabel .archiveTreeEntry {
-  color: var(--text-default);
+  color: var(--text-neutral);
 }
 
 .ArchiveExtractionDialog .archiveTreeLabel.Mui-disabled .archiveTreeEntry {
@@ -201,18 +192,18 @@
 }
 
 .archiveTreeCheckbox.MuiCheckbox-root {
-  color: var(--text-default);
+  color: var(--text-neutral-muted);
 }
 
 .archiveTreeCheckbox.MuiCheckbox-root.Mui-checked,
 .archiveTreeCheckbox.MuiCheckbox-root.MuiCheckbox-indeterminate {
-  color: var(--accent, var(--success));
+  color: var(--text-brand);
 }
 
 .archiveCleanupOptions {
-  background: var(--background-darker);
-  border: 1px solid var(--modal-border);
-  border-radius: var(--space-xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
@@ -226,27 +217,27 @@
 .ArchiveExtractionDialog
   .archiveDeletePreviousLabel
   .MuiFormControlLabel-label {
-  color: var(--text-default);
+  color: var(--text-neutral);
 }
 
 .archiveDeletePreviousCheckbox.MuiCheckbox-root {
-  color: var(--text-secondary);
+  color: var(--text-neutral-muted);
 }
 
 .archiveDeletePreviousCheckbox.MuiCheckbox-root.Mui-checked {
-  color: var(--accent, var(--success));
+  color: var(--text-brand);
 }
 
 .archiveDeletePreviousCheckbox.MuiCheckbox-root.Mui-focusVisible {
-  outline: 2px solid var(--button-stroke, var(--text-default));
+  outline: 2px solid var(--border-brand);
   outline-offset: -2px;
 }
 
 .archiveFinalRoot {
   align-items: flex-start;
-  background: var(--background-darker);
-  border: 1px solid var(--modal-border);
-  border-radius: var(--space-xs);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
@@ -261,48 +252,17 @@
 
 .archiveFinalRootHeader span,
 .archiveTreeHelp {
-  color: var(--text-secondary);
+  color: var(--text-neutral-muted);
   font-size: var(--text-sm);
 }
 
-.archiveFinalRootButton {
-  align-items: center;
-  background: var(--input-background);
-  border: 1px solid var(--modal-border);
-  border-radius: var(--space-sm);
-  color: var(--text-default);
-  cursor: pointer;
-  display: inline-flex;
-  flex-shrink: 0;
-  gap: var(--space-xs);
-  min-height: 32px;
-  padding: var(--space-2xs) var(--space-sm);
-  transition:
-    background-color 150ms ease,
-    border-color 150ms ease,
-    color 150ms ease;
-}
-
-.archiveFinalRootButton:hover,
-.archiveFinalRootButton:focus-visible {
-  border-color: var(--accent);
-}
-
-.archiveFinalRootButton:focus-visible {
-  outline: 3px solid var(--button-stroke, var(--text-default));
-  outline-offset: 2px;
-}
-
-.archiveFinalRootButton.is-selected,
-.archiveFinalRootButton.is-selected:hover,
-.archiveFinalRootButton.is-selected:focus-visible {
-  background: var(--accent-overlay);
-  border-color: var(--accent);
-  color: var(--background);
-}
-
 .archiveAutomaticRootButton {
+  height: auto;
   padding: var(--space-xs) var(--space-sm);
+}
+
+.archiveFinalRootButton {
+  flex-shrink: 0;
 }
 
 .archiveAutomaticRootText {
@@ -325,10 +285,6 @@
 }
 
 @media (max-width: 700px) {
-  .archiveExtractionContent {
-    min-width: 0;
-  }
-
   .archiveNestedCandidate {
     align-items: stretch;
     flex-direction: column;

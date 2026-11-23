@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { AppSettings, GameInfo, Runner } from 'common/types'
-import { PathSelectionBox, Alert } from 'frontend/components/UI'
+import { PathSelectionBox, Alert, Badge, Button } from 'frontend/components/UI'
 import './BulkGameMigrationDialog.css'
 import {
   Modal,
@@ -308,7 +308,17 @@ export default function BulkGameMigrationDialog({ games, onClose }: Props) {
                 <small title={getMigratableInstallPath(game)}>
                   {getMigratableInstallPath(game)}
                 </small>
-                <strong className={`migrationStatus-${result.status}`}>
+                <Badge
+                  variant={
+                    result.status === 'done'
+                      ? 'success'
+                      : result.status === 'error'
+                        ? 'error'
+                        : result.status === 'moving'
+                          ? 'accent'
+                          : 'neutral'
+                  }
+                >
                   {result.status === 'pending' &&
                     t('library.migration.status-pending', 'Pending')}
                   {result.status === 'moving' &&
@@ -317,7 +327,7 @@ export default function BulkGameMigrationDialog({ games, onClose }: Props) {
                     t('library.migration.status-done', 'Done')}
                   {result.status === 'error' &&
                     t('library.migration.status-error', 'Error')}
-                </strong>
+                </Badge>
                 {result.status === 'error' && <em>{result.error}</em>}
               </div>
             )
@@ -329,39 +339,33 @@ export default function BulkGameMigrationDialog({ games, onClose }: Props) {
             >
               <span>{game.title}</span>
               <small>{getSkipReason(game)}</small>
-              <strong>
-                {t('library.migration.status-skipped', 'Skipped')}
-              </strong>
+              <Badge>{t('library.migration.status-skipped', 'Skipped')}</Badge>
             </div>
           ))}
         </div>
       </ModalContent>
       <ModalFooter>
-        <button
-          className="button is-secondary"
-          onClick={onClose}
-          disabled={isMigrating}
-        >
+        <Button variant="secondary" onClick={onClose} disabled={isMigrating}>
           {hasStarted && !isMigrating
-            ? t('button.close', 'Close')
-            : t('button.cancel', 'Cancel')}
-        </button>
+            ? t('translation:button.close', 'Close')
+            : t('translation:button.cancel', 'Cancel')}
+        </Button>
         {!hasStarted && (
-          <button
-            className="button is-success"
+          <Button
             onClick={() => void startMigration()}
             disabled={
               isMigrating || !destination || migratableGames.length === 0
             }
           >
             {t('library.migration.start', 'Start Migration')}
-          </button>
+          </Button>
         )}
       </ModalFooter>
       {showArchivePrompt && (
         <Modal
           onClose={() => setShowArchivePrompt(false)}
           showCloseButton
+          size="md"
           className="MigrationArchivePromptDialog"
         >
           <ModalHeader>
@@ -393,18 +397,15 @@ export default function BulkGameMigrationDialog({ games, onClose }: Props) {
             </label>
           </ModalContent>
           <ModalFooter>
-            <button
-              className="button is-secondary"
+            <Button
+              variant="secondary"
               onClick={() => void handleArchivePromptChoice(false)}
             >
               {t('box.no', 'No')}
-            </button>
-            <button
-              className="button is-success"
-              onClick={() => void handleArchivePromptChoice(true)}
-            >
+            </Button>
+            <Button onClick={() => void handleArchivePromptChoice(true)}>
               {t('box.yes', 'Yes')}
-            </button>
+            </Button>
           </ModalFooter>
         </Modal>
       )}

@@ -86,6 +86,22 @@ export default function StepSummary({ validation, currentPlatform }: Props) {
     })
   }
 
+  if (manifest.stages.includes('vndbMatches')) {
+    rows.push({
+      key: 'vndbMatches',
+      label: t('import-export.stage.vndbMatches', 'VNDB matches'),
+      value: manifest.counts.vndbMatches ?? 0
+    })
+  }
+
+  if (manifest.stages.includes('gameOverrides')) {
+    rows.push({
+      key: 'gameOverrides',
+      label: t('import-export.stage.gameOverrides', 'Game metadata overrides'),
+      value: manifest.counts.gameOverrides ?? 0
+    })
+  }
+
   if (manifest.stages.includes('playtime')) {
     rows.push({
       key: 'playtime',

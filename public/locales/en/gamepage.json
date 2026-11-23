@@ -570,6 +570,7 @@
             "remove": "Remove \"{{title}}\" from \"{{fromCategory}}\" because it no longer has that VNDB label?",
             "title": "Update library category?"
         },
+        "downloaded-releases-title": "Downloaded releases",
         "downloaded-version": "Downloaded version",
         "entry-type": "VNDB entry type",
         "finish-date": "Finish date",

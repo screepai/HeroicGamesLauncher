@@ -298,7 +298,14 @@
             "use-folder-as-final": "Use {{folder}} as the final folder",
             "use-folder-as-is": "Use folder as-is",
             "wait-for-parts": "Wait for more parts",
-            "waiting-message": "Wait for all archive parts to finish downloading, then choose Check available parts."
+            "waiting-message": "Wait for all archive parts to finish downloading, then choose Check available parts.",
+            "step": {
+                "choose": "Choose",
+                "detect": "Detect",
+                "extract": "Extract",
+                "finish": "Finish"
+            },
+            "stop-extraction": "Stop extraction"
         },
         "local-library-folder-added": {
             "message": "The folder \"{{title}}\" was added to your watched local library.\n\n{{folderPath}}\n\nDo you want to add it as a game?",
@@ -821,6 +828,7 @@
             "pickDir": "Choose where to save the backup",
             "run": "Export",
             "running": "Exporting...",
+            "secretsWarning": "Warning: your SteamGridDB and VNDB keys are written to the backup file without encryption. Keep the file private.",
             "summary_one": "{{count}} of {{total}} included",
             "summary_other": "{{count}} of {{total}} included",
             "title": "Export Heroic"
@@ -857,12 +865,16 @@
         "sideloaded": "Sideloaded",
         "stage": {
             "categories": "Custom categories",
+            "categoryOrder": "Custom category order",
             "credentials": "Store logins",
+            "gameOverrides": "Game metadata overrides",
             "globalSettings": "Global settings",
             "libraryCache": "Installed games and library",
             "perGameSettings": "Per-game settings",
             "playtime": "Playtime and play history",
+            "secrets": "API keys and tokens (stored unencrypted)",
             "sideloadLibrary": "Sideloaded games",
+            "vndbMatches": "VNDB matches",
             "wineMetadata": "Wine / Proton versions"
         },
         "step1": {
@@ -879,14 +891,24 @@
             "categories_one": "Import custom categories ({{count}})",
             "categories_other": "Import custom categories ({{count}})",
             "categoriesHint": "Replaces your current custom categories with the ones from the backup.",
+            "categoryOrder": "Import custom category order",
+            "categoryOrderHint": "Applies the order of your custom categories from the backup.",
+            "gameOverrides_one": "Import game metadata overrides ({{count}})",
+            "gameOverrides_other": "Import game metadata overrides ({{count}})",
+            "gameOverridesHint": "Restores custom titles and artwork. Artwork stored as a path on another operating system is skipped.",
             "none": "This backup does not contain global settings.",
             "overwrite": "Overwrite current global settings",
             "overwriteBody": "Off by default. Turn this on to replace your current Heroic settings with the ones in the backup.",
             "playtime_one": "Import playtime and play history ({{count}} games)",
             "playtime_other": "Import playtime and play history ({{count}} games)",
             "playtimeHint": "Updates local play history with the data in the backup; other games are unchanged.",
+            "secrets": "Import SteamGridDB and VNDB API keys",
+            "secretsHint": "Off by default. These were saved unencrypted in the backup file. Only turn this on if you trust the file; the keys are encrypted again on this computer.",
             "title": "Global settings",
-            "toggle": "Import global settings"
+            "toggle": "Import global settings",
+            "vndbMatches_one": "Import VNDB matches ({{count}})",
+            "vndbMatches_other": "Import VNDB matches ({{count}})",
+            "vndbMatchesHint": "Adds the VNDB matches from the backup to your current ones."
         },
         "step4": {
             "deselectAll": "Deselect all",
@@ -1097,6 +1119,7 @@
             "error": "Couldn't fetch releases from upstream, maybe because of Github API restrictions! Try again later."
         },
         "uninstalled": "Uninstalled",
+        "uninstalled-files-kept": "Removed from Heroic. Its files were not deleted because {{folder}} is not a game-only folder.",
         "update": {
             "canceled": "Update canceled",
             "failed": "Update failed",
@@ -1542,7 +1565,7 @@
         "local-library-metadata-choose-replacement-path": "Choose folder",
         "local-library-metadata-cross-os-message": "This backup points to {{sourcePath}}, but those paths do not match this OS. Choose a replacement folder to remap restored game paths, or restore with the saved paths.",
         "local-library-metadata-cross-os-title": "Restore paths from another OS?",
-        "local-library-metadata-help": "Backups include local library games, custom metadata overrides, exclusion rules, all VNDB matches, and your VNDB token.",
+        "local-library-metadata-help": "Backups include local library games, custom metadata overrides, exclusion rules, and all VNDB matches. API keys are only included when the option above is enabled.",
         "local-library-metadata-restore": "Restore local library metadata",
         "local-library-metadata-restore-confirm-message": "This will merge the backup into your current local library. Games with the same app name will be replaced by the backup.",
         "local-library-metadata-restore-confirm-message-with-path": "This will merge the backup into your current local library. Games with the same app name will be replaced by the backup. Paths under {{sourcePath}} will be remapped to {{destinationPath}}.",
@@ -1552,6 +1575,10 @@
         "local-library-metadata-restore-saved-paths": "Use saved paths",
         "local-library-metadata-restore-success": "Local library metadata restored",
         "local-library-metadata-restore-success-message": "Restored {{total}} local games ({{added}} new, {{updated}} updated), {{overrides}} metadata overrides, {{categories}} categories, {{playtime}} playtime records, {{gameSettings}} game settings, {{vndbMatches}} VNDB matches, local library settings, {{steamGridDbStatus}}, and {{tokenStatus}}.",
+        "local-library-sync": {
+            "include-secrets": "Include API keys in backup (stored unencrypted)",
+            "include-secrets-warning": "Your SteamGridDB and VNDB keys will be saved as plain text. Anyone who can open the backup file can read them, so keep it somewhere private."
+        },
         "local-library-sync-exclusions": "Excluded folder patterns",
         "local-library-sync-exclusions-help": "Rules match top-level folder names and ignore letter case. Use * for any text and ? for one character.",
         "local-library-sync-exclusions-placeholder": "Folder name or wildcard pattern",
@@ -1585,7 +1612,11 @@
             "disabled": "Disabled",
             "label": "When VNDB labels change"
         },
-        "vndbTokenRequired": "Requires a VNDB API token."
+        "vndbTokenRequired": "Requires a VNDB API token.",
+        "local-library-metadata-steamgriddb-not-restored": "no SteamGridDB API key",
+        "local-library-metadata-steamgriddb-restored": "SteamGridDB API key",
+        "local-library-metadata-token-not-restored": "no VNDB token",
+        "local-library-metadata-token-restored": "VNDB token"
     },
     "settings": {
         "advanced": {
@@ -1992,23 +2023,32 @@
         "length-minutes": "{{minutes}}m",
         "sync": {
             "button": "VNDB",
+            "cancelling": "Cancelling...",
             "downloaded-releases": "Downloaded: {{releases}}",
             "error": {
                 "match": "Unable to search VNDB for the current library.",
+                "match-game": "Could not search VNDB for this game: {{message}}",
                 "no-results": "No VNDB results found.",
                 "save": "Unable to sync VNDB matches.",
                 "search": "VNDB search failed.",
-                "sync-data": "Unable to sync existing VNDB data."
+                "sync-data": "Unable to sync existing VNDB data.",
+                "sync-data-partial": "{{failed}} game(s) could not be synced with VNDB."
             },
             "languages": "Languages: {{languages}}",
             "loading": "Searching VNDB...",
+            "matching-cancelled": "Matching cancelled. {{remaining}} game(s) were not searched; use \"Search VNDB\" to match them manually.",
             "no-match": "No VNDB match",
             "platforms": "Platforms: {{platforms}}",
+            "progress": {
+                "matching": "Searching VNDB... {{completed}} / {{total}}",
+                "syncing": "Syncing VNDB data... {{completed}} / {{total}}"
+            },
             "search-label": "Search VNDB",
             "search-manual": "Search VNDB",
             "section-language": "{{language}} releases",
             "section-main": "Main titles",
             "selected": "Selected",
+            "sync-cancelled": "VNDB data sync cancelled after {{synced}} game(s).",
             "sync-existing-data": "Sync existing data",
             "title": "Sync VNDB Titles"
         }

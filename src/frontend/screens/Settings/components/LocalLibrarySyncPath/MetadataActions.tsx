@@ -1,16 +1,22 @@
 import { useTranslation } from 'react-i18next'
+import { Download, Upload } from 'lucide-react'
+import { Alert, Button, ToggleSwitch } from 'frontend/components/UI'
 
 type Props = {
+  includeSecrets: boolean
   isBackingUp: boolean
   isRestoring: boolean
   onBackup: () => void
+  onIncludeSecretsChange: (includeSecrets: boolean) => void
   onRestore: () => void
 }
 
 export default function MetadataActions({
+  includeSecrets,
   isBackingUp,
   isRestoring,
   onBackup,
+  onIncludeSecretsChange,
   onRestore
 }: Props) {
   const { t } = useTranslation()
@@ -18,12 +24,31 @@ export default function MetadataActions({
 
   return (
     <>
+      <ToggleSwitch
+        htmlId="localLibraryMetadataIncludeSecrets"
+        value={includeSecrets}
+        disabled={isBusy}
+        handleChange={() => onIncludeSecretsChange(!includeSecrets)}
+        title={t(
+          'setting.local-library-sync.include-secrets',
+          'Include API keys in backup (stored unencrypted)'
+        )}
+      />
+      {includeSecrets && (
+        <Alert variant="warning">
+          {t(
+            'setting.local-library-sync.include-secrets-warning',
+            'Your SteamGridDB and VNDB keys will be saved as plain text. Anyone who can open the backup file can read them, so keep it somewhere private.'
+          )}
+        </Alert>
+      )}
       <div className="localLibraryMetadataActions">
-        <button
-          className="button is-secondary"
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={<Download size={16} />}
           disabled={isBusy}
           onClick={onBackup}
-          type="button"
         >
           {isBackingUp
             ? t(
@@ -34,12 +59,13 @@ export default function MetadataActions({
                 'setting.local-library-metadata-backup',
                 'Back up local library metadata'
               )}
-        </button>
-        <button
-          className="button is-secondary"
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={<Upload size={16} />}
           disabled={isBusy}
           onClick={onRestore}
-          type="button"
         >
           {isRestoring
             ? t(
@@ -50,12 +76,12 @@ export default function MetadataActions({
                 'setting.local-library-metadata-restore',
                 'Restore local library metadata'
               )}
-        </button>
+        </Button>
       </div>
       <span className="smallMessage localLibraryMetadataHelp">
         {t(
           'setting.local-library-metadata-help',
-          'Backups include local library games, custom metadata overrides, exclusion rules, all VNDB matches, and your VNDB token.'
+          'Backups include local library games, custom metadata overrides, exclusion rules, and all VNDB matches. API keys are only included when the option above is enabled.'
         )}
       </span>
     </>

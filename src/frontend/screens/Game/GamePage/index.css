@@ -715,49 +715,44 @@
   color: var(--text-default);
 }
 
+.installationInfoToggles {
+  display: flex;
+  flex-direction: column;
+  margin-block-start: var(--space-md-fixed);
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+.installationInfoToggles > * {
+  padding-block: var(--space-sm-fixed);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.installationInfoReleases {
+  display: flex;
+  text-align: start;
+  flex-direction: column;
+  gap: var(--space-md-fixed);
+  margin-block-start: var(--space-xl-fixed);
+}
+
+.installationInfoReleases .DetailList + .DetailList {
+  padding-block-start: var(--space-md-fixed);
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+.installationInfoSubtitle {
+  margin: 0;
+  font-size: var(--title-sm);
+  font-weight: var(--semibold);
+  color: var(--text-neutral);
+}
+
 .vnCompatibilityTab {
   .vnCompatibilityInfo {
     display: flex;
     flex-direction: column;
     gap: var(--space-md);
     min-width: 0;
-    padding: var(--space-unit-fixed);
-  }
-
-  .vnCompatibilityHeader {
-    align-items: start;
-    border-bottom: 1px solid var(--neutral-04);
-    display: flex;
-    gap: var(--space-md);
-    justify-content: space-between;
-    padding-bottom: var(--space-unit-fixed);
-
-    h2 {
-      font-size: var(--text-lg);
-      margin: 0;
-    }
-
-    p {
-      color: var(--text-secondary);
-      margin: var(--space-3xs) 0 0;
-    }
-  }
-
-  .vnCompatibilitySource {
-    align-self: start;
-    background: none;
-    border: 0;
-    color: var(--accent);
-    cursor: pointer;
-    font: inherit;
-    padding: 0;
-    text-align: start;
-    white-space: nowrap;
-
-    &:hover,
-    &:focus-visible {
-      text-decoration: underline;
-    }
   }
 
   .vnCompatibilityEntries {
@@ -766,120 +761,70 @@
     gap: var(--space-md);
   }
 
+  .vnCompatibilityBasics,
   .vnCompatibilityEngineNotes {
-    background: var(--background-secondary, var(--background-lighter));
-    border-inline-start: 3px solid var(--accent);
-    padding: var(--space-unit-fixed);
-
-    h3 {
-      font-size: var(--text-md);
-      margin: 0;
-    }
-
     ul {
+      color: var(--text-neutral);
       display: flex;
       flex-direction: column;
       gap: var(--space-xs);
-      margin: var(--space-sm) 0 0;
+      margin: 0;
       padding-inline-start: var(--space-xl);
     }
 
     li {
+      overflow-wrap: anywhere;
+    }
+  }
+
+  .vnCompatibilityEngineNotes {
+    li {
       display: flex;
       flex-direction: column;
       gap: var(--space-3xs);
-      overflow-wrap: anywhere;
     }
 
     small {
-      color: var(--text-secondary);
+      color: var(--text-neutral-muted);
+      font-size: var(--text-sm);
     }
   }
 
-  .vnCompatibilityBasics,
   .vnCompatibilitySetup {
-    background: var(--background-secondary, var(--background-lighter));
-    border-inline-start: 3px solid var(--accent);
-    padding: var(--space-unit-fixed);
-
-    h3,
-    h4 {
-      font-size: var(--text-md);
-      margin: 0;
-    }
+    border-top: 1px solid var(--border-subtle);
+    color: var(--text-neutral);
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
 
     p {
-      margin: var(--space-sm) 0 0;
+      color: var(--text-neutral-muted);
+      margin: var(--space-xs) 0 0;
     }
-
-    ul {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-3xs);
-      margin: var(--space-sm) 0 0;
-      padding-inline-start: var(--space-xl);
-    }
-  }
-
-  .vnCompatibilitySetup {
-    border-block-start: 1px solid var(--neutral-04);
-    border-inline: 0;
 
     & > div {
       margin-top: var(--space-sm);
       overflow-wrap: anywhere;
     }
 
-    .vnCompatibilitySource {
-      margin-inline-start: var(--space-sm);
-    }
-
-    & > .vnCompatibilitySource {
-      display: block;
-      margin-top: var(--space-sm);
+    .Button--link {
+      margin-top: var(--space-xs);
     }
   }
 
-  .vnCompatibilityEntry {
-    border: 1px solid var(--neutral-04);
-    border-radius: var(--space-3xs);
-    overflow: hidden;
-
-    h3 {
-      font-size: var(--text-md);
-      margin: 0;
-      padding: var(--space-unit-fixed);
-    }
-
-    dl {
-      margin: 0;
-
-      div {
-        border-top: 1px solid var(--neutral-04);
-        display: grid;
-        gap: var(--space-md-fixed);
-        grid-template-columns: minmax(120px, 0.4fr) minmax(0, 1fr);
-        padding: var(--space-unit-fixed);
-      }
-
-      dt {
-        font-weight: var(--bold);
-      }
-
-      dd {
-        margin: 0;
-        overflow-wrap: anywhere;
-      }
-    }
+  .vnCompatibilitySetupTitle {
+    font-size: var(--text-md);
+    font-weight: var(--semibold);
+    margin: 0;
   }
 
   .vnCompatibilityNotes {
-    border-top: 1px solid var(--neutral-04);
+    border-top: 1px solid var(--border-subtle);
+    color: var(--text-neutral);
     display: flex;
     flex-direction: column;
     gap: var(--space-3xs);
-    margin: 0;
-    padding: var(--space-unit-fixed) var(--space-xl);
+    margin: var(--space-md) 0 0;
+    padding: var(--space-md) 0 0 var(--space-xl);
 
     li {
       overflow-wrap: anywhere;
@@ -899,106 +844,54 @@
     min-width: 0;
   }
 
+  .vndbInfoOverview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    min-width: 0;
+  }
+
   .vndbInfoHeader {
     align-items: center;
-    border-bottom: 1px solid var(--neutral-04);
     display: flex;
     gap: var(--space-md);
     min-width: 0;
-    padding: var(--space-unit-fixed);
   }
 
   .vndbInfoImage {
     aspect-ratio: 2 / 3;
-    border-radius: var(--space-3xs);
+    border-radius: var(--radius-xs);
     flex: 0 0 56px;
     height: 84px;
     object-fit: cover;
   }
 
   .vndbInfoTitle {
+    align-items: flex-start;
     display: flex;
     flex-direction: column;
     gap: var(--space-3xs);
     min-width: 0;
 
     span {
-      color: var(--text-secondary);
+      color: var(--text-neutral-muted);
       font-size: var(--text-sm);
     }
   }
 
-  .vndbInfoLink,
-  .vndbInfoInlineLink {
-    background: none;
-    border: 0;
-    color: var(--accent);
-    cursor: pointer;
-    font: inherit;
-    min-width: 0;
-    overflow: hidden;
-    padding: 0;
-    text-align: start;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .vndbInfoLink {
+  .vndbInfoLink.Button {
     font-size: var(--text-lg);
-    font-weight: var(--bold);
-  }
-
-  .vndbInfoInlineLink:hover,
-  .vndbInfoInlineLink:focus-visible,
-  .vndbInfoLink:hover,
-  .vndbInfoLink:focus-visible {
-    text-decoration: underline;
-  }
-
-  .vndbInfoGrid {
-    display: grid;
-    gap: var(--space-3xs);
-
-    & > div {
-      align-items: center;
-      border-bottom: 1px solid var(--neutral-04);
-      display: grid;
-      gap: var(--space-md-fixed);
-      grid-template-columns: minmax(120px, 0.4fr) minmax(0, 1fr);
-      line-height: 24px;
-      min-width: 0;
-      padding: var(--space-unit-fixed);
-
-      &:last-child {
-        border-bottom: 0;
-      }
-
-      b {
-        text-align: start;
-      }
-
-      span {
-        min-width: 0;
-        overflow: hidden;
-        text-align: end;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-    }
+    font-weight: var(--semibold);
+    text-align: start;
   }
 
   .vndbInfoSection {
     display: flex;
     flex-direction: column;
-    gap: var(--space-xs);
     min-width: 0;
-    padding: var(--space-unit-fixed);
 
-    h3 {
-      color: var(--text-secondary);
-      font-size: var(--text-sm);
-      margin: 0;
-      text-transform: uppercase;
+    .extraTab__title {
+      margin-bottom: var(--space-md);
     }
 
     ul {
@@ -1018,79 +911,66 @@
       min-width: 0;
 
       span {
-        color: var(--text-secondary);
+        color: var(--text-neutral-muted);
         font-size: var(--text-sm);
         white-space: nowrap;
       }
     }
+
+    .Button--link {
+      justify-self: start;
+      text-align: start;
+    }
   }
 
   .vndbInfoMuted {
-    color: var(--text-secondary);
+    color: var(--text-neutral-muted);
     font-size: var(--text-sm);
   }
 
-  .vndbInfoUserOptionsControls {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-sm);
-    min-width: 0;
-  }
-
+  .vndbInfoUserOptionsControls,
   .vndbInfoUserDates {
     display: flex;
     flex-direction: column;
-    gap: var(--space-sm);
-
-    label {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-3xs);
-    }
+    gap: var(--space-md);
+    min-width: 0;
   }
 
   .vndbInfoResyncDates {
     align-self: flex-start;
   }
 
-  .vndbInfoUserDates label,
-  .vndbInfoVoteControl,
-  .vndbInfoLabelOptions {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3xs);
-    min-width: 0;
-  }
-
-  .vndbInfoUserDates label > span,
-  .vndbInfoVoteControl > span,
-  .vndbInfoLabelOptions > span {
-    color: var(--text-secondary);
-    font-size: var(--text-sm);
-    font-weight: var(--bold);
-    text-transform: uppercase;
+  .vndbInfoUserOptions .SettingRow--stacked > .SettingRow__control {
+    align-items: flex-start;
   }
 
   .vndbInfoUserDates input,
   .vndbInfoVoteControl select {
-    background: var(--input-background);
-    border: 1px solid var(--neutral-04);
-    border-radius: var(--space-3xs);
-    color: var(--text-default);
+    background: var(--field-background);
+    border: 1px solid var(--field-border);
+    border-radius: var(--radius-interactive);
+    color: var(--field-color);
+    font: inherit;
     max-width: 240px;
-    padding: var(--space-2xs) var(--space-xs);
+    min-height: 36px;
+    padding: var(--space-2xs) var(--space-sm);
+  }
+
+  .vndbInfoUserDates input:hover:not(:disabled),
+  .vndbInfoVoteControl select:hover:not(:disabled) {
+    border-color: var(--field-border-hover);
   }
 
   .vndbInfoUserDates input:focus-visible,
   .vndbInfoVoteControl select:focus-visible {
-    border-color: var(--accent);
+    border-color: var(--field-border-focus);
     outline: none;
   }
 
   .vndbInfoUserDates input:disabled,
   .vndbInfoVoteControl select:disabled {
     cursor: not-allowed;
-    opacity: 0.65;
+    opacity: 0.7;
   }
 
   .vndbInfoLabelChoices {
@@ -1101,33 +981,41 @@
 
   .vndbInfoLabelChoice {
     align-items: center;
-    background: var(--input-background);
-    border: 1px solid var(--neutral-04);
-    border-radius: var(--space-3xs);
+    background: var(--bg-surface-raised);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-pill);
+    color: var(--text-neutral);
     cursor: pointer;
     display: flex;
-    gap: var(--space-3xs);
-    padding: var(--space-3xs) var(--space-2xs);
+    font-size: var(--text-sm);
+    gap: var(--space-2xs);
+    padding: var(--space-3xs) var(--space-sm);
 
     &.is-selected {
-      border-color: var(--accent);
+      background: var(--bg-brand-subtle);
+      border-color: var(--bg-brand);
     }
 
     input {
-      accent-color: var(--accent);
+      accent-color: var(--bg-brand);
       margin: 0;
+    }
+
+    &:has(input:focus-visible) {
+      outline: 2px solid var(--bg-brand);
+      outline-offset: 2px;
     }
 
     &:has(input:disabled) {
       cursor: not-allowed;
-      opacity: 0.65;
+      opacity: 0.7;
     }
   }
 
   .vndbInfoReleaseSections {
     display: flex;
     flex-direction: column;
-    gap: var(--space-xs);
+    gap: var(--space-md);
     max-height: 360px;
     overflow: auto;
     padding-inline-end: var(--space-3xs);
@@ -1136,15 +1024,15 @@
   .vndbInfoReleaseSection {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3xs);
+    gap: var(--space-xs);
     min-width: 0;
+    text-align: start;
 
     h4 {
-      color: var(--text-secondary);
+      color: var(--text-neutral-muted);
       font-size: var(--text-sm);
-      font-weight: var(--bold);
+      font-weight: var(--semibold);
       margin: 0;
-      text-transform: uppercase;
     }
   }
 
@@ -1156,22 +1044,26 @@
 
   .vndbInfoReleaseOption {
     align-items: flex-start;
-    background: var(--input-background);
-    border: 1px solid var(--neutral-04);
-    border-radius: var(--space-xs);
-    color: var(--text-default);
+    background: var(--bg-surface-raised);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-neutral);
     cursor: pointer;
     display: flex;
+    font: inherit;
     gap: var(--space-sm);
     min-width: 0;
     padding: var(--space-sm);
     text-align: start;
   }
 
-  .vndbInfoReleaseOption:hover,
+  .vndbInfoReleaseOption:hover:not(:disabled) {
+    border-color: var(--bg-brand);
+  }
+
   .vndbInfoReleaseOption:focus-visible {
-    border-color: var(--accent);
-    outline: none;
+    outline: 2px solid var(--bg-brand);
+    outline-offset: 2px;
   }
 
   .vndbInfoReleaseOption:disabled {
@@ -1179,22 +1071,13 @@
   }
 
   .vndbInfoReleaseOption--selected {
-    background: color-mix(in srgb, var(--accent) 16%, var(--input-background));
-    border-color: var(--accent);
-  }
-
-  .vndbInfoReleaseOption--newest:not(.vndbInfoReleaseOption--selected) {
-    background: color-mix(
-      in srgb,
-      var(--success, #4caf50) 12%,
-      var(--input-background)
-    );
-    border-color: var(--success, #4caf50);
+    background: var(--bg-brand-subtle);
+    border-color: var(--bg-brand);
   }
 
   .vndbInfoReleaseOptionImage {
     aspect-ratio: 2 / 3;
-    border-radius: var(--space-3xs);
+    border-radius: var(--radius-xs);
     flex: 0 0 44px;
     height: 66px;
     object-fit: cover;
@@ -1214,18 +1097,18 @@
     }
 
     & > span:not(.vndbInfoReleaseBadges, .vndbInfoReleaseOptionTitle) {
-      color: var(--text-secondary);
+      color: var(--text-neutral-muted);
       font-size: var(--text-sm);
     }
   }
 
   .vndbInfoReleaseOptionTitle {
-    color: var(--text-default);
-    font-weight: var(--bold);
+    color: var(--text-neutral);
+    font-weight: var(--semibold);
   }
 
   .vndbInfoReleaseOptionMeta {
-    color: var(--text-secondary);
+    color: var(--text-neutral-muted);
     font-size: var(--text-sm);
   }
 
@@ -1233,23 +1116,5 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-3xs);
-  }
-
-  .vndbInfoReleaseBadge {
-    border-radius: var(--space-3xs);
-    color: #fff;
-    font-size: var(--text-sm);
-    font-weight: var(--bold);
-    line-height: 1;
-    padding: var(--space-3xs) var(--space-2xs);
-    text-shadow: 0 1px 1px rgb(0 0 0 / 35%);
-  }
-
-  .vndbInfoReleaseBadge--selected {
-    background: var(--accent);
-  }
-
-  .vndbInfoReleaseBadge--newest {
-    background: var(--success, #4caf50);
   }
 }
