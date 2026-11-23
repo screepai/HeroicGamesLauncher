@@ -184,6 +184,22 @@ const LocalLibrarySyncPath = () => {
       if (result.vndbApiToken) {
         dispatchVndbApiTokenChanged(true)
       }
+      // Kept outside the message's t() call so the i18n key scanner sees them.
+      const steamGridDbStatus = result.steamGridDbApiKey
+        ? t(
+            'setting.local-library-metadata-steamgriddb-restored',
+            'SteamGridDB API key'
+          )
+        : t(
+            'setting.local-library-metadata-steamgriddb-not-restored',
+            'no SteamGridDB API key'
+          )
+      const tokenStatus = result.vndbApiToken
+        ? t('setting.local-library-metadata-token-restored', 'VNDB token')
+        : t(
+            'setting.local-library-metadata-token-not-restored',
+            'no VNDB token'
+          )
       showMetadataMessage(
         t(
           'setting.local-library-metadata-restore-success',
@@ -192,24 +208,7 @@ const LocalLibrarySyncPath = () => {
         t(
           'setting.local-library-metadata-restore-success-message',
           'Restored {{total}} local games ({{added}} new, {{updated}} updated), {{overrides}} metadata overrides, {{categories}} categories, {{playtime}} playtime records, {{gameSettings}} game settings, {{vndbMatches}} VNDB matches, local library settings, {{steamGridDbStatus}}, and {{tokenStatus}}.',
-          {
-            ...result,
-            steamGridDbStatus: result.steamGridDbApiKey
-              ? t(
-                  'setting.local-library-metadata-steamgriddb-restored',
-                  'SteamGridDB API key'
-                )
-              : t(
-                  'setting.local-library-metadata-steamgriddb-not-restored',
-                  'no SteamGridDB API key'
-                ),
-            tokenStatus: result.vndbApiToken
-              ? t('setting.local-library-metadata-token-restored', 'VNDB token')
-              : t(
-                  'setting.local-library-metadata-token-not-restored',
-                  'no VNDB token'
-                )
-          }
+          { ...result, steamGridDbStatus, tokenStatus }
         )
       )
     } catch (error) {

@@ -54,6 +54,8 @@
         "title": "This game includes anticheat software"
     },
     "box": {
+        "add": "Add",
+        "archive-files": "Archive files",
         "cache-cleared": {
             "message": "Heroic cache cleared.",
             "title": "Cache cleared"
@@ -132,6 +134,9 @@
                 "title": "Winetricks error"
             }
         },
+        "extract": "Extract",
+        "extract-archive": "Extract Archive",
+        "extract-selected": "Extract Selected",
         "info": {
             "update": {
                 "detail": "Do you want to download the update in the background?",
@@ -142,100 +147,6 @@
                 "title-finished": "Update finished"
             }
         },
-        "no": "NO",
-        "ok": "OK",
-        "postpone": "Postpone",
-        "protocol": {
-            "install": {
-                "not_installed": "Currently not installed. Install it?"
-            }
-        },
-        "quit": {
-            "message": "There are pending operations, are you sure?",
-            "title": "Exit"
-        },
-        "reset-heroic": {
-            "question": {
-                "message": "Are you sure you want to reset Heroic? This will remove all settings and caching but won't remove your installed games or your Epic credentials. Portable versions (AppImage, WinPortable, ...) of Heroic needs to be restarted manually afterwards.",
-                "title": "Reset Heroic"
-            }
-        },
-        "runexe": {
-            "title": "Select EXE to run"
-        },
-        "select": {
-            "button": "Select",
-            "exe": "Select EXE",
-            "script": "Select script ..."
-        },
-        "shortcuts": {
-            "message": "Shortcuts were created on Desktop and Start Menu",
-            "message-mac": "Shortcuts were created on the applications folder",
-            "message-remove": "Shortcuts were removed from Desktop and Start Menu",
-            "message-remove-mac": "Shortcuts were removed from the applications folder",
-            "title": "Shortcuts"
-        },
-        "steam": {
-            "cloudConflict": {
-                "keepCloud": "Use Cloud save",
-                "keepLocal": "Use Local save",
-                "message": "The Cloud and Local saves for {{game}} have diverged, choose which copy to keep:\n\n{{files}}",
-                "title": "Steam Cloud save conflict"
-            },
-            "cloudIncomplete": {
-                "message": "Not all Cloud saves for {{game}} could be downloaded, so the saves on this PC are incomplete. Playing now may overwrite the missing progress in the Cloud.\n\n{{details}}",
-                "title": "Steam Cloud saves incomplete"
-            }
-        },
-        "sync": {
-            "error": "Invalid path",
-            "title": "Choose the saves directory"
-        },
-        "update": "Update",
-        "vcruntime": {
-            "install": {
-                "message": "The download links for the Visual C++ Runtimes have been opened. Please install both the x86 and x64 versions."
-            },
-            "notfound": {
-                "message": "The Microsoft Visual C++ Runtimes are not installed, which are required by some games",
-                "title": "VCRuntime not installed"
-            }
-        },
-        "warning": {
-            "epic": {
-                "import": "Epic servers are having major outage right now, the game cannot be imported!",
-                "install": "Epic servers are having major outage right now, the game cannot be installed!",
-                "update": "Epic servers are having major outage right now, the game cannot be updated!"
-            },
-            "itchio": {
-                "installer": {
-                    "message": "Heroic detected that the executable for \"{{title}}\" is an installer ({{exe}}).\n\nHeroic will try to run it silently and install the game into:\n{{path}}\n\nIf the game does not launch afterwards, open the game settings > advanced > alternative exe and pick the actual game executable.\n\nContinue launching?",
-                    "title": "Installer detected"
-                }
-            },
-            "rosetta": {
-                "message": "Heroic requires Rosetta to run correctly on macOS with Apple Silicon chips. Please install it from the macOS terminal using the following command: \"softwareupdate --install-rosetta\" and restart Heroic. ",
-                "title": "Rosetta not found"
-            },
-            "sideload": {
-                "confirmExit": {
-                    "message": "Any unsaved progress might be lost",
-                    "title": "Are you sure you want to quit?"
-                }
-            },
-            "title": "Warning",
-            "wine-change": {
-                "message": "We could not find the selected wine version to launch this title ({{selectedWine}}). {{newline}} We found another one, do you want to continue launching using {{foundWine}} ?",
-                "title": "Wine not found!"
-            }
-        },
-        "wineprefix": "Select WinePrefix folder",
-        "yes": "YES",
-        "add": "Add",
-        "archive-files": "Archive files",
-        "extract": "Extract",
-        "extract-archive": "Extract Archive",
-        "extract-selected": "Extract Selected",
         "local-library-archive": {
             "automatic-folder": "Automatic",
             "automatic-folder-description": "Let Heroic choose from the archive structure.",
@@ -291,6 +202,13 @@
             "reading": "Reading archive contents...",
             "selected-count_one": "{{count}} selected",
             "selected-count_other": "{{count}} selected",
+            "step": {
+                "choose": "Choose",
+                "detect": "Detect",
+                "extract": "Extract",
+                "finish": "Finish"
+            },
+            "stop-extraction": "Stop extraction",
             "title": "Compressed archive detected",
             "use-as-final-folder": "Use as final",
             "use-as-final-folder-help": "Use the action beside a directory to make it the final folder.",
@@ -298,14 +216,7 @@
             "use-folder-as-final": "Use {{folder}} as the final folder",
             "use-folder-as-is": "Use folder as-is",
             "wait-for-parts": "Wait for more parts",
-            "waiting-message": "Wait for all archive parts to finish downloading, then choose Check available parts.",
-            "step": {
-                "choose": "Choose",
-                "detect": "Detect",
-                "extract": "Extract",
-                "finish": "Finish"
-            },
-            "stop-extraction": "Stop extraction"
+            "waiting-message": "Wait for all archive parts to finish downloading, then choose Check available parts."
         },
         "local-library-folder-added": {
             "message": "The folder \"{{title}}\" was added to your watched local library.\n\n{{folderPath}}\n\nDo you want to add it as a game?",
@@ -317,17 +228,106 @@
         "local-library-sync-path": "Select local library folder",
         "locale-emulator-path": "Select Locale Emulator executable",
         "migration-archive-path": "Select migration archive folder",
+        "no": "NO",
+        "ok": "OK",
+        "postpone": "Postpone",
+        "protocol": {
+            "install": {
+                "not_installed": "Currently not installed. Install it?"
+            }
+        },
+        "quit": {
+            "message": "There are pending operations, are you sure?",
+            "title": "Exit"
+        },
+        "reset-heroic": {
+            "question": {
+                "message": "Are you sure you want to reset Heroic? This will remove all settings and caching but won't remove your installed games or your Epic credentials. Portable versions (AppImage, WinPortable, ...) of Heroic needs to be restarted manually afterwards.",
+                "title": "Reset Heroic"
+            }
+        },
         "restore": "Restore",
+        "runexe": {
+            "title": "Select EXE to run"
+        },
+        "select": {
+            "button": "Select",
+            "exe": "Select EXE",
+            "script": "Select script ..."
+        },
         "select-all": "Select All",
+        "shortcuts": {
+            "message": "Shortcuts were created on Desktop and Start Menu",
+            "message-mac": "Shortcuts were created on the applications folder",
+            "message-remove": "Shortcuts were removed from Desktop and Start Menu",
+            "message-remove-mac": "Shortcuts were removed from the applications folder",
+            "title": "Shortcuts"
+        },
+        "steam": {
+            "cloudConflict": {
+                "keepCloud": "Use Cloud save",
+                "keepLocal": "Use Local save",
+                "message": "The Cloud and Local saves for {{game}} have diverged, choose which copy to keep:\n\n{{files}}",
+                "title": "Steam Cloud save conflict"
+            },
+            "cloudIncomplete": {
+                "message": "Not all Cloud saves for {{game}} could be downloaded, so the saves on this PC are incomplete. Playing now may overwrite the missing progress in the Cloud.\n\n{{details}}",
+                "title": "Steam Cloud saves incomplete"
+            }
+        },
+        "sync": {
+            "error": "Invalid path",
+            "title": "Choose the saves directory"
+        },
         "unselect-all": "Unselect All",
-        "windows-executable": "Windows executable"
+        "update": "Update",
+        "vcruntime": {
+            "install": {
+                "message": "The download links for the Visual C++ Runtimes have been opened. Please install both the x86 and x64 versions."
+            },
+            "notfound": {
+                "message": "The Microsoft Visual C++ Runtimes are not installed, which are required by some games",
+                "title": "VCRuntime not installed"
+            }
+        },
+        "warning": {
+            "epic": {
+                "import": "Epic servers are having major outage right now, the game cannot be imported!",
+                "install": "Epic servers are having major outage right now, the game cannot be installed!",
+                "update": "Epic servers are having major outage right now, the game cannot be updated!"
+            },
+            "itchio": {
+                "installer": {
+                    "message": "Heroic detected that the executable for \"{{title}}\" is an installer ({{exe}}).\n\nHeroic will try to run it silently and install the game into:\n{{path}}\n\nIf the game does not launch afterwards, open the game settings > advanced > alternative exe and pick the actual game executable.\n\nContinue launching?",
+                    "title": "Installer detected"
+                }
+            },
+            "rosetta": {
+                "message": "Heroic requires Rosetta to run correctly on macOS with Apple Silicon chips. Please install it from the macOS terminal using the following command: \"softwareupdate --install-rosetta\" and restart Heroic. ",
+                "title": "Rosetta not found"
+            },
+            "sideload": {
+                "confirmExit": {
+                    "message": "Any unsaved progress might be lost",
+                    "title": "Are you sure you want to quit?"
+                }
+            },
+            "title": "Warning",
+            "wine-change": {
+                "message": "We could not find the selected wine version to launch this title ({{selectedWine}}). {{newline}} We found another one, do you want to continue launching using {{foundWine}} ?",
+                "title": "Wine not found!"
+            }
+        },
+        "windows-executable": "Windows executable",
+        "wineprefix": "Select WinePrefix folder",
+        "yes": "YES"
     },
     "button": {
         "backToLibrary": "Back to library",
         "cancel": "Cancel",
         "close": "Close",
-        "continue": "Continue",
         "confirm": "Confirm",
+        "continue": "Continue",
         "done": "Done",
         "retry": "Retry",
         "search": "Search"
@@ -335,6 +335,8 @@
     "categories-manager": {
         "add": "Add",
         "add-placeholder": "Add new category",
+        "bulk-title_one": "Categorize {{count}} games",
+        "bulk-title_other": "Categorize {{count}} games",
         "cancel-remove": "Cancel removal of \"{{name}}\"",
         "cancel-rename": "Cancel rename of \"{{name}}\"",
         "confirm-remove": "Confirm removal of \"{{name}}\"",
@@ -342,10 +344,8 @@
         "no-categories": "No categories yet.",
         "remove": "Remove \"{{name}}\"",
         "rename": "Rename \"{{name}}\"",
-        "title": "Manage categories",
-        "bulk-title_one": "Categorize {{count}} games",
-        "bulk-title_other": "Categorize {{count}} games",
         "reorder": "Reorder \"{{name}}\"",
+        "title": "Manage categories",
         "vndb-sync": {
             "failed_one": "{{failed}} of {{count}} VNDB updates failed: {{games}}",
             "failed_other": "{{failed}} of {{count}} VNDB updates failed: {{games}}",
@@ -359,11 +359,11 @@
         "delete-question": "Proceeding will permanently remove this category and unassign it from all games. Continue?",
         "new-category": "New category",
         "remove-category": "Remove category",
-        "warning": "Warning",
         "vndb-sync": {
             "add": "Set the VNDB label for \"{{title}}\" to \"{{category}}\"?",
             "remove": "Clear the VNDB label \"{{category}}\" from \"{{title}}\"?"
-        }
+        },
+        "warning": "Warning"
     },
     "changelog": {
         "view_full": "View full changelog on GitHub"
@@ -522,6 +522,10 @@
             "update_game": "Update game",
             "url_bar": "URL bar"
         }
+    },
+    "cover-picker": {
+        "search": "Search Covers",
+        "title": "Cover Search"
     },
     "discounts": {
         "affiliateBanner": "The links on this page are affiliate links. Buying games through them helps fund Heroic development.",
@@ -685,6 +689,7 @@
     "General": "General",
     "generic": {
         "abort": "Abort",
+        "clear": "Clear",
         "error": {
             "component": "No games found - try to logout and login again or one of the options below"
         },
@@ -1009,10 +1014,21 @@
         "options": "Launch options..."
     },
     "library": {
+        "bulk-options": {
+            "button": "Options"
+        },
+        "bulk-selected_one": "{{count}} selected",
+        "bulk-selected_other": "{{count}} selected",
         "gamesCount_one": "{{count}} game",
         "gamesCount_other": "{{count}} games",
         "hideAlphabetFilter": "Hide alphabet filter",
+        "hideCategorySections": "Show one game list",
+        "migration": {
+            "button": "Migrate"
+        },
+        "select-all": "Select All",
         "showAlphabetFilter": "Show alphabet filter",
+        "showCategorySections": "Group by categories",
         "sortAscending": "Sort ascending",
         "sortByStatus": "Sort by status",
         "sortDescending": "Sort descending",
@@ -1020,17 +1036,6 @@
             "grid": "Toggle to a grid layout",
             "list": "Toggle to a list layout"
         },
-        "bulk-options": {
-            "button": "Options"
-        },
-        "bulk-selected_one": "{{count}} selected",
-        "bulk-selected_other": "{{count}} selected",
-        "hideCategorySections": "Show one game list",
-        "migration": {
-            "button": "Migrate"
-        },
-        "select-all": "Select All",
-        "showCategorySections": "Group by categories",
         "unselect-all": "Unselect All"
     },
     "Library": "Library",
@@ -1118,6 +1123,9 @@
         "refresh": {
             "error": "Couldn't fetch releases from upstream, maybe because of Github API restrictions! Try again later."
         },
+        "removedFromHeroic": {
+            "error": "Error removing game from Heroic"
+        },
         "uninstalled": "Uninstalled",
         "uninstalled-files-kept": "Removed from Heroic. Its files were not deleted because {{folder}} is not a game-only folder.",
         "update": {
@@ -1126,9 +1134,6 @@
             "finished": "Update finished",
             "paused": "Update paused",
             "started": "Update started"
-        },
-        "removedFromHeroic": {
-            "error": "Error removing game from Heroic"
         }
     },
     "offline-message": {
@@ -1262,6 +1267,8 @@
             "description": "Share anonymous usage data to help improve Heroic"
         },
         "analyticsOptIn": "Send anonymous data to help Heroic development",
+        "askToDeleteArchiveAfterExtraction": "Ask to delete archives after extraction",
+        "askToDeleteArchiveAfterExtraction-description": "When disabled, extracted archives are kept without showing a deletion prompt.",
         "autodxvk": "Auto install/update DXVK on prefix",
         "autodxvk-description": "Translate DirectX 9, 10 and 11 calls to Vulkan for better performance",
         "autodxvknvapi": "Auto install/update DXVK-NVAPI on prefix",
@@ -1271,6 +1278,7 @@
         "autoUpdateGames-description": "Download game updates as soon as they are released",
         "autovkd3d": "Auto install/update VKD3D on prefix",
         "autovkd3d-description": "Translate DirectX 12 calls to Vulkan",
+        "autoVndbSyncNewGames": "Automatically sync newly added visual novels with VNDB",
         "before-launch-script-path": "Select a script to run before the game is launched",
         "change-target-exe": "Select an alternative EXE to run",
         "checkForUpdatesOnStartup": "Check for Heroic updates on startup",
@@ -1288,6 +1296,7 @@
         "default-install-path": "Default installation path",
         "default-steam-path": "Default Steam path",
         "defaultWinePrefix": "Set folder for new Wine prefixes",
+        "detectLocalLibraryArchives": "Detect compressed archives in watched folders",
         "disable_controller": "Disable Heroic navigation using controller",
         "disable_gog_presence": "Disable GOG presence updates",
         "disable_logs": "Disable logs",
@@ -1314,6 +1323,10 @@
         "enable-quick-sync-menu": "Enable quick save-sync menu on game page",
         "enableFSRHack": "Enable FSR hack (Wine version needs to support it)",
         "enableFSRHack-description": "Render the game at a lower resolution and upscale it to gain frames",
+        "enableLocalLibraryWatcher": "Watch local library folder for new games",
+        "enableLocalLibraryWatcher-description": "Pause folder and archive detection without clearing the watched folder or exclusion rules.",
+        "enableVndbIntegration": "Enable VNDB integration",
+        "enableVndbIntegration-description": "Enable VNDB matching, metadata, cover search, and synchronization features.",
         "eosOverlay": {
             "cancelInstall": "Cancel",
             "checkForUpdates": "Check for updates",
@@ -1389,6 +1402,40 @@
             "recently_played_installed": "Recently played games (only installed)"
         },
         "library_top_section": "Library top section",
+        "local-library-metadata-backup": "Back up local library metadata",
+        "local-library-metadata-backup-error": "Could not back up local library metadata",
+        "local-library-metadata-backup-file": "Heroic local library metadata",
+        "local-library-metadata-backup-running": "Backing up...",
+        "local-library-metadata-backup-success": "Local library metadata backup created",
+        "local-library-metadata-choose-replacement-path": "Choose folder",
+        "local-library-metadata-cross-os-message": "This backup points to {{sourcePath}}, but those paths do not match this OS. Choose a replacement folder to remap restored game paths, or restore with the saved paths.",
+        "local-library-metadata-cross-os-title": "Restore paths from another OS?",
+        "local-library-metadata-help": "Backups include local library games, custom metadata overrides, exclusion rules, and all VNDB matches. API keys are only included when the option above is enabled.",
+        "local-library-metadata-restore": "Restore local library metadata",
+        "local-library-metadata-restore-confirm-message": "This will merge the backup into your current local library. Games with the same app name will be replaced by the backup.",
+        "local-library-metadata-restore-confirm-message-with-path": "This will merge the backup into your current local library. Games with the same app name will be replaced by the backup. Paths under {{sourcePath}} will be remapped to {{destinationPath}}.",
+        "local-library-metadata-restore-confirm-title": "Restore local library metadata?",
+        "local-library-metadata-restore-error": "Could not restore local library metadata",
+        "local-library-metadata-restore-running": "Restoring...",
+        "local-library-metadata-restore-saved-paths": "Use saved paths",
+        "local-library-metadata-restore-success": "Local library metadata restored",
+        "local-library-metadata-restore-success-message": "Restored {{total}} local games ({{added}} new, {{updated}} updated), {{overrides}} metadata overrides, {{categories}} categories, {{playtime}} playtime records, {{gameSettings}} game settings, {{vndbMatches}} VNDB matches, local library settings, {{steamGridDbStatus}}, and {{tokenStatus}}.",
+        "local-library-metadata-steamgriddb-not-restored": "no SteamGridDB API key",
+        "local-library-metadata-steamgriddb-restored": "SteamGridDB API key",
+        "local-library-metadata-token-not-restored": "no VNDB token",
+        "local-library-metadata-token-restored": "VNDB token",
+        "local-library-sync": {
+            "include-secrets": "Include API keys in backup (stored unencrypted)",
+            "include-secrets-warning": "Your SteamGridDB and VNDB keys will be saved as plain text. Anyone who can open the backup file can read them, so keep it somewhere private."
+        },
+        "local-library-sync-exclusions": "Excluded folder patterns",
+        "local-library-sync-exclusions-help": "Rules match top-level folder names and ignore letter case. Use * for any text and ? for one character.",
+        "local-library-sync-exclusions-placeholder": "Folder name or wildcard pattern",
+        "local-library-sync-path": "Watched local library folder",
+        "local-library-sync-path-help": "New top-level folders will prompt you to add a game. Existing folders are ignored.",
+        "local-library-sync-path-placeholder": "Select a folder to watch for new games...",
+        "locale-emulator-path": "Locale Emulator executable",
+        "locale-emulator-path-placeholder": "Select Locale Emulator executable...",
         "log": {
             "descriptiveNames": {
                 "game-log": "Game log of {{gameTitle}}",
@@ -1453,6 +1500,16 @@
         "maxRecentGames": "Played recently to show",
         "maxworkers": "Maximum number of workers when downloading",
         "maxworkers-description": "More workers download faster but use more CPU and bandwidth. Max uses every core.",
+        "migration-archive-path": "Migration archive folder",
+        "migration-archive-path-help": "This does not change the watched local library folder.",
+        "migration-archive-path-placeholder": "Select a folder used to archive migrated games...",
+        "migration-archive-prompt-mode": {
+            "always": "Always remember archive folder",
+            "ask": "Ask every time",
+            "never": "Never remember archive folder"
+        },
+        "migration-archive-prompt-mode-help": "Choose whether Heroic should remember migrated destination folders as an archive location.",
+        "migration-archive-prompt-mode-label": "After migrating games",
         "minimize-on-launch": "Minimize Heroic after game launch",
         "minimizeOnLaunch": {
             "description": "Send Heroic to the background once a game starts"
@@ -1501,6 +1558,7 @@
         "showfps": "Show FPS (DX9, 10 and 11)",
         "showfps-description": "Draw a frame rate counter on top of the game",
         "showMetalOverlay": "Show stats overlay",
+        "showVndbActionsOnGameCards": "Show VNDB actions on game cards",
         "start-in-console-mode": "Start in console mode",
         "start-in-console-mode-description": "Open Heroic in the big-picture interface built for controllers",
         "start-in-tray": "Start minimized",
@@ -1526,15 +1584,30 @@
             "label": "Use Steam runtime",
             "noRuntimeOption": "None"
         },
+        "syncVndbUserData": "Sync play dates and releases to VNDB",
+        "syncVndbUserData-description": "Allow Heroic to write detected start and finish dates and selected releases to your VNDB account.",
         "tools": {
             "open": "Open",
             "running": "Running...",
             "selectExe": "Select EXE"
         },
+        "useVndbDiscordRichPresence": "Use VNDB details in Discord Rich Presence",
         "verboseLogs": {
             "description": "Enable verbose logs",
             "hint": "Record a detailed log on every launch, useful for reporting problems"
         },
+        "vndbCategoryLabelSyncMode": {
+            "ask": "Ask before changing",
+            "disabled": "Disabled",
+            "label": "When library categories change"
+        },
+        "vndbLabelCategorySyncMode": {
+            "ask": "Ask before changing",
+            "automatic": "Always change automatically",
+            "disabled": "Disabled",
+            "label": "When VNDB labels change"
+        },
+        "vndbTokenRequired": "Requires a VNDB API token.",
         "winecfg": {
             "description": "Open the Wine configuration panel for this prefix"
         },
@@ -1548,75 +1621,7 @@
         "wow64": {
             "description": "Run 32-bit games inside a 64-bit prefix, no separate prefix needed"
         },
-        "WoW64": "Enable WoW64 (experimental)",
-        "askToDeleteArchiveAfterExtraction": "Ask to delete archives after extraction",
-        "askToDeleteArchiveAfterExtraction-description": "When disabled, extracted archives are kept without showing a deletion prompt.",
-        "autoVndbSyncNewGames": "Automatically sync newly added visual novels with VNDB",
-        "detectLocalLibraryArchives": "Detect compressed archives in watched folders",
-        "enableLocalLibraryWatcher": "Watch local library folder for new games",
-        "enableLocalLibraryWatcher-description": "Pause folder and archive detection without clearing the watched folder or exclusion rules.",
-        "enableVndbIntegration": "Enable VNDB integration",
-        "enableVndbIntegration-description": "Enable VNDB matching, metadata, cover search, and synchronization features.",
-        "local-library-metadata-backup": "Back up local library metadata",
-        "local-library-metadata-backup-error": "Could not back up local library metadata",
-        "local-library-metadata-backup-file": "Heroic local library metadata",
-        "local-library-metadata-backup-running": "Backing up...",
-        "local-library-metadata-backup-success": "Local library metadata backup created",
-        "local-library-metadata-choose-replacement-path": "Choose folder",
-        "local-library-metadata-cross-os-message": "This backup points to {{sourcePath}}, but those paths do not match this OS. Choose a replacement folder to remap restored game paths, or restore with the saved paths.",
-        "local-library-metadata-cross-os-title": "Restore paths from another OS?",
-        "local-library-metadata-help": "Backups include local library games, custom metadata overrides, exclusion rules, and all VNDB matches. API keys are only included when the option above is enabled.",
-        "local-library-metadata-restore": "Restore local library metadata",
-        "local-library-metadata-restore-confirm-message": "This will merge the backup into your current local library. Games with the same app name will be replaced by the backup.",
-        "local-library-metadata-restore-confirm-message-with-path": "This will merge the backup into your current local library. Games with the same app name will be replaced by the backup. Paths under {{sourcePath}} will be remapped to {{destinationPath}}.",
-        "local-library-metadata-restore-confirm-title": "Restore local library metadata?",
-        "local-library-metadata-restore-error": "Could not restore local library metadata",
-        "local-library-metadata-restore-running": "Restoring...",
-        "local-library-metadata-restore-saved-paths": "Use saved paths",
-        "local-library-metadata-restore-success": "Local library metadata restored",
-        "local-library-metadata-restore-success-message": "Restored {{total}} local games ({{added}} new, {{updated}} updated), {{overrides}} metadata overrides, {{categories}} categories, {{playtime}} playtime records, {{gameSettings}} game settings, {{vndbMatches}} VNDB matches, local library settings, {{steamGridDbStatus}}, and {{tokenStatus}}.",
-        "local-library-sync": {
-            "include-secrets": "Include API keys in backup (stored unencrypted)",
-            "include-secrets-warning": "Your SteamGridDB and VNDB keys will be saved as plain text. Anyone who can open the backup file can read them, so keep it somewhere private."
-        },
-        "local-library-sync-exclusions": "Excluded folder patterns",
-        "local-library-sync-exclusions-help": "Rules match top-level folder names and ignore letter case. Use * for any text and ? for one character.",
-        "local-library-sync-exclusions-placeholder": "Folder name or wildcard pattern",
-        "local-library-sync-path": "Watched local library folder",
-        "local-library-sync-path-help": "New top-level folders will prompt you to add a game. Existing folders are ignored.",
-        "local-library-sync-path-placeholder": "Select a folder to watch for new games...",
-        "locale-emulator-path": "Locale Emulator executable",
-        "locale-emulator-path-placeholder": "Select Locale Emulator executable...",
-        "migration-archive-path": "Migration archive folder",
-        "migration-archive-path-help": "This does not change the watched local library folder.",
-        "migration-archive-path-placeholder": "Select a folder used to archive migrated games...",
-        "migration-archive-prompt-mode": {
-            "always": "Always remember archive folder",
-            "ask": "Ask every time",
-            "never": "Never remember archive folder"
-        },
-        "migration-archive-prompt-mode-help": "Choose whether Heroic should remember migrated destination folders as an archive location.",
-        "migration-archive-prompt-mode-label": "After migrating games",
-        "showVndbActionsOnGameCards": "Show VNDB actions on game cards",
-        "syncVndbUserData": "Sync play dates and releases to VNDB",
-        "syncVndbUserData-description": "Allow Heroic to write detected start and finish dates and selected releases to your VNDB account.",
-        "useVndbDiscordRichPresence": "Use VNDB details in Discord Rich Presence",
-        "vndbCategoryLabelSyncMode": {
-            "ask": "Ask before changing",
-            "disabled": "Disabled",
-            "label": "When library categories change"
-        },
-        "vndbLabelCategorySyncMode": {
-            "ask": "Ask before changing",
-            "automatic": "Always change automatically",
-            "disabled": "Disabled",
-            "label": "When VNDB labels change"
-        },
-        "vndbTokenRequired": "Requires a VNDB API token.",
-        "local-library-metadata-steamgriddb-not-restored": "no SteamGridDB API key",
-        "local-library-metadata-steamgriddb-restored": "SteamGridDB API key",
-        "local-library-metadata-token-not-restored": "no VNDB token",
-        "local-library-metadata-token-restored": "VNDB token"
+        "WoW64": "Enable WoW64 (experimental)"
     },
     "settings": {
         "advanced": {
@@ -1749,10 +1754,10 @@
             "runtimes": "Runtimes",
             "steam": "Steam",
             "system": "System",
+            "visual-novels": "Visual novels",
             "winePerformance": "Performance",
             "wineTools": "Tools",
-            "wineVersion": "Wine",
-            "visual-novels": "Visual novels"
+            "wineVersion": "Wine"
         },
         "steamgriddb": {
             "apikey": {
@@ -1818,6 +1823,9 @@
         }
     },
     "stores": "Stores",
+    "submenu": {
+        "categories": "Categories"
+    },
     "support": {
         "actions": {
             "copyEmail": "Copy email",
@@ -1954,6 +1962,45 @@
         "quit": "Quit",
         "quitMessage": "Are you sure you want to quit?"
     },
+    "vndb": {
+        "image-picker": {
+            "error": "Failed to search VNDB for covers.",
+            "no-results": "No VNDB covers found."
+        },
+        "length-hours-minutes": "{{hours}}h {{minutes}}m",
+        "length-minutes": "{{minutes}}m",
+        "sync": {
+            "button": "VNDB",
+            "cancelling": "Cancelling...",
+            "downloaded-releases": "Downloaded: {{releases}}",
+            "error": {
+                "match": "Unable to search VNDB for the current library.",
+                "match-game": "Could not search VNDB for this game: {{message}}",
+                "no-results": "No VNDB results found.",
+                "save": "Unable to sync VNDB matches.",
+                "search": "VNDB search failed.",
+                "sync-data": "Unable to sync existing VNDB data.",
+                "sync-data-partial": "{{failed}} game(s) could not be synced with VNDB."
+            },
+            "languages": "Languages: {{languages}}",
+            "loading": "Searching VNDB...",
+            "matching-cancelled": "Matching cancelled. {{remaining}} game(s) were not searched; use \"Search VNDB\" to match them manually.",
+            "no-match": "No VNDB match",
+            "platforms": "Platforms: {{platforms}}",
+            "progress": {
+                "matching": "Searching VNDB... {{completed}} / {{total}}",
+                "syncing": "Syncing VNDB data... {{completed}} / {{total}}"
+            },
+            "search-label": "Search VNDB",
+            "search-manual": "Search VNDB",
+            "section-language": "{{language}} releases",
+            "section-main": "Main titles",
+            "selected": "Selected",
+            "sync-cancelled": "VNDB data sync cancelled after {{synced}} game(s).",
+            "sync-existing-data": "Sync existing data",
+            "title": "Sync VNDB Titles"
+        }
+    },
     "webview": {
         "controls": {
             "back": "Go back",
@@ -2006,51 +2053,5 @@
         "nothingYet": "Nothing was installed by winetricks yet",
         "openGUI": "Open winetricks GUI",
         "search": "Search fonts or components"
-    },
-    "cover-picker": {
-        "search": "Search Covers",
-        "title": "Cover Search"
-    },
-    "submenu": {
-        "categories": "Categories"
-    },
-    "vndb": {
-        "image-picker": {
-            "error": "Failed to search VNDB for covers.",
-            "no-results": "No VNDB covers found."
-        },
-        "length-hours-minutes": "{{hours}}h {{minutes}}m",
-        "length-minutes": "{{minutes}}m",
-        "sync": {
-            "button": "VNDB",
-            "cancelling": "Cancelling...",
-            "downloaded-releases": "Downloaded: {{releases}}",
-            "error": {
-                "match": "Unable to search VNDB for the current library.",
-                "match-game": "Could not search VNDB for this game: {{message}}",
-                "no-results": "No VNDB results found.",
-                "save": "Unable to sync VNDB matches.",
-                "search": "VNDB search failed.",
-                "sync-data": "Unable to sync existing VNDB data.",
-                "sync-data-partial": "{{failed}} game(s) could not be synced with VNDB."
-            },
-            "languages": "Languages: {{languages}}",
-            "loading": "Searching VNDB...",
-            "matching-cancelled": "Matching cancelled. {{remaining}} game(s) were not searched; use \"Search VNDB\" to match them manually.",
-            "no-match": "No VNDB match",
-            "platforms": "Platforms: {{platforms}}",
-            "progress": {
-                "matching": "Searching VNDB... {{completed}} / {{total}}",
-                "syncing": "Syncing VNDB data... {{completed}} / {{total}}"
-            },
-            "search-label": "Search VNDB",
-            "search-manual": "Search VNDB",
-            "section-language": "{{language}} releases",
-            "section-main": "Main titles",
-            "selected": "Selected",
-            "sync-cancelled": "VNDB data sync cancelled after {{synced}} game(s).",
-            "sync-existing-data": "Sync existing data",
-            "title": "Sync VNDB Titles"
-        }
     }
 }
