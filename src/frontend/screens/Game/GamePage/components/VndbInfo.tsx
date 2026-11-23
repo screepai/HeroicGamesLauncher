@@ -9,17 +9,13 @@ import type {
 import type { GameInfo, VndbLabelCategorySyncMode } from 'common/types'
 import { Tooltip } from '@mui/material'
 import fallbackImage from 'frontend/assets/heroic_card.jpg'
+import { CachedImage, ToggleSwitch, Alert } from 'frontend/components/UI'
 import {
-  CachedImage,
-  ToggleSwitch,
-  WarningMessage
-} from 'frontend/components/UI'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader
-} from 'frontend/components/UI/Dialog'
+  Modal,
+  ModalContent,
+  ModalFooter,
+  ModalHeader
+} from 'frontend/components/UI/Modal'
 import { createNewWindow } from 'frontend/helpers'
 import useAppSetting, {
   APP_SETTING_CHANGED_EVENT
@@ -748,23 +744,23 @@ function VndbUserOptionsSection({
       )}
 
       {state.status === 'error' && (
-        <WarningMessage>{state.message}</WarningMessage>
+        <Alert variant="warning">{state.message}</Alert>
       )}
 
       {state.status === 'ready' &&
         state.options.hasToken &&
         !state.options.canRead && (
-          <WarningMessage>
+          <Alert variant="warning">
             {t(
               'vndb.user-options-listread-missing',
               'Your VNDB API token needs the listread permission to load labels and votes.'
             )}
-          </WarningMessage>
+          </Alert>
         )}
 
       {state.status === 'ready' && state.options.canRead && (
         <>
-          {saveError && <WarningMessage>{saveError}</WarningMessage>}
+          {saveError && <Alert variant="warning">{saveError}</Alert>}
 
           <div className="vndbInfoUserOptionsControls">
             <div className="vndbInfoUserDates">
@@ -868,12 +864,12 @@ function VndbUserOptionsSection({
           </div>
 
           {!state.options.canWrite && (
-            <WarningMessage>
+            <Alert variant="warning">
               {t(
                 'vndb.user-options-listwrite-missing',
                 'Your VNDB API token needs the listwrite permission to edit labels, votes, and releases.'
               )}
-            </WarningMessage>
+            </Alert>
           )}
         </>
       )}
@@ -1259,7 +1255,7 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
 
   return (
     <div className="vndbInfo">
-      {releaseSaveError && <WarningMessage>{releaseSaveError}</WarningMessage>}
+      {releaseSaveError && <Alert variant="warning">{releaseSaveError}</Alert>}
 
       <VndbHeader
         mainVersion={mainVersion}
@@ -1298,15 +1294,15 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
       <VndbRelations relations={relations} />
 
       {pendingCategorySync && (
-        <Dialog
+        <Modal
           showCloseButton
           onClose={() => setPendingCategorySync(null)}
           className="vndbCategorySyncDialog"
         >
-          <DialogHeader onClose={() => setPendingCategorySync(null)}>
+          <ModalHeader>
             {t('vndb.category-sync.title', 'Update library category?')}
-          </DialogHeader>
-          <DialogContent>
+          </ModalHeader>
+          <ModalContent>
             <p>
               {pendingCategorySync.fromCategory &&
               pendingCategorySync.toCategory
@@ -1350,8 +1346,8 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
                 "Remember this choice and don't ask again"
               )}
             />
-          </DialogContent>
-          <DialogFooter>
+          </ModalContent>
+          <ModalFooter>
             <button className="button is-primary" onClick={confirmCategorySync}>
               {t('box.yes', 'Yes')}
             </button>
@@ -1361,8 +1357,8 @@ export default function VndbInfo({ gameInfo, match, onMatchChange }: Props) {
             >
               {t('box.no', 'No')}
             </button>
-          </DialogFooter>
-        </Dialog>
+          </ModalFooter>
+        </Modal>
       )}
     </div>
   )

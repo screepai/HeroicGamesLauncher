@@ -1,4 +1,4 @@
-import { memo, useContext, useMemo, useState } from 'react'
+import { memo, useContext, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import ActionIcons from 'frontend/components/UI/ActionIcons'
 import {
@@ -11,7 +11,8 @@ import ArchiveExtractionDialog from 'frontend/components/ArchiveExtractionDialog
 import { openInstallGameModal } from 'frontend/state/InstallGameModal'
 import LibraryContext from '../../LibraryContext'
 import './index.css'
-import AddGameButton from '../AddGameButton'
+import Header from 'frontend/components/UI/Header'
+import { Button } from 'frontend/components/UI'
 import VndbSyncButton from './VndbSyncButton'
 import BulkGameOptionsDialog from './BulkGameOptionsDialog'
 import BulkGameMigrationDialog from './BulkGameMigrationDialog'
@@ -42,7 +43,6 @@ export default memo(function LibraryHeader({
   const { t } = useTranslation()
   const enableVndbIntegration = useAppSetting('enableVndbIntegration', true)
   const {
-    showFavourites,
     selectedGames,
     isSelectingGames,
     isGameSelected,
@@ -62,19 +62,6 @@ export default memo(function LibraryHeader({
   const canUninstallInHeroic = installedGames.some(
     (game) => !game.install.is_dlc
   )
-
-  const numberOfGames = useMemo(() => {
-    if (!list) {
-      return 0
-    }
-    // is_dlc is only applicable when the game is from legendary, but checking anyway doesn't cause errors and enable accurate counting in the 'ALL' game tab
-    const dlcCount = list.filter(
-      (lib) => lib.runner !== 'sideload' && lib.install.is_dlc
-    ).length
-
-    const total = list.length - dlcCount
-    return total > 0 ? `${total}` : 0
-  }, [list])
 
   const selectArchive = async () => {
     const { localLibrarySyncPath } = await window.api.requestAppSettings()
@@ -109,11 +96,12 @@ export default memo(function LibraryHeader({
   }
 
   return (
-    <h5
-      className="libraryHeader libraryHeader--main"
-      data-tour="library-header"
-    >
-      <div className="libraryHeaderWrapper">
+    <div className="libraryHeader" data-tour="library-header">
+      <div className="libraryToolbar">
+        <Header />
+        <ActionIcons />
+      </div>
+      <div className="libraryHeaderActions">
         {isSelectingGames ? (
           <div className="libraryBulkSelection">
             <strong>
@@ -212,30 +200,17 @@ export default memo(function LibraryHeader({
             )}
           </div>
         ) : (
-          <>
-            <span className="libraryTitle">
-              {showFavourites
-                ? t('favourites', 'Favourites')
-                : t('title.allGames', 'All Games')}
-              <span className="numberOfgames">{numberOfGames}</span>
-              <span className="libraryManualActions">
-                <AddGameButton data-tour="library-add-game" />
-                <button
-                  className="extractArchiveButton"
-                  onClick={() => void selectArchive()}
-                >
-                  {t('box.extract-archive', 'Extract Archive')}
-                </button>
-                {enableVndbIntegration && (
-                  <VndbSyncButton
-                    list={list}
-                    onMatchesChange={onVndbMatchesChange}
-                  />
-                )}
-              </span>
-            </span>
-            <ActionIcons />
-          </>
+          <div className="libraryManualActions">
+            <Button variant="secondary" onClick={() => void selectArchive()}>
+              {t('box.extract-archive', 'Extract archive')}
+            </Button>
+            {enableVndbIntegration && (
+              <VndbSyncButton
+                list={list}
+                onMatchesChange={onVndbMatchesChange}
+              />
+            )}
+          </div>
         )}
       </div>
       {archiveToExtract && (
@@ -255,6 +230,6 @@ export default memo(function LibraryHeader({
           }}
         />
       )}
-    </h5>
+    </div>
   )
 })

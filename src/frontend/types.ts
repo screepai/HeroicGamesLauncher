@@ -18,6 +18,13 @@ import {
 } from 'common/types'
 import { NileLoginData, NileRegisterData } from 'common/types/nile'
 import type { VndbGameMatch } from 'common/types/vndb'
+import {
+  ItchioLoginData,
+  ItchioOAuthCodeData,
+  ItchioOAuthLoginData,
+  ItchioRegisterData
+} from 'common/types/itchio'
+import { SteamAccount, SteamLoginData } from 'common/types/steam'
 
 export type Category =
   | 'all'
@@ -26,6 +33,8 @@ export type Category =
   | 'sideload'
   | 'nile'
   | 'zoom'
+  | 'itchio'
+  | 'steam'
 
 export interface ContextType {
   error: boolean
@@ -118,6 +127,27 @@ export interface ContextType {
     logout: () => Promise<void>
     enabled: boolean
   }
+  itchio: {
+    library: GameInfo[]
+    username?: string
+    getLoginData: () => Promise<ItchioLoginData>
+    getOAuthUrl: () => Promise<ItchioOAuthLoginData>
+    login: (data: ItchioRegisterData) => Promise<string>
+    loginWithOAuthCode: (data: ItchioOAuthCodeData) => Promise<string>
+    logout: () => Promise<void>
+  }
+  steam: {
+    library: GameInfo[]
+    username?: string
+    login: (
+      credentials: SteamLoginData
+    ) => Promise<{ status: 'done' | 'error'; error?: string }>
+    loginQr: () => Promise<{ status: 'done' | 'error'; error?: string }>
+    logout: () => Promise<void>
+    enabled: boolean
+    users: SteamAccount[]
+    logoutUser: (steamId: string) => void
+  }
   installingEpicGame: boolean
   allTilesInColor: boolean
   setAllTilesInColor: (value: boolean) => void
@@ -137,6 +167,10 @@ export interface ContextType {
   sideloadedLibrary: GameInfo[]
   hideChangelogsOnStartup: boolean
   setHideChangelogsOnStartup: (value: boolean) => void
+  disableDiscounts: boolean
+  setDisableDiscounts: (value: boolean) => void
+  disableGOGAffiliate: boolean
+  setDisableGOGAffiliate: (value: boolean) => void
   lastChangelogShown: string | null
   setLastChangelogShown: (value: string) => void
   help: {
@@ -235,6 +269,8 @@ export interface StoresFilters {
   nile: boolean
   sideload: boolean
   zoom: boolean
+  itchio: boolean
+  steam: boolean
 }
 
 export interface PlatformsFilters {
@@ -276,6 +312,8 @@ export interface LibraryContextType {
   showUpdatesOnly: boolean
   setShowUpdatesOnly: (value: boolean) => void
   handleAddGameButtonClick: () => void
+  showSteamOwnedOnly: boolean
+  setShowSteamOwnedOnly: (value: boolean) => void
   setShowCategories: (value: boolean) => void
   showAlphabetFilter: boolean
   onToggleAlphabetFilter: () => void

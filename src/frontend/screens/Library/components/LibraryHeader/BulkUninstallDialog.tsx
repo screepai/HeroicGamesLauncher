@@ -1,13 +1,13 @@
 import { useContext, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GameInfo, GameStatus, Status } from 'common/types'
-import { WarningMessage } from 'frontend/components/UI'
+import { Alert } from 'frontend/components/UI'
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader
-} from 'frontend/components/UI/Dialog'
+  Modal,
+  ModalContent,
+  ModalFooter,
+  ModalHeader
+} from 'frontend/components/UI/Modal'
 import ContextProvider from 'frontend/state/ContextProvider'
 import './BulkUninstallDialog.css'
 
@@ -215,12 +215,14 @@ export default function BulkUninstallDialog({
   const entirely = action === 'entirely'
 
   return (
-    <Dialog
-      onClose={isUninstalling ? () => null : closeDialog}
+    <Modal
+      onClose={closeDialog}
+      disableBackdropClose={isUninstalling}
+      disableEscapeKeyDown={isUninstalling}
       showCloseButton={!isUninstalling}
       className="BulkUninstallDialog"
     >
-      <DialogHeader>
+      <ModalHeader>
         {entirely
           ? t(
               'library.bulk-uninstall.entirely-title',
@@ -230,8 +232,8 @@ export default function BulkUninstallDialog({
               'library.bulk-uninstall.heroic-only-title',
               'Uninstall Games in Heroic'
             )}
-      </DialogHeader>
-      <DialogContent className="bulkUninstallContent">
+      </ModalHeader>
+      <ModalContent className="bulkUninstallContent">
         <p>
           {entirely
             ? t(
@@ -246,21 +248,21 @@ export default function BulkUninstallDialog({
               )}
         </p>
         {entirely && (
-          <WarningMessage>
+          <Alert variant="warning">
             {t(
               'library.bulk-uninstall.delete-warning',
               'Game files will be permanently deleted. Wine prefixes and Heroic settings will be kept.'
             )}
-          </WarningMessage>
+          </Alert>
         )}
         {displayedSkipped.length > 0 && (
-          <WarningMessage>
+          <Alert variant="warning">
             {t(
               'library.bulk-uninstall.skipped-count',
               '{{count}} selected games cannot be uninstalled with this action.',
               { count: displayedSkipped.length }
             )}
-          </WarningMessage>
+          </Alert>
         )}
         <div className="bulkUninstallSummary">
           {hasStarted
@@ -311,8 +313,8 @@ export default function BulkUninstallDialog({
             </div>
           ))}
         </div>
-      </DialogContent>
-      <DialogFooter>
+      </ModalContent>
+      <ModalFooter>
         <button
           className="button is-secondary"
           onClick={closeDialog}
@@ -333,7 +335,7 @@ export default function BulkUninstallDialog({
               : t('box.uninstall.heroicOnly', 'Uninstall in Heroic')}
           </button>
         )}
-      </DialogFooter>
-    </Dialog>
+      </ModalFooter>
+    </Modal>
   )
 }

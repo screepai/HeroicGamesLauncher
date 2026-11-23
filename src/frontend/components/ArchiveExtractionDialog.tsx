@@ -10,7 +10,7 @@ import type {
 } from 'common/types'
 import { getArchivePart } from 'common/local_library_archive'
 import useAppSetting from 'frontend/hooks/useAppSetting'
-import { Dialog } from 'frontend/components/UI/Dialog'
+import { Modal } from 'frontend/components/UI/Modal'
 import {
   buildArchiveTree,
   getAllSelectablePaths,
@@ -531,8 +531,11 @@ export default function ArchiveExtractionDialog({
   )
 
   return (
-    <Dialog
-      onClose={isBusy ? () => {} : closeDialog}
+    <Modal
+      size="lg"
+      onClose={closeDialog}
+      disableBackdropClose={isBusy}
+      disableEscapeKeyDown={isBusy}
       showCloseButton={!isBusy}
       className="ArchiveExtractionDialog"
     >
@@ -613,6 +616,6 @@ export default function ArchiveExtractionDialog({
           onWaitForParts: () => setStage('multipart-waiting')
         }}
       />
-    </Dialog>
+    </Modal>
   )
 }

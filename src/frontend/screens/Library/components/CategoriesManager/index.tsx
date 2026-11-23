@@ -9,20 +9,12 @@ import {
 import { useTranslation } from 'react-i18next'
 import LibraryContext from '../../LibraryContext'
 import ContextProvider from 'frontend/state/ContextProvider'
-import { Dialog, DialogHeader } from 'frontend/components/UI/Dialog'
-import { DialogContent } from '@mui/material'
-import { TextInputField } from 'frontend/components/UI'
+import { Modal, ModalContent, ModalHeader } from 'frontend/components/UI/Modal'
+import { Icon, TextInputField } from 'frontend/components/UI'
+import Button from 'frontend/components/UI/Button'
 import type { GameInfo } from 'common/types'
 import './index.css'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {
-  faAdd,
-  faCancel,
-  faCheck,
-  faGripVertical,
-  faPencil,
-  faTrash
-} from '@fortawesome/free-solid-svg-icons'
+import { Check, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react'
 import useVndbCategoryLabelSync from 'frontend/hooks/useVndbCategoryLabelSync'
 
 interface CategoryItemProps {
@@ -70,8 +62,8 @@ function CategoryItem({
   const leftButton = () => {
     if (renameMode) {
       return (
-        <button
-          className="button is-primary"
+        <Button
+          size="sm"
           onClick={() => rename()}
           title={t(
             'categories-manager.confirm-rename',
@@ -79,33 +71,32 @@ function CategoryItem({
             { oldName: name, newName }
           )}
           disabled={isNewNameEmptyOrEqualsOldName}
-        >
-          <FontAwesomeIcon icon={faCheck} />
-        </button>
+          icon={<Icon glyph={Check} size="md" />}
+        />
       )
     } else if (removeMode) {
       return (
-        <button
-          className="button is-danger"
+        <Button
+          size="sm"
+          variant="dangerSubtle"
           onClick={() => remove()}
           title={t(
             'categories-manager.confirm-remove',
             'Confirm removal of "{{name}}"',
             { name }
           )}
-        >
-          <FontAwesomeIcon icon={faCheck} />
-        </button>
+          icon={<Icon glyph={Check} size="md" />}
+        />
       )
     } else {
       return (
-        <button
-          className="button is-danger"
+        <Button
+          size="sm"
+          variant="dangerSubtle"
           onClick={() => setRemoveMode(true)}
           title={t('categories-manager.remove', 'Remove "{{name}}"', { name })}
-        >
-          <FontAwesomeIcon icon={faTrash} />
-        </button>
+          icon={<Icon glyph={Trash2} size="md" />}
+        />
       )
     }
   }
@@ -113,41 +104,41 @@ function CategoryItem({
   const rightButton = () => {
     if (renameMode) {
       return (
-        <button
-          className="button is-secondary"
+        <Button
+          size="sm"
+          variant="secondary"
           onClick={() => cancelEdit()}
           title={t(
             'categories-manager.cancel-rename',
             'Cancel rename of "{{name}}"',
             { name }
           )}
-        >
-          <FontAwesomeIcon icon={faCancel} />
-        </button>
+          icon={<Icon glyph={X} size="md" />}
+        />
       )
     } else if (removeMode) {
       return (
-        <button
-          className="button is-secondary"
+        <Button
+          size="sm"
+          variant="secondary"
           onClick={() => setRemoveMode(false)}
           title={t(
             'categories-manager.cancel-remove',
             'Cancel removal of "{{name}}"',
             { name }
           )}
-        >
-          <FontAwesomeIcon icon={faCancel} />
-        </button>
+          icon={<Icon glyph={X} size="md" />}
+        />
       )
     } else {
       return (
-        <button
-          className="button is-secondary"
+        <Button
+          size="sm"
+          variant="secondary"
           onClick={() => setRenameMode(true)}
           title={t('categories-manager.rename', 'Rename "{{name}}"', { name })}
-        >
-          <FontAwesomeIcon icon={faPencil} />
-        </button>
+          icon={<Icon glyph={Pencil} size="md" />}
+        />
       )
     }
   }
@@ -160,7 +151,7 @@ function CategoryItem({
         title={t('categories-manager.reorder', 'Reorder "{{name}}"', { name })}
         {...dragHandleProps}
       >
-        <FontAwesomeIcon icon={faGripVertical} />
+        <Icon glyph={GripVertical} size="md" />
       </button>
       {!renameMode && <span>{name}</span>}
 
@@ -277,12 +268,13 @@ function CategoriesManager({ games, onClose }: CategoriesManagerProps) {
   }
 
   return (
-    <Dialog
+    <Modal
       showCloseButton
+      size="sm"
       onClose={close}
-      className="CategoriesManager__Dialog"
+      className="CategoriesManager__modal"
     >
-      <DialogHeader onClose={close}>
+      <ModalHeader>
         <div>
           {isBulkMode
             ? t('categories-manager.bulk-title', 'Categorize {{count}} games', {
@@ -290,8 +282,8 @@ function CategoriesManager({ games, onClose }: CategoriesManagerProps) {
               })
             : t('categories-manager.title', 'Manage Categories')}
         </div>
-      </DialogHeader>
-      <DialogContent>
+      </ModalHeader>
+      <ModalContent>
         {isBulkMode ? (
           <div className="CategoriesManager__BulkList">
             {categories.map((category) => {
@@ -310,7 +302,7 @@ function CategoriesManager({ games, onClose }: CategoriesManagerProps) {
                   <span>{category}</span>
                   <span>
                     {assignedCount}/{selectedGameIds.length}
-                    {assignedToAll && <FontAwesomeIcon icon={faCheck} />}
+                    {assignedToAll && <Icon glyph={Check} size="sm" />}
                   </span>
                 </button>
               )
@@ -361,18 +353,17 @@ function CategoriesManager({ games, onClose }: CategoriesManagerProps) {
             'Add new category'
           )}
           afterInput={
-            <button
-              className="button"
+            <Button
+              size="sm"
               onClick={isBulkMode ? addBulkCategory : addCategory}
               title={t('categories-manager.add', 'Add')}
               disabled={isCategoryNameEmpty}
-            >
-              <FontAwesomeIcon icon={faAdd} />
-            </button>
+              icon={<Icon glyph={Plus} size="md" />}
+            />
           }
         />
-      </DialogContent>
-    </Dialog>
+      </ModalContent>
+    </Modal>
   )
 }
 

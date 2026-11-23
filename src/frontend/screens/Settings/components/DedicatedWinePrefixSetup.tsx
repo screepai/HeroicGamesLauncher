@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import CircularProgress from '@mui/material/CircularProgress'
 import type { Runner } from 'common/types'
 import type { VnCompatibilityPrefixRecipe } from 'common/types/vnCompatibility'
-import { WarningMessage } from 'frontend/components/UI'
+import { Alert } from 'frontend/components/UI'
 
 type PrefixCreationState =
   | { status: 'idle' }
@@ -154,7 +154,7 @@ export default function DedicatedWinePrefixSetup({
       )}
 
       {creation.status === 'confirming' && (
-        <WarningMessage>
+        <Alert variant="warning">
           {selectedRecipe
             ? t(
                 'compatibility.create-recipe-prefix-warning',
@@ -165,7 +165,7 @@ export default function DedicatedWinePrefixSetup({
                 'compatibility.create-prefix-warning',
                 'The shared prefix is left untouched, but its installed components and saves are not copied. Back up or move any saves stored inside it before switching.'
               )}
-        </WarningMessage>
+        </Alert>
       )}
       {creation.status === 'creating' && (
         <div className="dedicatedWinePrefixProgress">
@@ -179,10 +179,10 @@ export default function DedicatedWinePrefixSetup({
         </div>
       )}
       {creation.status === 'error' && (
-        <WarningMessage>
+        <Alert variant="warning">
           {t('compatibility.create-prefix-failed', 'Could not create prefix:')}{' '}
           {creation.error}
-        </WarningMessage>
+        </Alert>
       )}
 
       <div className="dedicatedWinePrefixActions">

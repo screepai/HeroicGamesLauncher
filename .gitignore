@@ -39,3 +39,8 @@ flatpak-build
 playwright-report
 .codegraph
 .cursor
+public/bin/**
+
+# storybook
+storybook-static
+debug-storybook.log

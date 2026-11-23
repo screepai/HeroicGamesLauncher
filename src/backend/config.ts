@@ -92,6 +92,11 @@ abstract class GlobalConfig {
     this.config = config
   }
 
+  public reloadFromFile() {
+    this.config = undefined
+    this.config = this.getSettings()
+  }
+
   /**
    * Get the global configuartion handler.
    * If one doesn't exist, create one.
@@ -363,6 +368,8 @@ class GlobalConfigV0 extends GlobalConfig {
       defaultWinePrefix: defaultWinePrefixDir,
       defaultWinePrefixDir: defaultWinePrefixDir,
       hideChangelogsOnStartup: false,
+      disableDiscounts: false,
+      enableGOGAffiliate: false,
       language: 'en',
       maxWorkers: 0,
       minimizeOnLaunch: false,

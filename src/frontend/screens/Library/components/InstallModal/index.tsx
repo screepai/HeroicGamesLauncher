@@ -1,7 +1,7 @@
 import { faApple, faLinux, faWindows } from '@fortawesome/free-brands-svg-icons'
 import { IconDefinition, faGlobe } from '@fortawesome/free-solid-svg-icons'
 
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 
 import ContextProvider from 'frontend/state/ContextProvider'
 import {
@@ -10,7 +10,7 @@ import {
   Runner,
   WineInstallation
 } from 'common/types'
-import { Dialog } from 'frontend/components/UI/Dialog'
+import { Modal } from 'frontend/components/UI/Modal'
 
 import './index.scss'
 
@@ -51,7 +51,7 @@ function InstallModal({
   sideloadDefaultPath
 }: Props) {
   const { platform } = useContext(ContextProvider)
-  const { t } = useTranslation('gamepage')
+  const { t, i18n } = useTranslation('gamepage')
   const { action = 'install' } = useInstallGameModal()
 
   const [winePrefix, setWinePrefix] = useState('...')
@@ -62,8 +62,38 @@ function InstallModal({
     suggestedSideloadTitle ?? t('sideload.field.title', 'Title')
   )
 
-  const isLinuxNative = Boolean(gameInfo?.is_linux_native)
-  const isMacNative = Boolean(gameInfo?.is_mac_native)
+  const [steamPlatforms, setSteamPlatforms] = useState<
+    InstallPlatform[] | null
+  >(null)
+
+  useEffect(() => {
+    if (runner !== 'steam') {
+      return
+    }
+    let active = true
+    window.api
+      .getExtraInfo(appName, runner, i18n.language)
+      .then((info) => {
+        if (active && info?.platforms) {
+          setSteamPlatforms(info.platforms)
+        }
+      })
+      .catch(() => {
+        // Falls back to Windows for Proton
+      })
+    return () => {
+      active = false
+    }
+  }, [appName, runner, i18n.language])
+
+  const isLinuxNative =
+    runner === 'steam'
+      ? Boolean(steamPlatforms?.includes('linux'))
+      : Boolean(gameInfo?.is_linux_native)
+  const isMacNative =
+    runner === 'steam'
+      ? Boolean(steamPlatforms?.includes('Mac'))
+      : Boolean(gameInfo?.is_mac_native)
 
   const isMac = platform === 'darwin'
   const isWin = platform === 'win32'
@@ -102,6 +132,19 @@ function InstallModal({
   )
 
   const getDefaultplatform = (): InstallPlatform => {
+    if (runner === 'steam') {
+      // Prefer the current OS's platform
+      const currentPlatform: InstallPlatform = isMac
+        ? 'Mac'
+        : isLinux
+          ? 'linux'
+          : 'Windows'
+
+      return availablePlatforms.some((p) => p.value === currentPlatform)
+        ? currentPlatform
+        : 'Windows'
+    }
+
     if (isMac && gameInfo?.is_mac_native) {
       return 'Mac'
     }
@@ -112,7 +155,16 @@ function InstallModal({
   const [platformToInstall, setPlatformToInstall] =
     useState<InstallPlatform>(getDefaultplatform())
 
-  const hasWine = platformToInstall === 'Windows' && !isWin
+  const userPickedPlatform = useRef(false)
+  useEffect(() => {
+    if (runner === 'steam' && steamPlatforms && !userPickedPlatform.current) {
+      setPlatformToInstall(getDefaultplatform())
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [steamPlatforms, runner])
+
+  const hasWine =
+    platformToInstall === 'Windows' && !isWin && runner !== 'steam'
 
   useEffect(() => {
     if (hasWine) {
@@ -143,9 +195,10 @@ function InstallModal({
         htmlId="platformPick"
         value={platformToInstall}
         disabled={disabledPlatformSelection}
-        onChange={(e) =>
+        onChange={(e) => {
+          userPickedPlatform.current = true
           setPlatformToInstall(e.target.value as InstallPlatform)
-        }
+        }}
       >
         {availablePlatforms.map((p, i) => (
           <MenuItem value={p.value} key={i}>
@@ -169,9 +222,10 @@ function InstallModal({
 
   return (
     <div className="InstallModal">
-      <Dialog
+      <Modal
         onClose={closeModal}
         showCloseButton
+        size="lg"
         className="InstallModal__dialog"
       >
         {isThirdPartyManagedApp ? (
@@ -238,6 +292,7 @@ function InstallModal({
             availablePlatforms={availablePlatforms}
             backdropClick={closeModal}
             platformToInstall={platformToInstall}
+            setPlatformToInstall={setPlatformToInstall}
             gameInfo={gameInfo}
             crossoverBottle={crossoverBottle}
           >
@@ -268,24 +323,27 @@ function InstallModal({
             appName={appName}
             defaultPath={sideloadDefaultPath}
             crossoverBottle={crossoverBottle}
-          >
-            {platformSelection()}
-            {hasWine ? (
-              <WineSelector
-                appName={appName}
-                winePrefix={winePrefix}
-                wineVersion={wineVersion}
-                wineVersionList={wineVersionList}
-                setWinePrefix={setWinePrefix}
-                setWineVersion={setWineVersion}
-                crossoverBottle={crossoverBottle}
-                setCrossoverBottle={setCrossoverBottle}
-                title={sideloadTitle}
-              />
-            ) : null}
-          </SideloadDialog>
+            platformSelection={platformSelection()}
+            wineSelector={
+              hasWine ? (
+                <WineSelector
+                  appName={appName}
+                  winePrefix={winePrefix}
+                  wineVersion={wineVersion}
+                  wineVersionList={wineVersionList}
+                  setWinePrefix={setWinePrefix}
+                  setWineVersion={setWineVersion}
+                  crossoverBottle={crossoverBottle}
+                  setCrossoverBottle={setCrossoverBottle}
+                  title={sideloadTitle}
+                  initiallyOpen
+                  noDetails
+                />
+              ) : null
+            }
+          />
         )}
-      </Dialog>
+      </Modal>
     </div>
   )
 }

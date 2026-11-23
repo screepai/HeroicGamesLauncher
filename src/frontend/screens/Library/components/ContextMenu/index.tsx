@@ -15,9 +15,10 @@ interface Props {
   children: React.ReactNode
   items: Item[]
   disabled?: boolean
+  className?: string
 }
 
-function ContextMenu({ children, items, disabled = false }: Props) {
+function ContextMenu({ children, items, className, disabled = false }: Props) {
   const [contextMenu, setContextMenu] = React.useState<{
     mouseX: number
     mouseY: number
@@ -51,6 +52,7 @@ function ContextMenu({ children, items, disabled = false }: Props) {
 
   return (
     <div
+      className={className}
       onContextMenu={handleContextMenu}
       style={{ cursor: disabled ? undefined : 'context-menu' }}
     >

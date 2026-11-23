@@ -1,11 +1,12 @@
 import './index.scss'
 import React, { useContext, useEffect, useState } from 'react'
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader
-} from 'frontend/components/UI/Dialog'
+  Modal,
+  ModalContent,
+  ModalFooter,
+  ModalHeader
+} from 'frontend/components/UI/Modal'
+import Button from 'frontend/components/UI/Button'
 import { useTranslation } from 'react-i18next'
 import { Runner } from 'common/types'
 import ToggleSwitch from '../ToggleSwitch'
@@ -164,22 +165,23 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
     return (
       <>
         {showUninstallModal && (
-          <Dialog onClose={onClose} showCloseButton className="uninstall-modal">
-            <DialogHeader onClose={onClose}>
-              {t('gamepage:box.uninstall.title')}
-            </DialogHeader>
-            <DialogContent>
+          <Modal
+            onClose={onClose}
+            showCloseButton
+            size="sm"
+            className="uninstall-modal"
+          >
+            <ModalHeader>{t('gamepage:box.uninstall.title')}</ModalHeader>
+            <ModalContent>
               {t(
                 'gamepage:box.uninstall.cannotUninstallEpic',
                 'Epic games cannot be uninstalled while another Epic game is being installed.'
               )}
-            </DialogContent>
-            <DialogFooter>
-              <button onClick={onClose} className={`button outline`}>
-                {t('box.close', 'Close')}
-              </button>
-            </DialogFooter>
-          </Dialog>
+            </ModalContent>
+            <ModalFooter>
+              <Button onClick={onClose}>{t('box.close', 'Close')}</Button>
+            </ModalFooter>
+          </Modal>
         )}
       </>
     )
@@ -189,23 +191,24 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
     return (
       <>
         {showUninstallModal && (
-          <Dialog onClose={onClose} showCloseButton className="uninstall-modal">
-            <DialogHeader onClose={onClose}>
-              {t('gamepage:box.uninstall.title')}
-            </DialogHeader>
-            <DialogContent>
+          <Modal
+            onClose={onClose}
+            showCloseButton
+            size="sm"
+            className="uninstall-modal"
+          >
+            <ModalHeader>{t('gamepage:box.uninstall.title')}</ModalHeader>
+            <ModalContent>
               {t('gamepage:box.uninstall.gameIsRunning', {
                 defaultValue:
                   '{{title}} is running. Close the game to uninstall it.',
                 title: gameTitle
               })}
-            </DialogContent>
-            <DialogFooter>
-              <button onClick={onClose} className={`button outline`}>
-                {t('box.close', 'Close')}
-              </button>
-            </DialogFooter>
-          </Dialog>
+            </ModalContent>
+            <ModalFooter>
+              <Button onClick={onClose}>{t('box.close', 'Close')}</Button>
+            </ModalFooter>
+          </Modal>
         )}
       </>
     )
@@ -215,11 +218,15 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
   return (
     <>
       {showUninstallModal && (
-        <Dialog onClose={onClose} showCloseButton className="uninstall-modal">
-          <DialogHeader onClose={onClose}>
-            {t('gamepage:box.uninstall.title')}
-          </DialogHeader>
-          <DialogContent>
+        <Modal
+          onClose={onClose}
+          showCloseButton
+          size="sm"
+          tone="destructive"
+          className="uninstall-modal"
+        >
+          <ModalHeader>{t('gamepage:box.uninstall.title')}</ModalHeader>
+          <ModalContent>
             <div className="uninstallModalMessage">{getUninstallMessage()}</div>
             {showActionChoice && (
               <p className="uninstallModalMessage">
@@ -267,31 +274,25 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
                 }}
               />
             )}
-          </DialogContent>
-          <DialogFooter>
+          </ModalContent>
+          <ModalFooter>
             {showHeroicOnlyAction && (
-              <button
-                onClick={removeGameFromHeroic}
-                className={`button is-secondary outline`}
-              >
+              <Button onClick={removeGameFromHeroic} variant="secondary">
                 {t('gamepage:box.uninstall.heroicOnly', 'Uninstall in Heroic')}
-              </button>
+              </Button>
             )}
             {showEntirelyAction && (
-              <button
-                onClick={uninstallGame}
-                className={`button is-secondary outline`}
-              >
+              <Button onClick={uninstallGame} variant="dangerSubtle">
                 {isDlc
                   ? t('box.yes')
                   : t('gamepage:box.uninstall.entirely', 'Uninstall entirely')}
-              </button>
+              </Button>
             )}
-            <button onClick={onClose} className={`button is-secondary outline`}>
+            <Button onClick={onClose} variant="secondary">
               {t('box.no')}
-            </button>
-          </DialogFooter>
-        </Dialog>
+            </Button>
+          </ModalFooter>
+        </Modal>
       )}
     </>
   )

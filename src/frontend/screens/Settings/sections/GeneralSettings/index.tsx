@@ -1,15 +1,24 @@
 import { useTranslation } from 'react-i18next'
+import {
+  Bell,
+  BookOpen,
+  Download,
+  FolderCog,
+  Gamepad2,
+  Globe,
+  Monitor,
+  ShieldCheck
+} from 'lucide-react'
 import LanguageSelector from 'frontend/components/UI/LanguageSelector'
 import { ThemeSelector } from 'frontend/components/UI/ThemeSelector'
+import { SettingsCard } from 'frontend/components/UI'
 import {
   AutoUpdateGames,
   AutoVndbSyncNewGames,
   CheckUpdatesOnStartup,
   DefaultInstallPath,
-  DefaultSteamPath,
   DisableController,
   DiscordRPC,
-  EgsSettings,
   HideChangelogOnStartup,
   LibraryTopSection,
   LocalLibrarySyncPath,
@@ -33,62 +42,76 @@ export default function GeneralSettings() {
   const { t } = useTranslation()
 
   return (
-    <div className="generalSettings">
-      <h3 className="settingSubheader">{t('settings.navbar.general')}</h3>
+    <div className="settingsSections generalSettings">
+      <SettingsCard
+        glyph={Monitor}
+        title={t('settings.section.appearance', 'Appearance')}
+      >
+        <ThemeSelector />
+        <UseFramelessWindow />
+        <LibraryTopSection />
+        <MaxRecentGames />
+      </SettingsCard>
 
-      <LanguageSelector />
+      <SettingsCard
+        glyph={Globe}
+        title={t('settings.section.language', 'Language & region')}
+      >
+        <LanguageSelector />
+      </SettingsCard>
 
-      <ThemeSelector />
+      <SettingsCard
+        glyph={FolderCog}
+        title={t('settings.section.locations', 'Locations')}
+      >
+        <DefaultInstallPath />
+        <LocaleEmulatorPath />
+        <LocalLibrarySyncPath />
+        <WinePrefixesBasePath />
+      </SettingsCard>
 
-      <DefaultInstallPath />
+      <SettingsCard
+        glyph={Download}
+        title={t('settings.section.downloads', 'Downloads')}
+      >
+        <AutoUpdateGames />
+        <CheckUpdatesOnStartup />
+        <MaxWorkers />
+      </SettingsCard>
 
-      <LocaleEmulatorPath />
+      <SettingsCard
+        glyph={Gamepad2}
+        title={t('settings.section.gameplay', 'Gameplay')}
+      >
+        <MinimizeOnGameLaunch />
+        <DisableController />
+        <PlaytimeSync />
+        <Shortcuts />
+      </SettingsCard>
 
-      <LocalLibrarySyncPath />
+      <SettingsCard glyph={Bell} title={t('settings.section.system', 'System')}>
+        <TraySettings />
+        <UseDarkTrayIcon />
+        <StartInConsoleMode />
+        <HideChangelogOnStartup />
+      </SettingsCard>
 
-      <WinePrefixesBasePath />
+      <SettingsCard
+        glyph={BookOpen}
+        title={t('settings.section.visual-novels', 'Visual novels')}
+      >
+        <VndbFeatureSettings />
+        <VndbLabelCategorySync />
+        <AutoVndbSyncNewGames />
+      </SettingsCard>
 
-      <DefaultSteamPath />
-
-      <EgsSettings />
-
-      <CheckUpdatesOnStartup />
-
-      <AutoUpdateGames />
-
-      <VndbFeatureSettings />
-
-      <VndbLabelCategorySync />
-
-      <AutoVndbSyncNewGames />
-
-      <HideChangelogOnStartup />
-
-      <StartInConsoleMode />
-
-      <TraySettings />
-
-      <MinimizeOnGameLaunch />
-
-      <UseDarkTrayIcon />
-
-      <UseFramelessWindow />
-
-      <Shortcuts />
-
-      <PlaytimeSync />
-
-      <DiscordRPC />
-
-      <DisableController />
-
-      <AnalyticsOptIn />
-
-      <LibraryTopSection />
-
-      <MaxRecentGames />
-
-      <MaxWorkers />
+      <SettingsCard
+        glyph={ShieldCheck}
+        title={t('settings.section.privacy', 'Privacy')}
+      >
+        <DiscordRPC />
+        <AnalyticsOptIn />
+      </SettingsCard>
     </div>
   )
 }

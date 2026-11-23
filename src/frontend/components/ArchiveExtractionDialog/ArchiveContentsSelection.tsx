@@ -1,11 +1,7 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  PathSelectionBox,
-  TextInputField,
-  WarningMessage
-} from 'frontend/components/UI'
+import { PathSelectionBox, TextInputField, Alert } from 'frontend/components/UI'
 import { ArchiveTreeItem, type ArchiveTreeNode } from './ArchiveTree'
 
 export type ArchiveContentsSelectionModel = {
@@ -105,12 +101,12 @@ function ArchiveOutputSettings({
       )}
 
       {!model.destinationDirectoryValid && (
-        <WarningMessage>
+        <Alert variant="warning">
           {t(
             'box.local-library-archive.destination-required',
             'Choose an extraction destination.'
           )}
-        </WarningMessage>
+        </Alert>
       )}
 
       <TextInputField

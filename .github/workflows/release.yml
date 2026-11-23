@@ -56,7 +56,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y libarchive-tools libopenjp2-tools rpm
+          sudo apt-get install --no-install-recommends -y gnupg libarchive-tools libopenjp2-tools rpm
 
       - name: Build
         run: ${{ matrix.build }}
@@ -64,6 +64,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Sign RPM packages if a key is configured
+        if: runner.os == 'Linux'
+        env:
+          RPM_GPG_PRIVATE_KEY: ${{ secrets.RPM_GPG_PRIVATE_KEY }}
+          RPM_GPG_KEY_ID: ${{ secrets.RPM_GPG_KEY_ID }}
+        run: |
+          if [ -n "$RPM_GPG_PRIVATE_KEY" ]; then
+            pnpm sign:rpm
+          fi
 
       - name: Upload build outputs
         uses: actions/upload-artifact@v6
@@ -75,6 +85,7 @@ jobs:
             dist/Heroic*.AppImage
             dist/Heroic*.deb
             dist/Heroic*.rpm
+            dist/RPM-GPG-KEY-heroic.asc
             dist/Heroic*.pacman
             dist/Heroic*.tar.xz
             dist/Heroic*.dmg

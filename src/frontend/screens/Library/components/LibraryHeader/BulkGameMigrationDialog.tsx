@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { AppSettings, GameInfo, Runner } from 'common/types'
-import { PathSelectionBox, WarningMessage } from 'frontend/components/UI'
+import { PathSelectionBox, Alert } from 'frontend/components/UI'
 import './BulkGameMigrationDialog.css'
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader
-} from 'frontend/components/UI/Dialog'
+  Modal,
+  ModalContent,
+  ModalFooter,
+  ModalHeader
+} from 'frontend/components/UI/Modal'
 import { APP_SETTING_CHANGED_EVENT } from 'frontend/hooks/useAppSetting'
 
 type Props = {
@@ -245,15 +245,16 @@ export default function BulkGameMigrationDialog({ games, onClose }: Props) {
   }
 
   return (
-    <Dialog
-      onClose={isMigrating ? () => null : onClose}
+    <Modal
+      size="lg"
+      onClose={onClose}
+      disableBackdropClose={isMigrating}
+      disableEscapeKeyDown={isMigrating}
       showCloseButton={!isMigrating}
       className="BulkGameMigrationDialog"
     >
-      <DialogHeader>
-        {t('library.migration.title', 'Migrate Games')}
-      </DialogHeader>
-      <DialogContent className="bulkGameMigrationContent">
+      <ModalHeader>{t('library.migration.title', 'Migrate Games')}</ModalHeader>
+      <ModalContent className="bulkGameMigrationContent">
         <p>
           {t(
             'library.migration.description',
@@ -262,13 +263,13 @@ export default function BulkGameMigrationDialog({ games, onClose }: Props) {
           )}
         </p>
         {skippedGames.length > 0 && (
-          <WarningMessage>
+          <Alert variant="warning">
             {t(
               'library.migration.skipped-count',
               '{{count}} selected games cannot be migrated.',
               { count: skippedGames.length }
             )}
-          </WarningMessage>
+          </Alert>
         )}
         <PathSelectionBox
           htmlId="bulk-game-migration-path"
@@ -334,8 +335,8 @@ export default function BulkGameMigrationDialog({ games, onClose }: Props) {
             </div>
           ))}
         </div>
-      </DialogContent>
-      <DialogFooter>
+      </ModalContent>
+      <ModalFooter>
         <button
           className="button is-secondary"
           onClick={onClose}
@@ -356,20 +357,20 @@ export default function BulkGameMigrationDialog({ games, onClose }: Props) {
             {t('library.migration.start', 'Start Migration')}
           </button>
         )}
-      </DialogFooter>
+      </ModalFooter>
       {showArchivePrompt && (
-        <Dialog
+        <Modal
           onClose={() => setShowArchivePrompt(false)}
           showCloseButton
           className="MigrationArchivePromptDialog"
         >
-          <DialogHeader>
+          <ModalHeader>
             {t(
               'library.migration.archive-prompt-title',
               'Remember migration archive folder?'
             )}
-          </DialogHeader>
-          <DialogContent className="migrationArchivePromptContent">
+          </ModalHeader>
+          <ModalContent className="migrationArchivePromptContent">
             <p>
               {t(
                 'library.migration.archive-prompt-message',
@@ -390,8 +391,8 @@ export default function BulkGameMigrationDialog({ games, onClose }: Props) {
                 'Remember this choice'
               )}
             </label>
-          </DialogContent>
-          <DialogFooter>
+          </ModalContent>
+          <ModalFooter>
             <button
               className="button is-secondary"
               onClick={() => void handleArchivePromptChoice(false)}
@@ -404,9 +405,9 @@ export default function BulkGameMigrationDialog({ games, onClose }: Props) {
             >
               {t('box.yes', 'Yes')}
             </button>
-          </DialogFooter>
-        </Dialog>
+          </ModalFooter>
+        </Modal>
       )}
-    </Dialog>
+    </Modal>
   )
 }

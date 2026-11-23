@@ -18,6 +18,7 @@ const game: GameInfo = {
   browserUrl: 'https://example.com',
   canRunOffline: false,
   is_installed: true,
+  isVisualNovel: true,
   install: {
     executable: '',
     is_dlc: false,
@@ -36,7 +37,7 @@ const suggestedResult: VndbSearchResult = {
 }
 
 electronTest(
-  'does not confirm automatic VNDB search suggestions',
+  'saves automatic VNDB suggestions only after confirmation',
   async (app, page) => {
     await page.evaluate(async (gameInfo) => {
       window.api.addNewApp(gameInfo)
@@ -84,8 +85,13 @@ electronTest(
     await page.getByRole('button', { name: 'VNDB', exact: true }).click()
 
     const row = page.locator('.vndbSyncRow', { hasText: game.title })
-    await expect(page.getByText(suggestedResult.title)).not.toBeVisible()
-    await expect(row.getByText('Search VNDB')).toBeVisible()
+    await expect(row.getByText(suggestedResult.title)).toBeVisible()
+    const pendingUpdates = await app.evaluate(
+      () =>
+        (globalThis as { vndbSyncUpdates?: VndbGameMatchUpdate[] })
+          .vndbSyncUpdates
+    )
+    expect(pendingUpdates).toBeUndefined()
 
     await page.getByRole('button', { name: 'Confirm' }).click()
 
@@ -95,6 +101,6 @@ electronTest(
           .vndbSyncUpdates
     )
     const update = updates?.find((item) => item.appName === game.app_name)
-    expect(update?.vndbId).toBeNull()
+    expect(update?.vndbId).toBe(suggestedResult.id)
   }
 )

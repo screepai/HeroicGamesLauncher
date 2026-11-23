@@ -14,6 +14,7 @@ const game: GameInfo = {
   browserUrl: 'https://example.com',
   canRunOffline: false,
   is_installed: true,
+  isVisualNovel: true,
   install: {
     executable: '',
     is_dlc: false,

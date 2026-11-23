@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GameInfo } from 'common/types'
-import { WarningMessage } from 'frontend/components/UI'
+import { Alert } from 'frontend/components/UI'
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader
-} from 'frontend/components/UI/Dialog'
+  Modal,
+  ModalContent,
+  ModalFooter,
+  ModalHeader
+} from 'frontend/components/UI/Modal'
 
 const specialCodecsSourceUrl = 'https://github.com/b-fission/vn_winestuff'
 
@@ -78,18 +78,20 @@ export default function SpecialCodecSetupDialog({
   }
 
   return (
-    <Dialog
+    <Modal
       className="SpecialCodecSetupDialog"
-      onClose={isInstalling ? () => null : onClose}
+      onClose={onClose}
+      disableBackdropClose={isInstalling}
+      disableEscapeKeyDown={isInstalling}
       showCloseButton={!isInstalling}
     >
-      <DialogHeader>
+      <ModalHeader>
         {t(
           'compatibility.install-codecs-title',
           'Set up codecs with vn_winestuff'
         )}
-      </DialogHeader>
-      <DialogContent className="specialCodecSetupContent">
+      </ModalHeader>
+      <ModalContent className="specialCodecSetupContent">
         <p>
           {t(
             'compatibility.install-codecs-description',
@@ -108,12 +110,12 @@ export default function SpecialCodecSetupDialog({
           </div>
         </dl>
         {installState === 'confirming' && (
-          <WarningMessage>
+          <Alert variant="warning">
             {t(
               'compatibility.install-codecs-warning',
               'This modifies the Wine prefix and downloads third-party Windows components. Heroic uses a commit-pinned, integrity-checked VNWiki helper, but you should still back up saves stored inside this prefix first.'
             )}
-          </WarningMessage>
+          </Alert>
         )}
         {installState !== 'confirming' && (
           <pre className="specialCodecSetupLog" aria-live="polite">
@@ -128,8 +130,8 @@ export default function SpecialCodecSetupDialog({
         >
           {t('compatibility.open-codecs-source', 'Review helper source')}
         </button>
-      </DialogContent>
-      <DialogFooter>
+      </ModalContent>
+      <ModalFooter>
         <button
           className="button is-secondary"
           onClick={onClose}
@@ -147,7 +149,7 @@ export default function SpecialCodecSetupDialog({
             {t('compatibility.install-codecs', 'Run vn_winestuff')}
           </button>
         )}
-      </DialogFooter>
-    </Dialog>
+      </ModalFooter>
+    </Modal>
   )
 }

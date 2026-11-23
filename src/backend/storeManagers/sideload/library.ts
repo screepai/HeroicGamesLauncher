@@ -1,6 +1,6 @@
 import { AppSettings, ExecResult, GameInfo, GameSettings } from 'common/types'
 import { readFile, writeFile } from 'node:fs/promises'
-import { readdirSync } from 'graceful-fs'
+import { readFileSync, readdirSync } from 'graceful-fs'
 import { dirname, join, posix, win32 } from 'path'
 import { libraryStore } from './electronStores'
 import { logWarning } from 'backend/logger'
@@ -8,13 +8,15 @@ import { getMigratedExecutablePath, writeConfig } from 'backend/utils'
 import { addShortcuts } from 'backend/shortcuts/shortcuts/shortcuts'
 import { sendFrontendMessage } from 'backend/ipc'
 import { isLinux, isMac, isWindows } from 'backend/constants/environment'
-import { LibraryManager } from 'common/types/game_manager'
+import { LibraryManager, RunnerBackupPaths } from 'common/types/game_manager'
 import { getAllGameOverrides, setGameOverrides } from 'backend/game_overrides'
 import type { GameMetadataOverride } from 'backend/game_overrides/electronStores'
 import { vndbMatchesStore } from 'backend/vndb/electronStore'
 import { getDecryptedApiToken, setStoredApiToken } from 'backend/vndb/client'
 import { GlobalConfig } from 'backend/config'
 import type { VndbGameMatch } from 'common/types/vndb'
+import { BACKUP_PATHS } from 'backend/importExport/constants'
+import { sideloadLibraryPath } from './constants'
 import SideloadGame from './games'
 import { configStore, tsStore } from 'backend/constants/key_value_stores'
 import { gamesConfigPath } from 'backend/constants/paths'
@@ -1215,5 +1217,26 @@ export default class SideloadLibraryManager implements LibraryManager {
     logWarning(
       'changeVersionPinnedStatus not implemented on Sideload Library Manager'
     )
+  }
+
+  getBackupPaths(): RunnerBackupPaths {
+    return {
+      credentials: [],
+      libraryCache: [],
+      sideloadLibrary: {
+        source: () => sideloadLibraryPath,
+        destInZip: BACKUP_PATHS.sideloadLibrary.library,
+        countGames: () => {
+          try {
+            const data = JSON.parse(
+              readFileSync(sideloadLibraryPath, 'utf-8')
+            ) as { games?: unknown[] }
+            return Array.isArray(data.games) ? data.games.length : 0
+          } catch {
+            return 0
+          }
+        }
+      }
+    }
   }
 }

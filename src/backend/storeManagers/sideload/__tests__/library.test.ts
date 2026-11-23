@@ -75,6 +75,9 @@ jest.mock('backend/constants/key_value_stores', () => ({
   }
 }))
 jest.mock('backend/constants/paths', () => ({
+  userDataPath: jest
+    .requireActual<typeof import('node:os')>('node:os')
+    .tmpdir(),
   get gamesConfigPath() {
     return mockGamesConfigPath
   }

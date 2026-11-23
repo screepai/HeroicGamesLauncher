@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GameInfo, GameSettings } from 'common/types'
-import { ToggleSwitch, WarningMessage } from 'frontend/components/UI'
+import { ToggleSwitch, Alert } from 'frontend/components/UI'
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader
-} from 'frontend/components/UI/Dialog'
+  Modal,
+  ModalContent,
+  ModalFooter,
+  ModalHeader
+} from 'frontend/components/UI/Modal'
 
 type BulkSettingValue = boolean | null
 
@@ -94,11 +94,11 @@ export default function BulkGameOptionsDialog({ games, onClose }: Props) {
   )
 
   return (
-    <Dialog onClose={onClose} showCloseButton className="BulkGameOptionsDialog">
-      <DialogHeader>
+    <Modal onClose={onClose} showCloseButton className="BulkGameOptionsDialog">
+      <ModalHeader>
         {t('library.bulk-options.title', 'Game Options')}
-      </DialogHeader>
-      <DialogContent className="bulkGameOptionsContent">
+      </ModalHeader>
+      <ModalContent className="bulkGameOptionsContent">
         <p>
           {t(
             'library.bulk-options.description',
@@ -107,12 +107,12 @@ export default function BulkGameOptionsDialog({ games, onClose }: Props) {
           )}
         </p>
         {error && (
-          <WarningMessage>
+          <Alert variant="warning">
             {t(
               'library.bulk-options.load-error',
               'Unable to load the selected game settings.'
             )}
-          </WarningMessage>
+          </Alert>
         )}
         {!loading && !error && (
           <>
@@ -154,8 +154,8 @@ export default function BulkGameOptionsDialog({ games, onClose }: Props) {
             )}
           </>
         )}
-      </DialogContent>
-      <DialogFooter>
+      </ModalContent>
+      <ModalFooter>
         <button className="button is-secondary" onClick={onClose}>
           {t('button.cancel', 'Cancel')}
         </button>
@@ -166,7 +166,7 @@ export default function BulkGameOptionsDialog({ games, onClose }: Props) {
         >
           {t('button.confirm', 'Confirm')}
         </button>
-      </DialogFooter>
-    </Dialog>
+      </ModalFooter>
+    </Modal>
   )
 }

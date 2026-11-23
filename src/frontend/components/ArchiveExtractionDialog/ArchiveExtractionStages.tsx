@@ -8,12 +8,12 @@ import type {
   LocalLibraryArchiveInfo,
   LocalLibraryWatchEntry
 } from 'common/types'
-import { TextInputField, WarningMessage } from 'frontend/components/UI'
+import { TextInputField, Alert } from 'frontend/components/UI'
 import {
-  DialogContent,
-  DialogFooter,
-  DialogHeader
-} from 'frontend/components/UI/Dialog'
+  ModalContent,
+  ModalFooter,
+  ModalHeader
+} from 'frontend/components/UI/Modal'
 import {
   ArchiveContentsSelection,
   type ArchiveContentsSelectionActions,
@@ -79,7 +79,7 @@ export function ArchiveExtractionHeader({
       )
   }
 
-  return <DialogHeader>{title}</DialogHeader>
+  return <ModalHeader>{title}</ModalHeader>
 }
 
 export function ArchivePrompt({
@@ -427,7 +427,7 @@ export function ArchiveExtractionContent({
     (model.stage === 'prompt' || model.stage === 'selection')
 
   return (
-    <DialogContent className="archiveExtractionContent">
+    <ModalContent className="archiveExtractionContent">
       <ArchiveStageContent actions={actions} model={model} />
       {showPassword && (
         <TextInputField
@@ -439,8 +439,8 @@ export function ArchiveExtractionContent({
           autoComplete="off"
         />
       )}
-      {model.error && <WarningMessage>{model.error}</WarningMessage>}
-    </DialogContent>
+      {model.error && <Alert variant="warning">{model.error}</Alert>}
+    </ModalContent>
   )
 }
 
@@ -476,7 +476,7 @@ export function ArchiveExtractionFooter({
   const { t } = useTranslation()
 
   return (
-    <DialogFooter>
+    <ModalFooter>
       {stage !== 'delete-prompt' && (
         <button
           className="button is-secondary"
@@ -552,6 +552,6 @@ export function ArchiveExtractionFooter({
           </button>
         </>
       )}
-    </DialogFooter>
+    </ModalFooter>
   )
 }

@@ -1,10 +1,10 @@
 import { useContext } from 'react'
 import { useTranslation } from 'react-i18next'
-import GameContext from '../../GameContext'
-import GameScore from 'frontend/components/UI/WikiGameInfo/components/GameScore'
+import { Gamepad2 } from 'lucide-react'
 import { GameInfo } from 'common/types'
-import classNames from 'classnames'
 import { createNewWindow } from 'frontend/helpers'
+import { Icon, Panel, Score } from 'frontend/components/UI'
+import GameContext from '../../GameContext'
 import { getVndbScoreValue } from 'frontend/helpers/vndb'
 
 interface Props {
@@ -16,68 +16,110 @@ const Scores = ({ gameInfo }: Props) => {
   const { wikiInfo, vndbMatch } = useContext(GameContext)
 
   const pcgamingwiki = wikiInfo?.pcgamingwiki
+  const applegamingwiki = wikiInfo?.applegamingwiki
+
+  const { metacritic, opencritic, igdb } = pcgamingwiki ?? {}
 
   const hasScores =
-    pcgamingwiki?.metacritic.score ||
-    pcgamingwiki?.igdb.score ||
-    pcgamingwiki?.opencritic.score
+    metacritic?.score ||
+    opencritic?.score ||
+    igdb?.score ||
+    applegamingwiki?.crossoverRating
 
-  if (hasScores && pcgamingwiki) {
-    return <GameScore info={pcgamingwiki} title={gameInfo.title} />
-  }
+  const title = gameInfo.overrides?.title || gameInfo.title
 
   const rating = getVndbScoreValue(vndbMatch?.rating)
   const average = getVndbScoreValue(
     vndbMatch?.average !== vndbMatch?.rating ? vndbMatch?.average : undefined
   )
 
-  if (!rating && !average) {
+  if (!hasScores && !rating && !average) {
     return null
   }
 
-  const getColorClass = (value: string) => {
-    const number = Number(value)
-
-    if (number > 66) {
-      return 'green'
-    }
-
-    if (number < 33) {
-      return 'red'
-    }
-
-    return 'yellow'
+  const openVndb = () => {
+    if (vndbMatch) createNewWindow(`https://vndb.org/${vndbMatch.vndbId}`)
   }
 
   return (
-    <div className="gamescore">
-      {rating && (
-        <button
-          className={classNames('circle', getColorClass(rating))}
-          onClick={() => {
-            if (vndbMatch) {
-              createNewWindow(`https://vndb.org/${vndbMatch.vndbId}`)
+    <Panel tone="glass" padding="sm" className="gameScores">
+      <span className="gameScores__title">
+        <Icon glyph={Gamepad2} size="sm" />
+        {t('info.game-scores', 'Game Scores')}
+      </span>
+      <div className="gameScores__list">
+        {rating && (
+          <Score
+            label={t('game.vndb', 'VNDB')}
+            value={rating}
+            onClick={openVndb}
+          />
+        )}
+        {average && (
+          <Score
+            label={t('vndb.average', 'Average')}
+            value={average}
+            onClick={openVndb}
+          />
+        )}
+        {opencritic?.score && (
+          <Score
+            label="Open Critic"
+            value={opencritic.score}
+            title={t('info.clickToOpen', 'Click to open')}
+            onClick={() =>
+              createNewWindow(
+                opencritic.urlid
+                  ? `https://opencritic.com/game/${opencritic.urlid}`
+                  : `https://opencritic.com/search?criteria=${title}`
+              )
             }
-          }}
-        >
-          <div className="circle__title">{t('game.vndb', 'VNDB')}</div>
-          <div className="circle__value">{rating}</div>
-        </button>
-      )}
-      {average && (
-        <button
-          className={classNames('circle', getColorClass(average))}
-          onClick={() => {
-            if (vndbMatch) {
-              createNewWindow(`https://vndb.org/${vndbMatch.vndbId}`)
+          />
+        )}
+        {metacritic?.score && (
+          <Score
+            label="MetaCritic"
+            value={metacritic.score}
+            title={t('info.clickToOpen', 'Click to open')}
+            onClick={() =>
+              createNewWindow(
+                metacritic.urlid
+                  ? `https://www.metacritic.com/game/pc/${metacritic.urlid}`
+                  : `https://www.metacritic.com/search/all/${title}/results`
+              )
             }
-          }}
-        >
-          <div className="circle__title">{t('vndb.average', 'Average')}</div>
-          <div className="circle__value">{average}</div>
-        </button>
-      )}
-    </div>
+          />
+        )}
+        {igdb?.score && (
+          <Score
+            label="IGDB"
+            value={igdb.score}
+            title={t('info.clickToOpen', 'Click to open')}
+            onClick={() =>
+              createNewWindow(
+                metacritic?.urlid
+                  ? `https://www.igdb.com/games/${metacritic.urlid}`
+                  : `https://www.igdb.com/search?type=1&q=${title}`
+              )
+            }
+          />
+        )}
+        {applegamingwiki?.crossoverRating && (
+          <Score
+            label="AppleGamingWiki"
+            value={applegamingwiki.crossoverRating}
+            title={t('info.clickToOpen', 'Click to open')}
+            onClick={() =>
+              createNewWindow(
+                applegamingwiki.crossoverLink
+                  ? `https://www.codeweavers.com/compatibility/crossover/${applegamingwiki.crossoverLink}`
+                  : `https://www.codeweavers.com/compatibility?name=${title}&search=app#results`
+              )
+            }
+          />
+        )}
+      </div>
+    </Panel>
   )
 }
 

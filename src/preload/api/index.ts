@@ -8,6 +8,8 @@ import * as DownloadManager from './downloadmanager'
 import * as Zoom from './zoom'
 import * as Vndb from './vndb'
 import * as VnCompatibility from './vnCompatibility'
+import * as ImportExport from './importExport'
+import * as Steam from './steam'
 
 export default {
   ...Misc,
@@ -19,5 +21,7 @@ export default {
   ...DownloadManager,
   ...Zoom,
   ...Vndb,
-  ...VnCompatibility
+  ...VnCompatibility,
+  ...ImportExport,
+  ...Steam
 }

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { GameInfo, Status } from 'common/types'
 import type { VnCompatibilityResult } from 'common/types/vnCompatibility'
 import { isWindowsPlatform } from 'common/utils'
-import { WarningMessage } from 'frontend/components/UI'
+import { Alert } from 'frontend/components/UI'
 import useAppSetting from 'frontend/hooks/useAppSetting'
 import { isDefaultWinePrefix } from 'frontend/helpers/winePrefix'
 import useGlobalState from 'frontend/state/GlobalStateV2'
@@ -106,12 +106,12 @@ export default function VnCompatibilityActions({ gameInfo, result }: Props) {
           </p>
           <code title={currentPrefix}>{currentPrefix}</code>
           {usesSharedPrefix && (
-            <WarningMessage>
+            <Alert variant="warning">
               {t(
                 'compatibility.shared-prefix-warning',
                 'This is Heroic’s shared prefix. Choose a dedicated prefix for this game before installing codecs so other games are not modified.'
               )}
-            </WarningMessage>
+            </Alert>
           )}
           <div className="vnCompatibilityPrefixActions">
             {usesSharedPrefix && (

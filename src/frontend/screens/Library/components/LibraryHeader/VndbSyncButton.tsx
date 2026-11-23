@@ -12,18 +12,14 @@ import type {
   VndbRelease,
   VndbSearchResult
 } from 'common/types/vndb'
-import {
-  CachedImage,
-  TextInputField,
-  WarningMessage
-} from 'frontend/components/UI'
+import { CachedImage, TextInputField, Alert } from 'frontend/components/UI'
 import { Tooltip } from '@mui/material'
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader
-} from 'frontend/components/UI/Dialog'
+  Modal,
+  ModalContent,
+  ModalFooter,
+  ModalHeader
+} from 'frontend/components/UI/Modal'
 import fallbackImage from 'frontend/assets/heroic_card.jpg'
 import {
   getGameVndbMatchKey,
@@ -820,16 +816,15 @@ export default function VndbSyncButton({
       )}
 
       {open && (
-        <Dialog
+        <Modal
+          size="lg"
           onClose={closeDialog}
           showCloseButton
           className="VndbSyncDialog"
         >
-          <DialogHeader>
-            {t('vndb.sync.title', 'Sync VNDB Titles')}
-          </DialogHeader>
-          <DialogContent className="vndbSyncContent">
-            {error && <WarningMessage>{error}</WarningMessage>}
+          <ModalHeader>{t('vndb.sync.title', 'Sync VNDB Titles')}</ModalHeader>
+          <ModalContent className="vndbSyncContent">
+            {error && <Alert variant="warning">{error}</Alert>}
 
             {loadingMatches ? (
               <div className="vndbSyncLoading">
@@ -1060,8 +1055,8 @@ export default function VndbSyncButton({
                 </div>
               </>
             )}
-          </DialogContent>
-          <DialogFooter>
+          </ModalContent>
+          <ModalFooter>
             {syncVndbUserData && (
               <button
                 className="button is-secondary"
@@ -1100,8 +1095,8 @@ export default function VndbSyncButton({
               )}
               {t('button.confirm', 'Confirm')}
             </button>
-          </DialogFooter>
-        </Dialog>
+          </ModalFooter>
+        </Modal>
       )}
     </>
   )

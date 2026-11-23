@@ -9,7 +9,9 @@ const initialContext: LibraryContextType = {
     gog: true,
     nile: true,
     sideload: true,
-    zoom: true
+    zoom: true,
+    itchio: true,
+    steam: true
   },
   platformsFilters: { win: true, linux: true, mac: true, browser: true },
   filterText: '',
@@ -17,6 +19,7 @@ const initialContext: LibraryContextType = {
   setVndbMatches: () => null,
   setStoresFilters: () => null,
   handleLayout: () => null,
+  handleAddGameButtonClick: () => null,
   setPlatformsFilters: () => null,
   handleSearch: () => null,
   layout: 'grid',
@@ -40,7 +43,8 @@ const initialContext: LibraryContextType = {
   setShowThirdPartyManagedOnly: () => null,
   showUpdatesOnly: false,
   setShowUpdatesOnly: () => null,
-  handleAddGameButtonClick: () => null,
+  showSteamOwnedOnly: false,
+  setShowSteamOwnedOnly: () => null,
   setShowCategories: () => null,
   showAlphabetFilter: false,
   onToggleAlphabetFilter: () => null,

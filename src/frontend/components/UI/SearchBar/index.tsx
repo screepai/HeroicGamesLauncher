@@ -1,21 +1,29 @@
 import {
   cloneElement,
-  HTMLAttributes,
-  KeyboardEvent,
-  ReactElement,
+  type HTMLAttributes,
+  type InputHTMLAttributes,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactElement,
   useCallback,
+  useEffect,
+  useId,
   useRef,
   useState
 } from 'react'
 import './index.scss'
-import { faSearch, faXmark } from '@fortawesome/free-solid-svg-icons'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { Search, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   suggestionsListItems?: ReactElement<HTMLAttributes<HTMLElement>>[]
   onInputChanged: (text: string) => void
   value: string
   placeholder: string
+  inputProps?: Omit<
+    InputHTMLAttributes<HTMLInputElement>,
+    'value' | 'defaultValue' | 'onChange' | 'ref'
+  >
+  suggestionsListProps?: HTMLAttributes<HTMLUListElement>
 }
 
 interface Selection {
@@ -27,8 +35,12 @@ export default function SearchBar({
   suggestionsListItems,
   onInputChanged,
   value,
-  placeholder
+  placeholder,
+  inputProps,
+  suggestionsListProps
 }: Props) {
+  const { t } = useTranslation()
+  const autocompleteId = useId()
   const input = useRef<HTMLInputElement>(null)
   const suggestionsList = useRef<HTMLUListElement>(null)
   const [selection, setSelection] = useState<Selection>({ value, index: -1 })
@@ -47,13 +59,37 @@ export default function SearchBar({
     suggestion?.scrollIntoView?.({ block: 'nearest' })
   }
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName
+      const typing =
+        tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable
+      if (e.key === '/' && !typing) {
+        e.preventDefault()
+        input.current?.focus()
+      } else if (
+        e.key === 'Escape' &&
+        document.activeElement === input.current
+      ) {
+        input.current?.blur()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
   const onClear = useCallback(() => {
     onInputChanged('')
     setSelection({ value: '', index: -1 })
     input.current?.focus()
   }, [onInputChanged])
 
-  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (inputProps?.onKeyDown) {
+      inputProps.onKeyDown(event)
+      return
+    }
     if (!hasSuggestions) {
       return
     }
@@ -86,11 +122,11 @@ export default function SearchBar({
 
   return (
     <div className="SearchBar" data-testid="searchBar">
-      <FontAwesomeIcon
+      <Search
         className="searchButton"
-        style={{ padding: 'var(--space-2xs) var(--space-sm)' }}
-        tabIndex={-1}
-        icon={faSearch}
+        size={22}
+        strokeWidth={1.75}
+        aria-hidden
       />
       <input
         ref={input}
@@ -101,14 +137,22 @@ export default function SearchBar({
         // and in src/helpers/gamepad.ts#isSearchInput
         id="search"
         className="searchBarInput"
+        {...inputProps}
         value={value}
-        aria-label={placeholder}
-        aria-autocomplete="list"
-        aria-controls="search-autocomplete"
+        aria-label={inputProps?.['aria-label'] ?? placeholder}
+        aria-autocomplete={
+          inputProps?.['aria-autocomplete'] ??
+          (hasSuggestions ? 'list' : undefined)
+        }
+        aria-controls={
+          inputProps?.['aria-controls'] ??
+          (hasSuggestions ? autocompleteId : undefined)
+        }
         aria-activedescendant={
-          selectedSuggestion >= 0
-            ? `search-autocomplete-option-${selectedSuggestion}`
-            : undefined
+          inputProps?.['aria-activedescendant'] ??
+          (selectedSuggestion >= 0
+            ? `${autocompleteId}-option-${selectedSuggestion}`
+            : undefined)
         }
         onChange={(event) => {
           const nextValue = event.currentTarget.value
@@ -121,15 +165,18 @@ export default function SearchBar({
         <>
           <ul
             ref={suggestionsList}
-            id="search-autocomplete"
+            id={autocompleteId}
             className="autoComplete"
+            role={hasSuggestions ? 'listbox' : undefined}
+            {...suggestionsListProps}
           >
             {suggestionsListItems &&
               suggestionsListItems.length > 0 &&
               suggestionsListItems.map((li, index) => {
                 const { className = '', onMouseEnter } = li.props
+                if (inputProps?.onKeyDown) return li
                 return cloneElement(li, {
-                  id: `search-autocomplete-option-${index}`,
+                  id: `${autocompleteId}-option-${index}`,
                   role: 'option',
                   'aria-selected': selectedSuggestion === index,
                   className: `${className}${
@@ -147,9 +194,10 @@ export default function SearchBar({
             type="button"
             className="clearSearchButton"
             onClick={onClear}
+            aria-label={t('generic.clear', 'Clear')}
             tabIndex={-1}
           >
-            <FontAwesomeIcon icon={faXmark} />
+            <X size={18} strokeWidth={2} aria-hidden />
           </button>
         </>
       )}

@@ -1,6 +1,7 @@
 import React, { useContext } from 'react'
 import { getTopVndbTags } from 'frontend/helpers/vndb'
 import GameContext from '../../GameContext'
+import { Badge } from 'frontend/components/UI'
 
 type GenresProps = {
   genres: string[]
@@ -23,9 +24,9 @@ const Genres: React.FC<GenresProps> = ({ genres }) => {
   return (
     <span className="genres">
       {displayGenres.map((genre) => (
-        <span key={genre} className="genre">
+        <Badge key={genre} variant="accent" className="genre">
           {genre}
-        </span>
+        </Badge>
       ))}
     </span>
   )
