@@ -108,6 +108,7 @@ export default memo(function RecentlyPlayed({
     amazon.library,
     zoom.library,
     itchio.library,
+    steam.library,
     sideloadedLibrary,
     hiddenGames,
     showHidden
@@ -133,6 +134,7 @@ export default memo(function RecentlyPlayed({
             <AddGameButton data-tour="library-add-game" />
           </>
         }
+        actionsTour="library-section-actions"
       />
       <GamesList
         library={recentGames}

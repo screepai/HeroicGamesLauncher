@@ -9,6 +9,7 @@ export const openWeblate = makeListenerCaller('openWeblate')
 export const changeLanguage = makeListenerCaller('changeLanguage')
 export const openExternalUrl = makeListenerCaller('openExternalUrl')
 export const getHeroicVersion = makeHandlerInvoker('getHeroicVersion')
+export const getControllerBatteries = makeHandlerInvoker('getControllerBatteries')
 export const getLatestReleases = makeHandlerInvoker('getLatestReleases')
 export const getCurrentChangelog = makeHandlerInvoker('getCurrentChangelog')
 export const openPatreonPage = makeListenerCaller('openPatreonPage')
@@ -58,6 +59,7 @@ export const checkDiskSpace = makeHandlerInvoker('checkDiskSpace')
 export const getGOGLinuxInstallersLangs = makeHandlerInvoker('getGOGLinuxInstallersLangs')
 export const getAlternativeWine = makeHandlerInvoker('getAlternativeWine')
 export const getShellPath = makeHandlerInvoker('getShellPath')
+export const getPrimaryDisplay = makeHandlerInvoker('getPrimaryDisplay')
 export const getWebviewPreloadPath = makeHandlerInvoker('getWebviewPreloadPath')
 export const callTool = makeHandlerInvoker('callTool')
 export const getAnticheatInfo = makeHandlerInvoker('getAnticheatInfo')
@@ -118,6 +120,7 @@ export const deleteUploadedLogFile = makeHandlerInvoker('deleteUploadedLogFile')
 export const logFileUploadedSlot = frontendListenerSlot('logFileUploaded')
 export const logFileUploadDeletedSlot = frontendListenerSlot('logFileUploadDeleted')
 export const isIntelMac = makeHandlerInvoker('isIntelMac')
+export const isLinuxArm = makeHandlerInvoker('isLinuxArm')
 export const getProtonShortcuts = makeHandlerInvoker('getProtonShortcuts')
 export const steamgriddb = {
   hasApiKey: makeHandlerInvoker('steamgriddb.hasApiKey'),
@@ -126,3 +129,4 @@ export const steamgriddb = {
   getGrids: makeHandlerInvoker('steamgriddb.getGrids'),
   getHeroes: makeHandlerInvoker('steamgriddb.getHeroes')
 }
+export const turnOffScreen = makeHandlerInvoker('turnOffScreen')

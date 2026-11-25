@@ -125,6 +125,8 @@ export interface AppSettings extends GameSettings {
   altAureliaBin: string
   autoUpdateGames: boolean
   autoVndbSyncNewGames: boolean
+  backupSaves: boolean
+  maxSaveBackupSize: number
   checkForUpdatesOnStartup: boolean
   checkUpdatesInterval: number
   customCSS: string
@@ -137,6 +139,7 @@ export interface AppSettings extends GameSettings {
   defaultWinePrefix: string // only here for backwards compatibility, don't use in new code
   defaultWinePrefixDir: string
   disableController: boolean
+  disableGuideButton: boolean
   disablePlaytimeSync: boolean
   disableSmoothScrolling: boolean
   disableLogs: boolean
@@ -155,6 +158,8 @@ export interface AppSettings extends GameSettings {
   exitToTray: boolean
   gamepadRepeatDelay: number
   gamepadInitialRepeatDelay: number
+  gamepadDeadzone: number
+  gamepadButtonMapping: Partial<Record<RemappableGamepadAction, number | null>>
   noTrayIcon: boolean
   experimentalFeatures?: ExperimentalFeatures
   framelessWindow: boolean
@@ -170,10 +175,12 @@ export interface AppSettings extends GameSettings {
   maxWorkers: number
   minimizeOnLaunch: boolean
   startInConsoleMode: boolean
+  enableControllerInConsoleMode: boolean
   startInTray: boolean
   allowInstallationBrokenAnticheat: boolean
   disableUMU: boolean
   verboseLogs: boolean
+  defaultSteamRuntime: SteamRuntimeName | false
   showValveProton: boolean
   showVndbActionsOnGameCards: boolean
   steamGridDbApiKey: string
@@ -182,6 +189,7 @@ export interface AppSettings extends GameSettings {
   vndbCategoryLabelSyncMode: VndbCategoryLabelSyncMode
   vndbLabelCategorySyncMode: VndbLabelCategorySyncMode
   vndbApiToken: string
+  afterDownloadAction: 'none' | 'shutdown' | 'suspend'
 }
 
 export type VndbCategoryLabelSyncMode = 'ask' | 'disabled'
@@ -279,6 +287,9 @@ export interface GameInfo {
   }
 }
 
+export type HDRMode = 'auto' | 'force' | 'off'
+export type NVAPIMode = 'auto' | 'off' | 'force'
+
 export interface GameSettings {
   autoInstallDxvk: boolean
   autoInstallVkd3d: boolean
@@ -293,7 +304,16 @@ export interface GameSettings {
   enableMsync: boolean
   enableFsync: boolean
   enableWineWayland: boolean
+  /** @deprecated use hdrMode */
   enableHDR: boolean
+  hdrMode?: HDRMode
+  nvapiMode?: NVAPIMode
+  disableNTSync?: boolean
+  fsr4Upgrade?: boolean
+  dlssUpgrade?: boolean
+  useOptiScaler?: boolean
+  umuGameId?: string
+  disableProtonFixes?: boolean
   enableWoW64: boolean
   gamescope: GameScopeSettings
   enviromentOptions: EnviromentVariable[]
@@ -312,18 +332,21 @@ export interface GameSettings {
   targetExe: string
   useGameMode: boolean
   steamRuntime: SteamRuntimeName | false
+  // Steam games: custom compatdata folder
+  steamPrefix?: string
   wineCrossoverBottle: string
   winePrefix: string
   wineVersion: WineInstallation
   wrapperOptions: WrapperVariable[]
   savesPath: string
+  savesPathFingerprint?: string
+  savePathIsCustom?: boolean
   gogSaves?: GOGCloudSavesLocation[]
   beforeLaunchScriptPath: string
   afterLaunchScriptPath: string
   disableUMU: boolean
   verboseLogs: boolean
   advertiseAvxForRosetta: boolean
-  enableQuickSavesMenu: boolean
 }
 
 export type Status =
@@ -414,6 +437,56 @@ export interface Reqs {
 }
 
 export type SyncType = 'Download' | 'Upload' | 'Force download' | 'Force upload'
+
+export type CloudSyncState =
+  | 'ok'
+  | 'conflicts'
+  | 'incomplete'
+  | 'failed'
+  | 'unknown'
+
+export type CloudSyncReason =
+  | 'no-path'
+  | 'offline'
+  | 'lock'
+  | 'unresolved-vars'
+  | 'conflict'
+  | 'not-supported'
+  | 'provider-error'
+
+export interface CloudSyncCounts {
+  local?: number
+  cloud?: number
+  deletedLocal?: number
+  deletedCloud?: number
+}
+
+export interface CloudSyncResult {
+  appName: string
+  runner: Runner
+  state: CloudSyncState
+  action?: 'upload' | 'download' | 'none'
+  reason?: CloudSyncReason
+  remoteDate?: string
+  localDate?: string
+  counts?: CloudSyncCounts
+  output: string
+}
+
+export interface DetectSavePathsResult {
+  paths: string | GOGCloudSavesLocation[]
+  updated: boolean
+  cancelled?: boolean
+}
+
+export interface SaveBackupEntry {
+  id: string
+  createdAt: string
+  location: string
+  changed: number
+  deleted: number
+  isCurrent?: boolean
+}
 
 export type UserInfo = {
   account_id: string
@@ -510,6 +583,7 @@ export interface CallRunnerOptions {
   onOutput?: (output: string, child: ChildProcess) => void
   abortId?: string
   cwd?: string
+  waitForChildProcesses?: boolean
 }
 
 export interface EnviromentVariable {
@@ -588,6 +662,8 @@ export type RuntimeName = 'eac_runtime' | 'battleye_runtime' | 'umu'
 export type RecentGame = {
   appName: string
   title: string
+  /** Store the game came from. */
+  runner?: Runner
 }
 
 export type HiddenGame = RecentGame
@@ -606,6 +682,21 @@ export interface WineVersionInfo extends VersionInfo {
   hasUpdate: boolean
   installDir: string
 }
+
+/**
+ * Actions that can be bound to a different physical button in
+ * Settings → Gamepad. Directions (d-pad/sticks) come from axes/buttons that
+ * are already conventional and are not remappable.
+ */
+export type RemappableGamepadAction =
+  | 'mainAction'
+  | 'back'
+  | 'altAction'
+  | 'rightClick'
+  | 'prevPage'
+  | 'nextPage'
+  | 'enter'
+  | 'guide'
 
 export type GamepadActionStatus = Record<
   ValidGamepadAction,
@@ -626,7 +717,7 @@ export type GamepadActionArgs =
   | GamepadActionArgsWithoutMetadata
 
 interface GamepadActionArgsWithMetadata {
-  action: 'leftClick' | 'rightClick'
+  action: 'rightClick'
   metadata: {
     elementTag: string
     x: number
@@ -657,6 +748,7 @@ interface GamepadActionArgsWithoutMetadata {
     | 'tab'
     | 'shiftTab'
     | 'keyboardClick'
+    | 'enter'
     | 'guide'
   metadata?: undefined
 }
@@ -886,6 +978,8 @@ interface GameScopeSettings {
   enableUpscaling: boolean
   enableLimiter: boolean
   enableForceGrabCursor: boolean
+  enableHDR?: boolean
+  enableAdaptiveSync?: boolean
   windowType: string
   gameWidth: string
   gameHeight: string
@@ -932,6 +1026,13 @@ export interface UploadedLogData {
   token: string
   // Time the log file was uploaded (used to know whether it expired)
   uploadedAt: number
+}
+
+export interface ControllerBattery {
+  /** sysfs node name, e.g. `ps-controller-battery` */
+  name: string
+  capacity: number
+  status: string
 }
 
 export interface RunnerCommandStub {

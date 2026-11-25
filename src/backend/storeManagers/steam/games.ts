@@ -11,7 +11,8 @@ import {
   ExecResult,
   InstallArgs,
   LaunchOption,
-  Status
+  Status,
+  CloudSyncResult
 } from 'common/types'
 import {
   logError,
@@ -29,6 +30,13 @@ import { sendGameStatusUpdate } from 'backend/utils'
 import { sendFrontendMessage } from 'backend/ipc'
 import { isLinux } from 'backend/constants/environment'
 import { libraryManagerMap } from '..'
+import { isOnline } from 'backend/online_monitor'
+import { launchCleanup, prepareLaunch, setupWrappers } from 'backend/launcher'
+import { removeQuoteIfNecessary } from 'backend/utils'
+import { showDialogBoxModalAuto } from 'backend/dialog/dialog'
+import { aureliaPrefixArgs, buildAureliaLaunchOptions } from './launch_options'
+import { userHome } from 'backend/constants/paths'
+import { syncDirectionFromArg } from './sync_args'
 import { configStore, extraInfoStore } from './electronStores'
 import { getSteamBacklogEntry } from './backlog'
 import {
@@ -39,6 +47,7 @@ import {
 } from './cloud_sync_status'
 import {
   aureliaSupportsLaunchOption,
+  disableAureliaCloudSync,
   runAurelia,
   fetchAureliaInfo,
   parseAureliaJson,
@@ -56,12 +65,12 @@ import {
   reportSteamRunning,
   steamRunningMessage
 } from './utils'
+import { buildReqs, stripSteamMarkup, toInstallPlatforms } from './store_info'
 import {
-  buildReqs,
-  stripSteamMarkup,
-  toInstallPlatforms,
+  installLanguageArgs,
+  isSteamLanguageName,
   toSteamApiLanguage
-} from './store_info'
+} from './languages'
 import type {
   AureliaAchievementsResponse,
   AureliaCloudConflict,
@@ -203,7 +212,11 @@ export default class SteamGame implements Game {
         [`Failed to list launch targets for ${this.id}`, describeError(error)],
         LogPrefix.Steam
       )
-      return { targets: [] }
+      // Offline: keep the stored pick
+      return {
+        targets: [],
+        selected: configStore.get('steamLaunchTarget', {})[this.id]
+      }
     }
   }
 
@@ -552,7 +565,8 @@ export default class SteamGame implements Game {
 
   async install({
     platformToInstall,
-    path
+    path,
+    installLanguage
   }: InstallArgs): Promise<InstallResult> {
     if (!isSteamSupported()) {
       logWarning(
@@ -580,7 +594,8 @@ export default class SteamGame implements Game {
           this.id,
           ...(platformArg ? ['-p', platformArg] : []),
           // Install into the chosen Steam library folder
-          ...(libraryRoot ? ['--library', libraryRoot] : [])
+          ...(libraryRoot ? ['--library', libraryRoot] : []),
+          ...installLanguageArgs(installLanguage)
         ]
 
     const result = await this.runStreamingCommand(
@@ -659,6 +674,139 @@ export default class SteamGame implements Game {
         LogPrefix.Steam
       )
     }
+  }
+
+  /** Pass the custom prefix to Aurelia. */
+  private async applyPrefix(
+    gameSettings: GameSettings,
+    logWriter?: LogWriter
+  ): Promise<void> {
+    const args = aureliaPrefixArgs(gameSettings.steamPrefix, userHome)
+    const dir = args[1]
+    try {
+      await runAurelia(['config', 'game', this.id, ...args])
+      if (dir) await logWriter?.logInfo(`Wine prefix: ${dir}/pfx`)
+    } catch (error) {
+      // Older Aurelia lacks --prefix
+      if (!dir) return
+      const message = describeError(error)
+      logWarning(
+        [`Could not set the Wine prefix for ${this.id}`, message],
+        LogPrefix.Steam
+      )
+      await logWriter?.logWarning(`Custom Wine prefix not applied: ${message}`)
+    }
+  }
+
+  /** Pass Heroic launch settings to Aurelia. */
+  private async applyLaunchOptions(
+    gameSettings: GameSettings,
+    wrappers: string[],
+    logWriter: LogWriter
+  ): Promise<void> {
+    const env: Record<string, string> = {}
+    if (gameSettings.nvidiaPrime) {
+      env.DRI_PRIME = '1'
+      env.__NV_PRIME_RENDER_OFFLOAD = '1'
+      env.__GLX_VENDOR_LIBRARY_NAME = 'nvidia'
+    }
+    for (const entry of gameSettings.enviromentOptions ?? []) {
+      env[entry.key] = removeQuoteIfNecessary(entry.value)
+    }
+    const { line, skippedEnv } = buildAureliaLaunchOptions({
+      env,
+      wrappers,
+      launcherArgs: gameSettings.launcherArgs
+    })
+    if (skippedEnv.length) {
+      await logWriter.logWarning(
+        `Ignoring environment variables with invalid names: ${skippedEnv.join(', ')}`
+      )
+    }
+    try {
+      await runAurelia([
+        'config',
+        'game',
+        this.id,
+        ...(line ? ['--launch-options', line] : ['--no-launch-options'])
+      ])
+      if (line) await logWriter.logInfo(`Launch options: ${line}`)
+    } catch (error) {
+      const message = describeError(error)
+      logWarning(
+        [`Could not set launch options for ${this.id}`, message],
+        LogPrefix.Steam
+      )
+      await logWriter.logWarning(`Launch options not applied: ${message}`)
+    }
+  }
+
+  /** Show Aurelia's reason for a refusal. */
+  private async showLaunchFailure(
+    res: ExecResult,
+    logWriter: LogWriter
+  ): Promise<void> {
+    let message = res.error ?? ''
+    try {
+      parseAureliaJson(res)
+    } catch (error) {
+      if (error instanceof AureliaError) {
+        if (error.aborted) return
+        message = error.hint
+          ? `${error.message}\n\n${error.hint}`
+          : error.message
+      }
+    }
+    await logWriter.logError(['Launch failed:', message])
+    showDialogBoxModalAuto({
+      title: t('box.error.launchAborted', 'Launch aborted'),
+      message,
+      type: 'ERROR'
+    })
+  }
+
+  /** Tells the user when Aurelia started Steam anyway. */
+  private async reportForcedSteam(
+    stdout: string,
+    logWriter: LogWriter
+  ): Promise<void> {
+    let forced: string | undefined
+    try {
+      forced = parseAureliaJson<{ steam_forced?: string }>({
+        stdout,
+        stderr: ''
+      })?.steam_forced
+    } catch {
+      return
+    }
+    if (!forced) return
+    const reason =
+      forced === 'family-shared'
+        ? 'it is shared with you through Steam Family'
+        : 'its licence could not be confirmed without Steam'
+    const message = `Steam was started for this game because ${reason}.`
+    logWarning([`${this.id}:`, message], LogPrefix.Steam)
+    await logWriter.logWarning(message)
+  }
+
+  /** Unset means on, like Steam. */
+  /** Heroic syncs; `play` must not. */
+  private async keepAureliaFromSyncing(logWriter: LogWriter): Promise<void> {
+    const result = await disableAureliaCloudSync(this.id)
+    if (result === 'unsupported') {
+      await logWriter.logWarning(
+        "Aurelia's own Steam Cloud sync could not be turned off; update Aurelia. Saves may sync twice."
+      )
+    } else if (result === 'game-override') {
+      await logWriter.logWarning(
+        `Aurelia still syncs Steam Cloud for this game (per-game override); clear it with 'aurelia config game ${this.id} --cloud-sync auto'.`
+      )
+    }
+  }
+
+  private async shouldAutoSyncSaves(): Promise<boolean> {
+    const { autoSyncSaves } = await this.getSettings()
+    return (autoSyncSaves ?? true) && isOnline()
   }
 
   /** Last recorded Cloud sync outcome, for the library/game-page icon. */
@@ -894,8 +1042,45 @@ export default class SteamGame implements Game {
 
     await this.applyPendingDlcChanges()
 
+    const gameSettings = await this.getSettings()
+    // Aurelia runs Proton itself: no umu
+    const prep = await prepareLaunch(
+      { ...gameSettings, steamRuntime: false },
+      logWriter,
+      gameInfo,
+      true
+    )
+    if (!prep.success) {
+      await logWriter.logError(['Launch aborted:', prep.failureReason])
+      launchCleanup(prep.rpcClient)
+      showDialogBoxModalAuto({
+        title: t('box.error.launchAborted', 'Launch aborted'),
+        message: prep.failureReason ?? '',
+        type: 'ERROR'
+      })
+      return false
+    }
+    await this.applyLaunchOptions(
+      gameSettings,
+      setupWrappers(
+        gameSettings,
+        prep.mangoHudCommand,
+        prep.gameModeBin,
+        prep.gameScopeCommand
+      ),
+      logWriter
+    )
+    await this.applyPrefix(gameSettings, logWriter)
+
+    await this.keepAureliaFromSyncing(logWriter)
+
     // Sync before starting a game
-    await this.syncCloudSaves('down', logWriter)
+    const syncSaves = await this.shouldAutoSyncSaves()
+    if (syncSaves) {
+      await this.syncCloudSaves('down', logWriter)
+    } else {
+      await logWriter.logInfo('Steam Cloud sync skipped (disabled or offline)')
+    }
 
     sendGameStatusUpdate({
       appName: this.id,
@@ -940,16 +1125,22 @@ export default class SteamGame implements Game {
       logWriters: [logWriter]
     })
 
+    launchCleanup(prep.rpcClient)
+
     if (res.error && !res.error.includes('signal')) {
       logError(
         [`Failed to launch ${this.id} through Aurelia`, res.error],
         LogPrefix.Steam
       )
+      await this.showLaunchFailure(res, logWriter)
       return false
     }
+    await this.reportForcedSteam(res.stdout, logWriter)
 
     // Sync after game stopped
-    await this.syncCloudSaves('up', logWriter)
+    if (syncSaves && isOnline()) {
+      await this.syncCloudSaves('up', logWriter)
+    }
 
     // The pre-launch update tracking
     try {
@@ -1008,48 +1199,61 @@ export default class SteamGame implements Game {
     }
   }
 
-  async syncSaves(arg: string, path: string): Promise<string> {
-    if (!isSteamSupported()) {
-      return ''
+  async syncSaves(arg: string, path: string): Promise<CloudSyncResult> {
+    const result: CloudSyncResult = {
+      appName: this.id,
+      runner: 'steam',
+      state: 'failed',
+      output: ''
     }
-    const direction: 'up' | 'down' | undefined = /upload/i.test(arg)
-      ? 'up'
-      : /download/i.test(arg)
-        ? 'down'
-        : undefined
+
+    if (!isSteamSupported()) {
+      return { ...result, reason: 'not-supported' }
+    }
+    const direction = syncDirectionFromArg(arg)
     const directionFlag = direction ? [`--${direction}`] : []
     const pathArg = path ? ['--path', path] : []
+    // Saves live in the chosen prefix
+    await this.applyPrefix(await this.getSettings())
     markCloudSyncing(this.id)
     try {
-      let result = await runAurelia<AureliaCloudSyncResponse>([
+      let syncResult = await runAurelia<AureliaCloudSyncResponse>([
         'cloud',
         'sync',
         this.id,
         ...directionFlag,
         ...pathArg
       ])
-      if (result?.status === 'conflicts' && result.conflicts?.length) {
+      if (syncResult?.status === 'conflicts' && syncResult.conflicts?.length) {
         // Never widen the requested direction
-        result =
+        syncResult =
           (await this.resolveCloudConflicts(
-            result.conflicts,
+            syncResult.conflicts,
             undefined,
             direction
-          )) ?? result
-        recordCloudSyncResult(this.id, result)
-        return 'Steam Cloud conflict resolved'
+          )) ?? syncResult
+        recordCloudSyncResult(this.id, syncResult)
+        return {
+          ...result,
+          state: 'ok',
+          output: 'Steam Cloud conflict resolved'
+        }
       }
-      recordCloudSyncResult(this.id, result)
-      if (result?.failed?.length || result?.skipped?.length) {
-        const failed = result.failed?.length ?? 0
-        const skipped = result.skipped?.length ?? 0
+      recordCloudSyncResult(this.id, syncResult)
+      if (syncResult?.failed?.length || syncResult?.skipped?.length) {
+        const failed = syncResult.failed?.length ?? 0
+        const skipped = syncResult.skipped?.length ?? 0
         logWarning(
           `Steam Cloud sync for ${this.id} was incomplete: ${failed} failed, ${skipped} unplaceable`,
           LogPrefix.Steam
         )
-        return 'Steam Cloud sync incomplete — some saves are missing'
+        return {
+          ...result,
+          state: 'incomplete',
+          output: 'Steam Cloud sync incomplete — some saves are missing'
+        }
       }
-      return 'Steam Cloud sync finished'
+      return { ...result, state: 'ok', output: 'Steam Cloud sync finished' }
     } catch (error) {
       const message = describeError(error)
       recordCloudSyncError(this.id, message)
@@ -1057,7 +1261,7 @@ export default class SteamGame implements Game {
         [`Failed to sync Steam Cloud saves for ${this.id}`, message],
         LogPrefix.Steam
       )
-      return `${message}`
+      return { ...result, reason: 'provider-error', output: message }
     }
   }
 
@@ -1099,9 +1303,15 @@ export default class SteamGame implements Game {
     return { stdout: '', stderr: '' }
   }
 
-  async update(): Promise<InstallResult> {
+  async update(updateOverwrites?: {
+    language?: string
+  }): Promise<InstallResult> {
     if (!isSteamSupported()) {
       return { status: 'error', error: STEAM_UNSUPPORTED }
+    }
+    const language = updateOverwrites?.language
+    if (isSteamLanguageName(language)) {
+      return this.setLanguage(language)
     }
     const result = await this.runStreamingCommand(
       ['update', this.id],
@@ -1110,6 +1320,45 @@ export default class SteamGame implements Game {
     )
     if (result.status === 'done') {
       await libraryManagerMap['steam'].refresh()
+    }
+    return result
+  }
+
+  /** Swaps the language depots, DLC included. */
+  private async setLanguage(language: string): Promise<InstallResult> {
+    const gameInfo = this.getGameInfo()
+    logInfo(
+      `Switching ${gameInfo.title} (${this.id}) to ${language}`,
+      LogPrefix.Steam
+    )
+    const result = await this.runStreamingCommand(
+      ['set-language', this.id, language],
+      'updating',
+      'update'
+    )
+    if (result.status === 'done') {
+      libraryManagerMap['steam'].forgetInstallInfo(this.id)
+      await libraryManagerMap['steam'].refresh()
+      return result
+    }
+    if (result.status === 'error') {
+      const error = isSteamRunningError(result.error)
+        ? steamRunningMessage()
+        : result.error ||
+          t(
+            'box.error.steam.language-change-unknown',
+            'Aurelia gave no reason. The Steam log has details.'
+          )
+      showDialogBoxModalAuto({
+        title: t(
+          'box.error.steam.language-change',
+          'Could not change the language of {{game}}',
+          { game: gameInfo.title }
+        ),
+        message: error,
+        type: 'ERROR'
+      })
+      return { status: 'error', error }
     }
     return result
   }

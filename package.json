@@ -1,8 +1,8 @@
 {
   "name": "heroic",
-  "version": "2.22.4",
+  "version": "3.0.0-beta.1",
   "versionNames": {
-    "stable": "Hajrudin",
+    "stable": "Caesar Clown",
     "beta": "Caesar Clown"
   },
   "private": false,
@@ -118,6 +118,7 @@
     "@types/semver": "^7.7.0",
     "@types/source-map-support": "^0.5.10",
     "@types/tmp": "^0.2.6",
+    "@types/yauzl": "^3.4.0",
     "@vitejs/plugin-react-swc": "^3.9.0",
     "@vitest/browser": "^4.1.12",
     "@vitest/browser-playwright": "^4.1.12",

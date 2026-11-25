@@ -17,7 +17,6 @@ import {
   AutoVndbSyncNewGames,
   CheckUpdatesOnStartup,
   DefaultInstallPath,
-  DisableController,
   DiscordRPC,
   HideChangelogOnStartup,
   LibraryTopSection,
@@ -35,7 +34,8 @@ import {
   VndbLabelCategorySync,
   WinePrefixesBasePath,
   PlaytimeSync,
-  AnalyticsOptIn
+  AnalyticsOptIn,
+  BackupSaves
 } from '../../components'
 
 export default function GeneralSettings() {
@@ -84,8 +84,8 @@ export default function GeneralSettings() {
         title={t('settings.section.gameplay', 'Gameplay')}
       >
         <MinimizeOnGameLaunch />
-        <DisableController />
         <PlaytimeSync />
+        <BackupSaves />
         <Shortcuts />
       </SettingsCard>
 

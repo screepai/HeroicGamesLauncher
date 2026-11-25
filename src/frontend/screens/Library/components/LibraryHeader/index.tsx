@@ -58,7 +58,7 @@ export default memo(function LibraryHeader({
     <div className="libraryHeader" data-tour="library-header">
       <div className="libraryToolbar">
         <Header />
-        <ActionIcons />
+        <ActionIcons data-tour="library-actions" />
       </div>
       {isSelectingGames && (
         <div className="libraryHeaderActions">

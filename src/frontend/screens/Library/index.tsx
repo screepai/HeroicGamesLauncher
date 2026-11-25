@@ -629,7 +629,7 @@ export default React.memo(function Library(): JSX.Element {
     if (storesFilters['legendary'] && epic.username) {
       displayedStores.push('legendary')
     }
-    if (storesFilters['nile'] && amazon.username) {
+    if (storesFilters['nile'] && (amazon.user_id || amazon.username)) {
       displayedStores.push('nile')
     }
     if (storesFilters['sideload']) {
@@ -651,7 +651,8 @@ export default React.memo(function Library(): JSX.Element {
 
     const showEpic = epic.username && displayedStores.includes('legendary')
     const showGog = gog.username && displayedStores.includes('gog')
-    const showAmazon = amazon.user_id && displayedStores.includes('nile')
+    const showAmazon =
+      (amazon.user_id || amazon.username) && displayedStores.includes('nile')
     const showSideloaded = displayedStores.includes('sideload')
     const showZoom = zoom.username && displayedStores.includes('zoom')
     const showItchio = itchio.username && displayedStores.includes('itchio')
@@ -1058,6 +1059,7 @@ export default React.memo(function Library(): JSX.Element {
                 )}
               </>
             }
+            actionsTour={hasRecentGames ? undefined : 'library-section-actions'}
           />
         )}
 

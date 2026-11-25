@@ -151,6 +151,7 @@ interface StateProps {
   libraryTopSection: string
   platform: NodeJS.Platform
   isIntelMac: boolean
+  isLinuxArm: boolean
   refreshing: boolean
   refreshingInTheBackground: boolean
   hiddenGames: HiddenGame[]
@@ -312,7 +313,10 @@ class GlobalState extends PureComponent<Props> {
       username: itchioConfigStore.get_nodefault('userData.username')
     },
     steam: {
-      library: this.loadSteamLibrary(),
+      // Logged out: no list or search
+      library: steamConfigStore.get_nodefault('username')
+        ? this.loadSteamLibrary()
+        : [],
       username: steamConfigStore.get_nodefault('username'),
       enabled: window.platform !== 'darwin',
       users: []
@@ -325,6 +329,7 @@ class GlobalState extends PureComponent<Props> {
     libraryTopSection: globalSettings?.libraryTopSection || 'disabled',
     platform: window.platform,
     isIntelMac: false,
+    isLinuxArm: false,
     refreshing: false,
     refreshingInTheBackground: true,
     hiddenGames: configStore.get('games.hidden', []),
@@ -1049,18 +1054,18 @@ class GlobalState extends PureComponent<Props> {
 
   loadSteamUsers = async () => {
     const users = await window.api.getSteamUsers()
-    this.setState({
-      steam: { ...this.state.steam, users }
-    })
+    // Updater: batched with username refresh
+    this.setState((prev) => ({
+      steam: { ...(prev as StateProps).steam, users }
+    }))
   }
 
   logoutSteamUser = (steamId: string) => {
     window.api.logoutSteamAccount(steamId)
-    const users = this.state.steam.users.filter(
-      (user) => user.steamId !== steamId
-    )
-    this.setState({
-      steam: { ...this.state.steam, users }
+    this.setState((prev) => {
+      const { steam } = prev as StateProps
+      const users = steam.users.filter((user) => user.steamId !== steamId)
+      return { steam: { ...steam, users } }
     })
     void this.refreshLibrary({ runInBackground: true })
   }
@@ -1138,7 +1143,7 @@ class GlobalState extends PureComponent<Props> {
     }
 
     let steamLibrary: GameInfo[] = []
-    if (steam.enabled) {
+    if (steam.enabled && steam.username) {
       steamLibrary = this.loadSteamLibrary(overrides)
       if (!steamLibrary.length || !steam.library.length) {
         window.api.logInfo('No cache found, getting data from steam...')
@@ -1163,7 +1168,7 @@ class GlobalState extends PureComponent<Props> {
 
     const updatedSideload = sideloadLibrary.get('games', [])
 
-    this.setState({
+    this.setState((prev) => ({
       epic: {
         library: applyGameOverrides(epicLibrary, overrides),
         username: epic.username
@@ -1179,9 +1184,10 @@ class GlobalState extends PureComponent<Props> {
       },
       steam: {
         library: steamLibrary,
-        username: steam.username,
+        // Live values; loaded during refresh
+        username: (prev as StateProps).steam.username,
         enabled: steam.enabled,
-        users: steam.users
+        users: (prev as StateProps).steam.users
       },
       amazon: {
         library: amazonLibrary,
@@ -1196,7 +1202,7 @@ class GlobalState extends PureComponent<Props> {
       refreshing: false,
       refreshingInTheBackground: true,
       sideloadedLibrary: applyGameOverrides(updatedSideload, overrides)
-    })
+    }))
 
     if (currentLibraryLength !== epicLibrary.length) {
       window.api.logInfo('Force Update')
@@ -1429,6 +1435,10 @@ class GlobalState extends PureComponent<Props> {
       this.setState({ isIntelMac: await window.api.isIntelMac() })
     }
 
+    if (platform === 'linux') {
+      this.setState({ isLinuxArm: await window.api.isLinuxArm() })
+    }
+
     this.setState({
       isFullscreen: await window.api.isFullscreen(),
       isFrameless: await window.api.isFrameless()
@@ -1462,7 +1472,14 @@ class GlobalState extends PureComponent<Props> {
     }
 
     if (steam.enabled && steamUser) {
-      await window.api.getSteamUserInfo()
+      // Refresh name from live session
+      const steamInfo = await window.api.getSteamUserInfo()
+      this.setState((prev) => ({
+        steam: {
+          ...(prev as StateProps).steam,
+          username: steamInfo?.username
+        }
+      }))
     }
 
     if (!gameUpdates.length) {

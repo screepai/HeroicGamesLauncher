@@ -50,6 +50,8 @@ export default function ImagesStep({
   const { t } = useTranslation('gamepage')
 
   const [imageLoading, setImageLoading] = useState(false)
+  // VNDB cover search needs no key, so either source enables searching.
+  const canSearchCovers = hasSgdbKey || includeVndb
 
   // Show the spinner until a new cover (e.g. one the dialog found on its
   // own) has loaded; the image's onLoad/onError clears it.
@@ -196,9 +198,18 @@ export default function ImagesStep({
               searching,
               loading: imageLoading
             })}
-            onClick={() =>
-              (hasSgdbKey || includeVndb) && setSgdbTarget('square')
-            }
+            onClick={() => canSearchCovers && setSgdbTarget('square')}
+            onKeyDown={(event) => {
+              if (
+                canSearchCovers &&
+                (event.key === 'Enter' || event.key === ' ')
+              ) {
+                event.preventDefault()
+                setSgdbTarget('square')
+              }
+            }}
+            role={canSearchCovers ? 'button' : undefined}
+            tabIndex={canSearchCovers ? 0 : undefined}
           >
             <CachedImage
               className={classNames('appImage', {
@@ -224,6 +235,14 @@ export default function ImagesStep({
               hasSgdbKey
             })}
             onClick={() => hasSgdbKey && setSgdbTarget('cover')}
+            onKeyDown={(event) => {
+              if (hasSgdbKey && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault()
+                setSgdbTarget('cover')
+              }
+            }}
+            role={hasSgdbKey ? 'button' : undefined}
+            tabIndex={hasSgdbKey ? 0 : undefined}
           >
             <CachedImage
               className="appImage heroImage"

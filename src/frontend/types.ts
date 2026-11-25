@@ -49,6 +49,7 @@ export interface ContextType {
   handleLibraryTopSection: (value: LibraryTopSectionOptions) => void
   platform: NodeJS.Platform | 'unknown'
   isIntelMac: boolean
+  isLinuxArm: boolean
   refresh: (library: Runner, checkUpdates?: boolean) => Promise<void>
   refreshLibrary: (options: RefreshOptions) => Promise<void>
   refreshing: boolean
@@ -232,6 +233,7 @@ declare global {
     setTheme: (themeClass: string) => void
     isSteamDeck: boolean
     isSteamDeckGameMode: boolean
+    isSteamOS: boolean
     isFlatpak: boolean
     flatpakRuntimeVersion?: string
     platform: NodeJS.Platform

@@ -12,6 +12,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { toIntlLocale } from 'common/utils'
 
 import Alert from '../Alert'
 import type { AlertVariant } from '../Alert'
@@ -31,6 +32,7 @@ import type {
 } from 'common/types/steam'
 
 import { useCloudSyncStateLabels } from './state'
+import { getIntlLocale } from 'frontend/helpers'
 import './index.css'
 
 interface Props {
@@ -74,10 +76,9 @@ function formatRelative(when: number, language: string): string {
     unitMs = candidateMs
   }
 
-  return new Intl.RelativeTimeFormat(language, { numeric: 'auto' }).format(
-    Math.round(difference / unitMs),
-    unit
-  )
+  return new Intl.RelativeTimeFormat(toIntlLocale(language), {
+    numeric: 'auto'
+  }).format(Math.round(difference / unitMs), unit)
 }
 
 /** Alert tone and glyph per state. */
@@ -202,7 +203,7 @@ export default function SteamCloudSyncPanel({ appName, status }: Props) {
     }
   }, [files])
 
-  const language = i18n.language
+  const language = getIntlLocale(i18n.language)
   const hasIssue =
     current.state === 'conflicts' ||
     current.state === 'failed' ||

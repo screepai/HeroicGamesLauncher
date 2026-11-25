@@ -195,7 +195,6 @@ export default function SearchBar({
             className="clearSearchButton"
             onClick={onClear}
             aria-label={t('generic.clear', 'Clear')}
-            tabIndex={-1}
           >
             <X size={18} strokeWidth={2} aria-hidden />
           </button>

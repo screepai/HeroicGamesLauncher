@@ -4,6 +4,7 @@ import {
   removeImageFromCache
 } from './images_cache'
 import { fetchLastestReleases } from './utils/releases'
+import { getControllerBatteries } from './utils/controller_battery'
 import {
   DiskSpaceData,
   MoveGameResult,
@@ -74,6 +75,7 @@ import {
   getGame
 } from './utils'
 import { startPlausible } from './utils/plausible'
+import { kwinActivateWindow } from './utils/kwin_activate'
 
 import {
   getDiskInfo,
@@ -107,7 +109,17 @@ import {
 } from './online_monitor'
 import { notify, showDialogBoxModalAuto } from './dialog/dialog'
 import { callAbortController } from './utils/aborthandler/aborthandler'
-import { getDefaultSavePath } from './save_sync'
+import {
+  cancelSavePathsDetection,
+  detectAndPersistSavePaths,
+  getDefaultSavePath,
+  refreshSavePathsIfConfigurationChanged
+} from './save_sync'
+import {
+  getSaveBackupFolder,
+  getSaveBackups,
+  restoreSaveBackupById
+} from './cloud_saves/backup'
 import { initTrayIcon } from './tray_icon/tray_icon'
 import { createMainWindow, getMainWindow, isFrameless } from './main_window'
 
@@ -150,6 +162,7 @@ import {
   isSteamDeckGameMode,
   isWindows
 } from './constants/environment'
+import { turnOffScreen } from './utils/power'
 import {
   configPath,
   gamesConfigPath,
@@ -402,6 +415,11 @@ if (!gotTheLock) {
 
     const settings = GlobalConfig.get().getSettings()
 
+    // Reset afterDownloadAction to none on startup
+    if (settings.afterDownloadAction !== 'none') {
+      GlobalConfig.get().setSetting('afterDownloadAction', 'none')
+    }
+
     if (settings && settings.analyticsOptIn === true) {
       void startPlausible()
     }
@@ -635,6 +653,21 @@ addListener('openSupportPage', async () => openUrlOrFile(supportURL))
 addListener('openReleases', async () => openUrlOrFile(heroicGithubURL))
 addListener('openWeblate', async () => openUrlOrFile(weblateUrl))
 addListener('showAboutWindow', () => showAboutWindow())
+addListener('focusMainWindow', async () => {
+  const mainWindow = getMainWindow()
+  if (!mainWindow) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  mainWindow.focus()
+  if (mainWindow.isFocused()) return
+  // Wayland compositors reject plain focus()
+  await kwinActivateWindow(mainWindow.getTitle()).catch((error) =>
+    logWarning(
+      ['Failed to activate window via KWin:', error],
+      LogPrefix.Backend
+    )
+  )
+})
 addListener('openLoginPage', async () => openUrlOrFile(epicLoginUrl))
 addListener('openDiscordLink', async () => openUrlOrFile(discordLink))
 addListener('openPatreonPage', async () => openUrlOrFile(patreonPage))
@@ -704,8 +737,17 @@ addHandler('checkGameUpdates', async (): Promise<string[]> => {
 addHandler('getEpicGamesStatus', async () => isEpicServiceOffline())
 
 addHandler('getMaxCpus', () => cpus().length)
+addHandler('getPrimaryDisplay', () => {
+  const display = screen.getPrimaryDisplay()
+  return {
+    width: Math.round(display.size.width * display.scaleFactor),
+    height: Math.round(display.size.height * display.scaleFactor),
+    scaleFactor: display.scaleFactor
+  }
+})
 
 addHandler('getHeroicVersion', () => app.getVersion())
+addHandler('getControllerBatteries', () => getControllerBatteries())
 addHandler('isFullscreen', () => isSteamDeckGameMode || isCLIFullscreen)
 addHandler('getGameOverride', async () =>
   libraryManagerMap['legendary'].getGameOverride()
@@ -882,6 +924,7 @@ addHandler('authZoom', async (event, url) => {
   }
   return login
 })
+addHandler('turnOffScreen', async () => turnOffScreen())
 
 addListener('logoutZoom', () => ZoomUser.logout())
 addHandler('getZoomUserInfo', async () => ZoomUser.getUserDetails())
@@ -1242,9 +1285,15 @@ addHandler('egsSync', async (event, args) => {
   return libraryManagerMap['legendary'].toggleGamesSync(args)
 })
 
-addHandler('syncGOGSaves', async (event, gogSaves, appName, arg) =>
-  libraryManagerMap['gog'].getGame(appName).syncSaves(arg, '', gogSaves)
-)
+addHandler('syncGOGSaves', async (event, gogSaves, appName, arg) => {
+  const game = libraryManagerMap['gog'].getGame(appName)
+  const changed = await refreshSavePathsIfConfigurationChanged(appName, 'gog')
+  if (!changed) {
+    return game.syncSaves(arg, '', gogSaves)
+  }
+  const { gogSaves: refreshed } = await game.getSettings()
+  return game.syncSaves(arg, '', refreshed?.length ? refreshed : gogSaves)
+})
 
 addHandler('getLaunchOptions', async (event, appName, runner) => {
   const availableLaunchOptions =
@@ -1281,19 +1330,60 @@ addHandler('syncSaves', async (event, { arg = '', path, appName, runner }) => {
         'Epic is offline right now, cannot sync saves!',
         LogPrefix.Backend
       )
-      return 'Epic is offline right now, cannot sync saves!'
+      return {
+        appName,
+        runner,
+        state: 'failed',
+        reason: 'offline',
+        output: 'Epic is offline right now, cannot sync saves!'
+      }
     }
   }
   if (!isOnline()) {
     logWarning('App is offline, cannot sync saves!', LogPrefix.Backend)
-    return 'App is offline, cannot sync saves!'
+    return {
+      appName,
+      runner,
+      state: 'failed',
+      reason: 'offline',
+      output: 'App is offline, cannot sync saves!'
+    }
   }
 
-  const output = await libraryManagerMap[runner]
+  await refreshSavePathsIfConfigurationChanged(appName, runner)
+  if (runner === 'legendary') {
+    path =
+      (await libraryManagerMap[runner].getGame(appName).getSettings())
+        .savesPath || path
+  }
+
+  const result = await libraryManagerMap[runner]
     .getGame(appName)
     .syncSaves(arg, path)
-  logInfo(output, LogPrefix.Backend)
-  return output
+  logInfo(result.output, LogPrefix.Backend)
+  return result
+})
+
+addHandler('getSaveBackups', async (event, appName) => getSaveBackups(appName))
+
+addHandler('getSaveBackupPath', async (event, appName) =>
+  getSaveBackupFolder(appName)
+)
+
+addHandler('restoreSaveBackup', async (event, appName, runner, backupId) => {
+  const game = libraryManagerMap[runner].getGame(appName)
+  const { title } = game.getGameInfo()
+  const settings = await game.getSettings()
+  const currentLocations =
+    runner === 'gog'
+      ? (settings.gogSaves ?? [])
+          .map((location) => location.location)
+          .filter((location) => location.length > 0)
+      : settings.savesPath
+        ? [settings.savesPath]
+        : []
+
+  return restoreSaveBackupById({ appName, title, backupId, currentLocations })
 })
 
 addHandler(
@@ -1302,12 +1392,28 @@ addHandler(
     getDefaultSavePath(appName, runner, alreadyDefinedGogSaves)
 )
 
+addHandler('detectSavePaths', async (event, appName, runner) =>
+  detectAndPersistSavePaths(appName, runner)
+)
+
+addListener('cancelSavePathsDetection', (event, appName, runner) =>
+  cancelSavePathsDetection(appName, runner)
+)
+
 // Simulate keyboard and mouse actions as if the real input device is used
 addHandler('gamepadAction', (event, args) => {
   // we can only receive gamepad events if the main window exists
   const mainWindow = getMainWindow()!
 
   const { action, metadata } = args
+
+  // `metadata` comes from getBoundingClientRect() (CSS pixels) while
+  // sendInputEvent expects window coordinates, so a zoomed UI would click
+  // somewhere else entirely.
+  const zoomFactor = mainWindow.webContents.zoomFactor || 1
+  const clickX = metadata ? Math.round(metadata.x * zoomFactor) : 0
+  const clickY = metadata ? Math.round(metadata.y * zoomFactor) : 0
+
   const inputEvents: (
     | Electron.MouseInputEvent
     | Electron.MouseWheelInputEvent
@@ -1339,6 +1445,26 @@ addHandler('gamepadAction', (event, args) => {
         y: mainWindow.getBounds().height / 2
       })
       break
+    case 'prevPage':
+      inputEvents.push({
+        type: 'keyDown',
+        keyCode: 'PageUp'
+      })
+      inputEvents.push({
+        type: 'keyUp',
+        keyCode: 'PageUp'
+      })
+      break
+    case 'nextPage':
+      inputEvents.push({
+        type: 'keyDown',
+        keyCode: 'PageDown'
+      })
+      inputEvents.push({
+        type: 'keyUp',
+        keyCode: 'PageDown'
+      })
+      break
     case 'leftStickUp':
     case 'leftStickDown':
     case 'leftStickLeft':
@@ -1357,32 +1483,18 @@ addHandler('gamepadAction', (event, args) => {
         keyCode: action.replace(/pad|leftStick/, '')
       })
       break
-    case 'leftClick':
-      inputEvents.push({
-        type: 'mouseDown',
-        button: 'left',
-        x: metadata.x,
-        y: metadata.y
-      })
-      inputEvents.push({
-        type: 'mouseUp',
-        button: 'left',
-        x: metadata.x,
-        y: metadata.y
-      })
-      break
     case 'rightClick':
       inputEvents.push({
         type: 'mouseDown',
         button: 'right',
-        x: metadata.x,
-        y: metadata.y
+        x: clickX,
+        y: clickY
       })
       inputEvents.push({
         type: 'mouseUp',
         button: 'right',
-        x: metadata.x,
-        y: metadata.y
+        x: clickX,
+        y: clickY
       })
       break
     case 'back':
@@ -1423,6 +1535,16 @@ addHandler('gamepadAction', (event, args) => {
           modifiers: ['shift']
         }
       )
+      break
+    case 'enter':
+      inputEvents.push({
+        type: 'keyDown',
+        keyCode: 'Return'
+      })
+      inputEvents.push({
+        type: 'keyUp',
+        keyCode: 'Return'
+      })
       break
   }
 

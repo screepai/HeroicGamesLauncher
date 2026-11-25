@@ -3,9 +3,24 @@ import 'simple-keyboard/build/css/index.css'
 
 let virtualKeyboard: Keyboard | null = null
 let targetInput: HTMLInputElement | null = null
+let shiftActive = false
+let capsActive = false
 
 function currentElement<T extends HTMLElement>() {
   return document.querySelector<T>(':focus')
+}
+
+function keyboardWrapper() {
+  return document.querySelector<HTMLDialogElement>('.simple-keyboard-wrapper')
+}
+
+function updateModifierIndicators() {
+  document
+    .querySelectorAll<HTMLElement>('.hg-button[data-skbtn="{shift}"]')
+    .forEach((el) => el.classList.toggle('hg-shift-active', shiftActive))
+  document
+    .querySelector<HTMLElement>('.hg-button[data-skbtn="{lock}"]')
+    ?.classList.toggle('hg-shift-active', capsActive)
 }
 
 function focusKeyboard() {
@@ -15,20 +30,51 @@ function focusKeyboard() {
   firstButton?.focus()
 }
 
+function applyModifiers(char: string) {
+  if (!/[a-z]/i.test(char)) return char
+  const upper = shiftActive !== capsActive
+  return upper ? char.toUpperCase() : char.toLowerCase()
+}
+
 function typeInInput(button: string) {
   if (!targetInput) return
 
   let value = targetInput.value
   if (button.length === 1) {
-    value += button
+    value += applyModifiers(button)
+    if (shiftActive) {
+      shiftActive = false
+      updateModifierIndicators()
+    }
   } else if (button === '{bksp}') {
     if (value.length > 0) {
       value = value.slice(0, -1)
     }
   } else if (button === '{space}') {
     value += ' '
+  } else if (button === '{enter}') {
+    // let the focused field's own handler decide what "submit" means
+    // (e.g. selecting a settings search result)
+    targetInput.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Enter',
+        code: 'Enter',
+        bubbles: true,
+        cancelable: true
+      })
+    )
+    return
+  } else if (button === '{shift}') {
+    shiftActive = !shiftActive
+    updateModifierIndicators()
+    return
+  } else if (button === '{lock}') {
+    capsActive = !capsActive
+    updateModifierIndicators()
+    return
   }
 
+  // Set through the native setter so React's onChange sees the new value.
   Object.getOwnPropertyDescriptor(
     HTMLInputElement.prototype,
     'value'
@@ -37,17 +83,15 @@ function typeInInput(button: string) {
 }
 
 function makeKeyboardTopLayer() {
-  const wrapper = document.querySelector<HTMLDialogElement>(
-    '.simple-keyboard-wrapper'
-  )
-  wrapper?.showModal()
+  const wrapper = keyboardWrapper()
+  if (!wrapper || wrapper.open) return
+  wrapper.showModal()
 }
 
 function closeKeyboardTopLayer() {
-  const wrapper = document.querySelector<HTMLDialogElement>(
-    '.simple-keyboard-wrapper'
-  )
-  wrapper?.close()
+  const wrapper = keyboardWrapper()
+  if (!wrapper?.open) return
+  wrapper.close()
 }
 
 export const VirtualKeyboardController = {
@@ -64,6 +108,9 @@ export const VirtualKeyboardController = {
       })
       makeKeyboardTopLayer()
     } else {
+      // the native <dialog> can be closed with Esc without going through
+      // `destroy()`, so reopen it instead of leaving the pad without a keyboard
+      makeKeyboardTopLayer()
       focusKeyboard()
     }
   },
@@ -73,11 +120,13 @@ export const VirtualKeyboardController = {
 
     return el.classList.contains('hg-button')
   },
-  isActive: () => virtualKeyboard !== null,
+  isActive: () => virtualKeyboard !== null && !!keyboardWrapper()?.open,
   destroy: () => {
     if (virtualKeyboard) virtualKeyboard.destroy()
     closeKeyboardTopLayer()
     virtualKeyboard = null
+    shiftActive = false
+    capsActive = false
     targetInput?.focus()
   },
   backspace: () => {

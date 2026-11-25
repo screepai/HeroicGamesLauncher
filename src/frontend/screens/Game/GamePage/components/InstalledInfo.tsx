@@ -13,6 +13,7 @@ import { GameInfo } from 'common/types'
 import { DetailList, Panel, ToggleSwitch } from 'frontend/components/UI'
 import type { DetailItem } from 'frontend/components/UI/DetailList'
 import GameContext from '../../GameContext'
+import { steamCompatdataPrefix } from 'frontend/helpers/steamPrefix'
 import { useCloudSaveDetail } from './CloudSavesSync'
 import SteamDlcList from './SteamDlcList'
 import type { VndbRelease } from 'common/types/vndb'
@@ -255,7 +256,13 @@ const InstalledInfo = ({ gameInfo, onIsVisualNovelChange }: Props) => {
   }
 
   if (!is.win && !is.native) {
-    const { wineVersion, winePrefix, wineCrossoverBottle } = gameSettings
+    const { wineVersion, wineCrossoverBottle } = gameSettings
+    // Steam: custom folder, else compatdata
+    const winePrefix =
+      runner === 'steam'
+        ? gameSettings.steamPrefix ||
+          steamCompatdataPrefix(install_path, gameInfo.app_name)
+        : gameSettings.winePrefix
     let wineName = wineVersion.name
       .replace('Wine - ', '')
       .replace('Proton - ', '')
@@ -271,7 +278,7 @@ const InstalledInfo = ({ gameInfo, onIsVisualNovelChange }: Props) => {
         label: t2('setting.winecrossoverbottle', 'Bottle'),
         value: wineCrossoverBottle
       })
-    } else {
+    } else if (winePrefix) {
       items.push({
         glyph: FolderOpen,
         label: t2('setting.wineprefix', 'WinePrefix'),

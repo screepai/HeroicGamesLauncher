@@ -5,9 +5,10 @@ import { useTranslation } from 'react-i18next'
 import ContextProvider from 'frontend/state/ContextProvider'
 import useSetting from 'frontend/hooks/useSetting'
 import useAppSetting from 'frontend/hooks/useAppSetting'
-import { PathSelectionBox } from 'frontend/components/UI'
+import { Alert, PathSelectionBox } from 'frontend/components/UI'
 import { isWindowsPlatform } from 'common/utils'
 import { isDefaultWinePrefix } from 'frontend/helpers/winePrefix'
+import { steamCompatdataPrefix } from 'frontend/helpers/steamPrefix'
 import SettingsContext from '../SettingsContext'
 import { defaultWineVersion } from '../util'
 import DedicatedWinePrefixSetup from './DedicatedWinePrefixSetup'
@@ -33,9 +34,34 @@ const WinePrefix = () => {
     isWindowsPlatform(gameInfo.install.platform)
   )
   const showPrefixCreation = platform === 'linux' && isInstalledWindowsGame
+  const [steamPrefix, setSteamPrefix] = useSetting('steamPrefix', '')
 
   if (isWin || wineVersion.type === 'crossover') {
     return null
+  }
+
+  // Empty: Steam's compatdata folder
+  if (runner === 'steam') {
+    const compatdata = steamCompatdataPrefix(
+      gameInfo?.install.install_path,
+      gameInfo?.app_name
+    )
+    return (
+      <PathSelectionBox
+        htmlId="selectWinePrefix"
+        label={t('setting.wineprefix')}
+        path={steamPrefix}
+        placeholder={compatdata}
+        onPathChange={setSteamPrefix}
+        type="directory"
+        pathDialogTitle={t('box.wineprefix')}
+        pathDialogDefaultPath={steamPrefix || compatdata}
+        info={t(
+          'infobox.steam-wineprefix',
+          'Proton keeps the prefix in a pfx folder inside this folder. Leave it empty to use the folder Steam uses for this game, inside the Steam library it is installed in.'
+        )}
+      />
+    )
   }
 
   return (
@@ -75,6 +101,14 @@ const WinePrefix = () => {
           onCreated={setWinePrefix}
         />
       )}
+      {gameInfo?.cloud_save_enabled ? (
+        <Alert variant="warning">
+          {t(
+            'setting.wineprefix-save-warning',
+            'Changing the Wine prefix or the Wine/Proton version can make Heroic lose track of where this game saves its data. Check the Cloud Saves tab before launching the game.'
+          )}
+        </Alert>
+      ) : null}
     </>
   )
 }
