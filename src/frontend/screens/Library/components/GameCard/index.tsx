@@ -71,6 +71,7 @@ import BulkGameMigrationDialog, {
   isMigratableGame
 } from '../LibraryHeader/BulkGameMigrationDialog'
 import useAppSetting from 'frontend/hooks/useAppSetting'
+import { getGameVndbMatchKey } from 'common/vndb'
 
 interface Card {
   buttonClick: () => void
@@ -149,6 +150,7 @@ const GameCard = ({
 
   const {
     layout,
+    vndbMatches,
     setVndbMatches,
     isSelectingGames,
     isGameSelected,
@@ -404,6 +406,9 @@ const GameCard = ({
   }
 
   const isSideloaded = runner === 'sideload'
+  const isVndbLinked =
+    enableVndbIntegration &&
+    Boolean(vndbMatches[getGameVndbMatchKey(gameInfoFromProps)]?.vndbId)
   const showVndbSync =
     enableVndbIntegration &&
     showVndbActionsOnGameCards &&
@@ -659,7 +664,11 @@ const GameCard = ({
               { '--installing-effect': installingGrayscale } as CSSProperties
             }
           >
-            <StoreBadge runner={runner} />
+            <StoreBadge
+              runner={runner}
+              vndb={isVndbLinked}
+              title={isVndbLinked ? 'VNDB' : undefined}
+            />
             {gameInfo.isFamilyShare && (
               <Tooltip
                 content={t('label.steam-family-share', 'Steam Family Sharing')}

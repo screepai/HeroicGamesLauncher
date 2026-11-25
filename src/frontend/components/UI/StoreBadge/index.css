@@ -17,3 +17,16 @@
   height: 100%;
   fill: #0a0e13;
 }
+
+/* VNDB's favicon is a full-bleed 16px square: fill the plate and keep the
+   pixels sharp instead of blurring them up to badge size */
+.StoreBadge--vndb {
+  padding: 0;
+  overflow: hidden;
+}
+
+.StoreBadge__favicon {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
