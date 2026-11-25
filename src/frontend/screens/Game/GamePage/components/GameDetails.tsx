@@ -90,7 +90,11 @@ const GameDetails = ({ gameInfo }: Props) => {
         <h3 className="gameDetails__title">
           {t('game.details', 'Game details')}
         </h3>
-        <StoreBadge runner={runner} title={STORE_NAMES[runner] ?? runner} />
+        <StoreBadge
+          runner={runner}
+          vndb={Boolean(vndbMatch?.vndbId)}
+          title={vndbMatch?.vndbId ? 'VNDB' : (STORE_NAMES[runner] ?? runner)}
+        />
       </div>
       <DetailList items={items} />
     </Panel>
