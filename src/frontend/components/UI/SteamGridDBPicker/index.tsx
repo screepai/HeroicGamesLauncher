@@ -275,7 +275,15 @@ export default function SteamGridDBPicker({
               key={`${result.source}:${result.id}`}
               className="SteamGridDBPicker__grid-item"
               title={result.title}
+              role="button"
+              tabIndex={0}
               onClick={() => onSelect(result.imageUrl)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onSelect(result.imageUrl)
+                }
+              }}
             >
               <CachedImage src={result.imageUrl} />
               <span className="SteamGridDBPicker__source">VNDB</span>

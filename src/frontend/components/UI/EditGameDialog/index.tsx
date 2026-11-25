@@ -78,8 +78,9 @@ export default function EditGameDialog({ gameInfo, backdropClick }: Props) {
     else setArtSquare(text)
   }
 
+  const canSearchSquare = hasSgdbKey || Boolean(gameInfo.isVisualNovel)
   const openSgdbPicker = (target: 'cover' | 'square') => {
-    if (!hasSgdbKey && !(gameInfo.isVisualNovel && target === 'square')) return
+    if (target === 'cover' ? !hasSgdbKey : !canSearchSquare) return
     setSgdbTarget(target)
   }
 
@@ -217,11 +218,11 @@ export default function EditGameDialog({ gameInfo, backdropClick }: Props) {
             </span>
             <div
               className={classNames('appImageContainer', {
-                hasSgdbKey: hasSgdbKey || gameInfo.isVisualNovel
+                hasSgdbKey: canSearchSquare
               })}
               onClick={() => openSgdbPicker('square')}
               onKeyDown={
-                hasSgdbKey
+                canSearchSquare
                   ? (event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault()
@@ -230,8 +231,8 @@ export default function EditGameDialog({ gameInfo, backdropClick }: Props) {
                     }
                   : undefined
               }
-              role={hasSgdbKey ? 'button' : undefined}
-              tabIndex={hasSgdbKey ? 0 : undefined}
+              role={canSearchSquare ? 'button' : undefined}
+              tabIndex={canSearchSquare ? 0 : undefined}
             >
               <CachedImage
                 className={classNames('appImage square')}
@@ -242,7 +243,7 @@ export default function EditGameDialog({ gameInfo, backdropClick }: Props) {
                   fallbackImage
                 }
               />
-              {(hasSgdbKey || gameInfo.isVisualNovel) && (
+              {canSearchSquare && (
                 <div className="imageHoverOverlay">
                   <Icon glyph={Search} size="xl" />
                 </div>
